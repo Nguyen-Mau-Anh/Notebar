@@ -190,7 +190,7 @@ provides quit, settings, and a manual toggle.
 ### 4.2 Hot edge detection
 
 ```
-Timer (or CVDisplayLink)
+Timer on the main run loop, .common mode
   └── NSEvent.mouseLocation      ← static property; NO permission, NO entitlement
         ├── idle       10 Hz     cursor far from any edge
         └── near edge  60 Hz     cursor within 80 pt of the active screen's right edge
@@ -200,6 +200,10 @@ Timer (or CVDisplayLink)
 precisely why the fully invisible activation is viable with no first-run prompt — a
 global event monitor (`NSEvent.addGlobalMonitorForEvents`) would have been the obvious
 approach and would have dragged a permission dialog in with it.
+
+A plain `Timer` is used rather than `CVDisplayLink`: polling is not display-synchronized
+work, and `.common` run-loop mode keeps it firing while menus and drags are tracking —
+exactly the moments the panel must stay responsive.
 
 The active screen is the one whose frame contains the cursor, so multi-monitor works by
 construction. Only that screen's right edge triggers in v1; edge and screen selection

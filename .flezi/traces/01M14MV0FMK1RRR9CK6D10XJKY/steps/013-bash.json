@@ -1,0 +1,42 @@
+{
+  "record_id": "01M14P91PWZZ8WBFBT97AR1G6M",
+  "timestamp": "2026-08-28T17:22:00.028Z",
+  "agent_id": "orchestrator:session:01M14MV0FN8BMX3YAKXWS0ZCVX",
+  "agent_version": "agents/orchestrator.md@unknown",
+  "session_id": "01M14MV0FN8BMX3YAKXWS0ZCVX",
+  "initiator_id": "user:anhnm",
+  "action_type": "tool_call",
+  "parameters_fingerprint": "sha256:a7a22c5905facb8c7e4a684b57894a3f25c91fa2bf400409d1778aa6680fffbe",
+  "outcome": "success",
+  "tool_name": "Bash",
+  "trust_level": "L3",
+  "prev_hash": "sha256:b500fdde65cec11ba88c52013fb865700b8a269411887cd34c155c7837f539e9",
+  "parent_record_id": "01M14P517EHB5HBK07H196VW3F",
+  "model_version": "claude-opus-5",
+  "prompt_template_version": "agents/orchestrator.md@unknown",
+  "policy_version": "1.0.0",
+  "token_usage": {
+    "provider": "anthropic-api",
+    "input_tokens": 2,
+    "output_tokens": 7843,
+    "cache_write_tokens": 4394,
+    "cache_read_tokens": 127791,
+    "parser_warnings": [],
+    "source": "event.message.usage",
+    "turn_uuid": "7155a079-119e-480c-ba2d-2e6979dfa57e",
+    "request_id": "req_011CeVXYjXyELaTFfsMBijGs"
+  },
+  "stepIndex": 13,
+  "durationMs": 0,
+  "result": {
+    "stdout": "part 1 written:      847 lines",
+    "stderr": "",
+    "truncated": false
+  },
+  "tokenUsage": {
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0
+  },
+  "hook_overhead_ms": 39
+}

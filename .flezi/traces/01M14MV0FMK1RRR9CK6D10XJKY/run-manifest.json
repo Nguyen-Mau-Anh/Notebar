@@ -4,8 +4,8 @@
   "initiator_id": "user:anhnm",
   "status": "completed",
   "startedAt": "2026-08-28T16:56:51.445Z",
-  "finishedAt": "2026-08-28T17:11:08.981Z",
+  "finishedAt": "2026-08-28T17:15:09.792Z",
   "scores": null,
-  "durationMs": 857536,
-  "stepCount": 8
+  "durationMs": 1098347,
+  "stepCount": 10
 }

@@ -1,0 +1,42 @@
+{
+  "record_id": "01M14PFCSN11HY0GJ8AKGMS64Q",
+  "timestamp": "2026-08-28T17:25:27.990Z",
+  "agent_id": "orchestrator:session:01M14MV0FN8BMX3YAKXWS0ZCVX",
+  "agent_version": "agents/orchestrator.md@unknown",
+  "session_id": "01M14MV0FN8BMX3YAKXWS0ZCVX",
+  "initiator_id": "user:anhnm",
+  "action_type": "tool_call",
+  "parameters_fingerprint": "sha256:ac56018fac9ca77885024d1fbd643628e41ad46c095055438498423193dd950b",
+  "outcome": "success",
+  "tool_name": "Bash",
+  "trust_level": "L3",
+  "prev_hash": "sha256:d04ec8602708627391ee00aee597039d0b51e67c47baf26930812c672648343d",
+  "parent_record_id": "01M14P91PWZZ8WBFBT97AR1G6M",
+  "model_version": "claude-opus-5",
+  "prompt_template_version": "agents/orchestrator.md@unknown",
+  "policy_version": "1.0.0",
+  "token_usage": {
+    "provider": "anthropic-api",
+    "input_tokens": 2,
+    "output_tokens": 21156,
+    "cache_write_tokens": 13140,
+    "cache_read_tokens": 140090,
+    "parser_warnings": [],
+    "source": "event.message.usage",
+    "turn_uuid": "0d902892-8995-4bde-a37e-1b23993c6b47",
+    "request_id": "req_011CeVXqdya81N1i3wh8veDq"
+  },
+  "stepIndex": 14,
+  "durationMs": 0,
+  "result": {
+    "stdout": "plan complete:     2154 lines\n811:        // TODO(author): implement the policy.",
+    "stderr": "",
+    "truncated": false
+  },
+  "tokenUsage": {
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0
+  },
+  "hook_overhead_ms": 31
+}

@@ -1,0 +1,42 @@
+{
+  "record_id": "01M14NVM8EX29SAXA3V433P7JH",
+  "timestamp": "2026-08-28T17:14:40.270Z",
+  "agent_id": "orchestrator:session:01M14MV0FN8BMX3YAKXWS0ZCVX",
+  "agent_version": "agents/orchestrator.md@unknown",
+  "session_id": "01M14MV0FN8BMX3YAKXWS0ZCVX",
+  "initiator_id": "user:anhnm",
+  "action_type": "tool_call",
+  "parameters_fingerprint": "sha256:ee8f1542f4d21d4dfb9f9bf96917990ebcc55631c4d446345403eaaddd33cbe9",
+  "outcome": "success",
+  "tool_name": "Bash",
+  "trust_level": "L3",
+  "prev_hash": "sha256:464b094d868f0e17530653af78aa53adee997d29d8e342b899cd97c3934ac838",
+  "parent_record_id": "01M14NVEWBJB9THT2TY6JMS50V",
+  "model_version": "claude-opus-5",
+  "prompt_template_version": "agents/orchestrator.md@unknown",
+  "policy_version": "1.0.0",
+  "token_usage": {
+    "provider": "anthropic-api",
+    "input_tokens": 2,
+    "output_tokens": 433,
+    "cache_write_tokens": 2061,
+    "cache_read_tokens": 108455,
+    "parser_warnings": [],
+    "source": "event.message.usage",
+    "turn_uuid": "1b7a4cac-97fb-4ae1-bfcb-41601764c49b",
+    "request_id": "req_011CeVX17SCqLMMRtgGCkVY1"
+  },
+  "stepIndex": 10,
+  "durationMs": 0,
+  "result": {
+    "stdout": "--- memory saved ---\n- [Prefers native over Electron](prefers-native-over-electron.md) — rejects Electron for always-running apps over RAM growth; TS is their home language",
+    "stderr": "",
+    "truncated": false
+  },
+  "tokenUsage": {
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0
+  },
+  "hook_overhead_ms": 18
+}

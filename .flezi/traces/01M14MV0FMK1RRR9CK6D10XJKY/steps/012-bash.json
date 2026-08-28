@@ -1,0 +1,42 @@
+{
+  "record_id": "01M14P517EHB5HBK07H196VW3F",
+  "timestamp": "2026-08-28T17:19:48.462Z",
+  "agent_id": "orchestrator:session:01M14MV0FN8BMX3YAKXWS0ZCVX",
+  "agent_version": "agents/orchestrator.md@unknown",
+  "session_id": "01M14MV0FN8BMX3YAKXWS0ZCVX",
+  "initiator_id": "user:anhnm",
+  "action_type": "tool_call",
+  "parameters_fingerprint": "sha256:2641d7be46be7a1bdf70b096f8f0882df79991a9ed3fc1c8452643e2dea5d3b9",
+  "outcome": "success",
+  "tool_name": "Bash",
+  "trust_level": "L3",
+  "prev_hash": "sha256:1a474cee56a724cb7a715e0b93b11f233445e85dfd2426937a98c47a78be018a",
+  "parent_record_id": "01M14P1ZRN90911RP7PKVNANMM",
+  "model_version": "claude-opus-5",
+  "prompt_template_version": "agents/orchestrator.md@unknown",
+  "policy_version": "1.0.0",
+  "token_usage": {
+    "provider": "anthropic-api",
+    "input_tokens": 2,
+    "output_tokens": 1594,
+    "cache_write_tokens": 1877,
+    "cache_read_tokens": 125914,
+    "parser_warnings": [],
+    "source": "event.message.usage",
+    "turn_uuid": "39d6db64-2706-4e25-957c-9739858f08ad",
+    "request_id": "req_011CeVXXGiPbg4tetERX3ngu"
+  },
+  "stepIndex": 12,
+  "durationMs": 0,
+  "result": {
+    "stdout": "xcodegen: NOT INSTALLED (plan Task 1 installs it)\nbrew: yes",
+    "stderr": "",
+    "truncated": false
+  },
+  "tokenUsage": {
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0
+  },
+  "hook_overhead_ms": 16
+}
