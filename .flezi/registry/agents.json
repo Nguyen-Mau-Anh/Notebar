@@ -1,0 +1,17 @@
+[
+  {
+    "id": "orchestrator:session:01M14MV0FN8BMX3YAKXWS0ZCVX",
+    "role": "orchestrator",
+    "owning_team": "project",
+    "deployment_date": "2026-08-28T16:56:51.445Z",
+    "permitted_tool_scopes": [
+      "*"
+    ],
+    "agent_definition_version": "agents/orchestrator.md@unknown",
+    "parent_agent_id": null,
+    "session_id": "01M14MV0FN8BMX3YAKXWS0ZCVX",
+    "status": "active",
+    "registered_at": "2026-08-28T16:56:51.445Z",
+    "deregistered_at": null
+  }
+]

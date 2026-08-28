@@ -1,0 +1,9 @@
+{
+  "record_id": "01M14NFRSF0S7R32GC24RGWFX6",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "echo \"=== sibling projects ===\"; ls -1 /Users/anhnm/dev/01.Github/ 2>/dev/null | head -30\necho; echo \"=== languages in those projects ===\"\nfor d in /Users/anhnm/dev/01.Github/*/; do\n  n=$(basename \"$d\")\n  langs=\"\"\n  [ -f \"$d/package.json\" ] && langs=\"$langs node\"\n  [ -f \"$d/tsconfig.json\" ] && langs=\"$langs TS\"\n  [ -f \"$d/requirements.txt\" ] || [ -f \"$d/pyproject.toml\" ] && langs=\"$langs py\"\n  [ -f \"$d/go.mod\" ] && langs=\"$langs go\"\n  [ -f \"$d/Cargo.toml\" ] && langs=\"$langs rust\"\n  [ -f \"$d/pom.xml\" ] || [ -f \"$d/build.gradle\" ] && langs=\"$langs java\"\n  ls \"$d\"*.sln \"$d\"*.csproj >/dev/null 2>&1 && langs=\"$langs csharp\"\n  ls \"$d\"*.xcodeproj >/dev/null 2>&1 && langs=\"$langs xcode\"\n  [ -n \"$langs\" ] && echo \"  $n:$langs\"\ndone\necho; echo \"=== global toolchains ===\"\nfor c in node npm pnpm bun python3 go cargo dotnet java; do printf \"%-8s \" \"$c\"; command -v $c >/dev/null 2>&1 && $c --version 2>&1 | head -1 || echo \"-\"; done",
+    "description": "Detect user's usual languages and installed toolchains"
+  },
+  "captured_at": "2026-08-28T17:08:11.696Z"
+}

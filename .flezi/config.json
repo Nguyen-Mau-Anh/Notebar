@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "projectName": "Notebar",
+  "currentLevel": "L0",
+  "targetLevel": "L1",
+  "tools": [
+    "claude"
+  ],
+  "autoInitialized": true,
+  "audit": {
+    "retentionDays": 90
+  }
+}
