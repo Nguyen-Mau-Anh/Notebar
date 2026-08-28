@@ -2,8 +2,10 @@
   "runId": "01M14MV0FMK1RRR9CK6D10XJKY",
   "session_id": "01M14MV0FN8BMX3YAKXWS0ZCVX",
   "initiator_id": "user:anhnm",
-  "status": "running",
+  "status": "completed",
   "startedAt": "2026-08-28T16:56:51.445Z",
-  "finishedAt": null,
-  "scores": null
+  "finishedAt": "2026-08-28T17:11:08.981Z",
+  "scores": null,
+  "durationMs": 857536,
+  "stepCount": 8
 }

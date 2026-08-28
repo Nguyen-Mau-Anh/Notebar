@@ -1,0 +1,42 @@
+{
+  "record_id": "01M14N6A5EEWGR3WGR4TMYZPDF",
+  "timestamp": "2026-08-28T17:03:01.806Z",
+  "agent_id": "orchestrator:session:01M14MV0FN8BMX3YAKXWS0ZCVX",
+  "agent_version": "agents/orchestrator.md@unknown",
+  "session_id": "01M14MV0FN8BMX3YAKXWS0ZCVX",
+  "initiator_id": "user:anhnm",
+  "action_type": "tool_call",
+  "parameters_fingerprint": "sha256:7f9d67f56dcb82e5a9f910ab2812e573008285e5bc3f6972e157301022fd271d",
+  "outcome": "success",
+  "tool_name": "Bash",
+  "trust_level": "L3",
+  "prev_hash": "sha256:3e39a44700d46419b8ae14fc746227166fd001da9a678661c247d8cb1cad22b2",
+  "parent_record_id": "01M14MV0X18NPT3FFZT46WEZFF",
+  "model_version": "claude-opus-5",
+  "prompt_template_version": "agents/orchestrator.md@unknown",
+  "policy_version": "1.0.0",
+  "token_usage": {
+    "provider": "anthropic-api",
+    "input_tokens": 2,
+    "output_tokens": 3270,
+    "cache_write_tokens": 6690,
+    "cache_read_tokens": 67677,
+    "parser_warnings": [],
+    "source": "event.message.usage",
+    "turn_uuid": "12d8c426-37f9-45e1-b71d-00af9f9a49d6",
+    "request_id": "req_011CeVWL6CCrJh8NknATa59f"
+  },
+  "stepIndex": 3,
+  "durationMs": 0,
+  "result": {
+    "stdout": "=== macOS version ===\nProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83\n\n=== Xcode ===\nXcode 26.4.1\nBuild version 17E202\n\n=== Swift ===\nswift-driver version: 1.148.6 Apple Swift version 6.3.1 (swiftlang-6.3.1.1.2 clang-2100.0.123.102)\nTarget: arm64-apple-macosx26.0\n\n=== macOS SDKs available ===\nmacOS SDKs:\n\tmacOS 26.4                    \t-sdk macosx26.4\n\tmacOS 26.4                    \t-sdk macosx26.4",
+    "stderr": "",
+    "truncated": false
+  },
+  "tokenUsage": {
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0
+  },
+  "hook_overhead_ms": 13
+}
