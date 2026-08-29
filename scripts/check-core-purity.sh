@@ -21,8 +21,10 @@ CORE_TARGET_SOURCES="Packages/NotebarCore/Sources/NotebarCore/"
 # no #if canImport(...) that makes them acceptable here.
 if grep -rnE '^[[:space:]]*import[[:space:]]+(AppKit|SwiftUI|UIKit|Cocoa|os|OSLog|Combine|CoreData|SwiftData|CryptoKit)' \
      "$CORE_TARGET_SOURCES" 2>/dev/null; then
-  echo "ERROR: NotebarCore imports a UI framework (see above)." >&2
-  echo "AppKit/SwiftUI/UIKit/Cocoa are Apple-only and have no place in this package." >&2
+  echo "ERROR: NotebarCore imports an Apple-only module (see above)." >&2
+  echo "AppKit, SwiftUI, UIKit, Cocoa, os, OSLog, Combine, CoreData, SwiftData, and" >&2
+  echo "CryptoKit have no Linux or Windows counterpart. NotebarCore exists so a" >&2
+  echo "Windows port (M5) can recompile it as-is, so any of them breaks that plan." >&2
   echo "Move that code into the Notebar app target instead." >&2
   exit 1
 fi
