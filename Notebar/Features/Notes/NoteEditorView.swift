@@ -106,6 +106,13 @@ struct NoteEditorView: NSViewRepresentable {
             // downscaled and fit to the container's width before the body
             // below is captured for saving.
             NoteImageEmbedding.normalizeAttachments(in: textView)
+            // Safety net for spec §6.2d's renumbering requirement: catches
+            // every edit that adds or removes a list item *except* Return
+            // (handled directly in `shouldChangeTextIn`, below, since that's
+            // the one edit `NoteListEditing.handleReturn` performs itself) —
+            // a pasted block of items, or an item deleted via an ordinary
+            // selection-and-delete, still lands here.
+            NoteListEditing.renumberRun(near: textView.selectedRange().location, in: textView)
             let attributedString = textView.attributedString()
             model.updateNoteBody(
                 id: noteID,
@@ -140,9 +147,17 @@ struct NoteEditorView: NSViewRepresentable {
 
         /// Deliverable 3's markdown shortcuts: `- `/`* ` or `1. ` at the
         /// start of a line, checked and applied before the triggering space
-        /// is actually inserted.
+        /// is actually inserted. Return gets the same "intercept before the
+        /// default edit happens" treatment for spec §6.2d: inside a list
+        /// item, `NoteListEditing.handleReturn` performs the edit itself
+        /// (ending the list on an empty item, or starting the next one with
+        /// its own marker) and this returns `false` so the plain "\n" the
+        /// key press would otherwise insert never lands on top of it.
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
-            NoteMarkdownShortcuts.handle(textView, range: affectedCharRange, replacement: replacementString)
+            if replacementString == "\n", NoteListEditing.handleReturn(in: textView, range: affectedCharRange) {
+                return false
+            }
+            return NoteMarkdownShortcuts.handle(textView, range: affectedCharRange, replacement: replacementString)
         }
     }
 }

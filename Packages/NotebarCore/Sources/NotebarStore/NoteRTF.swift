@@ -127,8 +127,15 @@ public enum NoteRTF {
     /// which is exactly the shadow column's contract: an attachment
     /// contributes no text, so embedding an image never touches FTS (spec
     /// §6.2c).
+    ///
+    /// List markers (spec §6.2d) are real characters too — TextKit renders
+    /// no bullet or number from `NSTextList` alone — but they're bookkeeping
+    /// this editor inserted, not something the user wrote, so
+    /// `NoteListMarkers.strippingMarkers` removes them here the same way an
+    /// attachment is already excluded: a note reading "1.\tBuy milk" indexes
+    /// as "Buy milk", not "1. Buy milk".
     public static func plainText(from attributedString: NSAttributedString) -> String {
-        attributedString.string
+        NoteListMarkers.strippingMarkers(from: attributedString)
     }
 
     /// Convenience for callers that only have a stored plain-RTF blob, not a

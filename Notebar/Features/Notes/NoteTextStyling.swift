@@ -79,15 +79,25 @@ enum NoteTextStyling {
         let newStyle = (existing?.mutableCopy() as? NSMutableParagraphStyle) ?? NoteFont.bodyParagraphStyle
 
         if alreadyThisList {
+            // Strip the markers this list inserted *before* the style below
+            // clears `textLists` — `NoteListEditing.stripMarkers` needs the
+            // still-current style to know which paragraphs have one.
+            NoteListEditing.stripMarkers(in: textView)
             newStyle.textLists = []
             newStyle.headIndent = 0
             newStyle.firstLineHeadIndent = 0
+            applyParagraphStyle(newStyle, in: textView, preservingTextLists: false)
         } else {
             newStyle.textLists = [NSTextList(markerFormat: ordered ? .decimal : .disc, options: 0)]
             newStyle.headIndent = Tokens.Typography.listIndent
             newStyle.firstLineHeadIndent = Tokens.Typography.listMarkerIndent
+            applyParagraphStyle(newStyle, in: textView, preservingTextLists: false)
+            // Spec §6.2d: TextKit renders no marker from `NSTextList` alone,
+            // so on an empty line — including an entirely empty note —
+            // applying a list above would look like nothing happened
+            // without this inserting the marker as real text.
+            NoteListEditing.insertMarkers(in: textView, ordered: ordered)
         }
-        applyParagraphStyle(newStyle, in: textView, preservingTextLists: false)
     }
 
     // MARK: - Character-level: bold/italic
