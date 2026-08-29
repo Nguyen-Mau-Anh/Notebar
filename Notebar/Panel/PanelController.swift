@@ -58,6 +58,12 @@ final class PanelController {
         monitor.triggerBand = { [weak self] screen in
             self?.triggerBand(on: screen)
         }
+        // Gives the rail's collapse button (spec §6.1) a path to `toggle()`.
+        // `model` is built before this controller exists, so the view can't
+        // be handed the method directly; this closure is installed the
+        // moment the controller is ready instead. Weak: the model must not
+        // be the thing keeping this controller alive.
+        model.requestCollapse = { [weak self] in self?.toggle() }
         presentHandle()
         monitor.start()
         observeKeyWindow()

@@ -16,10 +16,11 @@ enum Tokens {
         static let handleWidth: CGFloat = PanelTiming.handleWidth
         static let handleHeight: CGFloat = PanelTiming.handleHeight
 
-        /// The control row's height (spec §6.1); its width matches
-        /// `railWidth` so it reads as capping the rail rather than floating
-        /// beside it.
-        static let pinHeight: CGFloat = 32
+        /// The height shared by the rail's two 56pt-wide control rows (spec
+        /// §6.1): the top pin/maximize row and the bottom-anchored collapse
+        /// button. Width matches `railWidth` in both so each reads as
+        /// capping the rail rather than floating beside it.
+        static let controlRowHeight: CGFloat = 32
         /// Each of the row's two toggles (pin, maximize) — 24x24pt side by
         /// side with `Space.xs` between them.
         static let controlToggleSize: CGFloat = 24

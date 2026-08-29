@@ -6,6 +6,11 @@ struct TabRail: View {
     @Binding var isMaximized: Bool
     let isCompact: Bool
 
+    /// Calls `PanelViewModel.requestCollapse`. A plain closure, not a
+    /// binding, because collapsing is a one-shot action, not state this view
+    /// owns or mirrors.
+    let onCollapse: () -> Void
+
     var body: some View {
         VStack(spacing: Tokens.Space.xs) {
             ControlRow(isPinned: $isPinned, isMaximized: $isMaximized)
@@ -22,6 +27,10 @@ struct TabRail: View {
                 }
             }
             Spacer()
+
+            Divider()
+
+            CollapseButton(action: onCollapse)
         }
         .padding(.top, Tokens.Space.md)
         .frame(width: isCompact ? Tokens.Size.railWidthCompact : Tokens.Size.railWidth)
@@ -45,7 +54,7 @@ private struct ControlRow: View {
             PinToggle(isPinned: $isPinned)
             MaximizeToggle(isMaximized: $isMaximized)
         }
-        .frame(width: Tokens.Size.railWidth, height: Tokens.Size.pinHeight)
+        .frame(width: Tokens.Size.railWidth, height: Tokens.Size.controlRowHeight)
     }
 }
 
@@ -97,6 +106,44 @@ private struct MaximizeToggle: View {
         .buttonStyle(.plain)
         .accessibilityLabel(isMaximized ? "Restore panel size" : "Maximize panel")
         .accessibilityAddTraits(isMaximized ? [.isSelected] : [])
+    }
+}
+
+/// The 56x32pt control pinned to the bottom of the rail, below the three
+/// tabs and separated from them by a hairline (spec §6.1). Dismisses the
+/// panel immediately without the user moving the cursor off it — the case
+/// it exists for is a **pinned** panel the user is actively working in, since
+/// pinning defeats every cursor-driven collapse and previously left only
+/// Escape, the menu bar item, or the global hotkey, all of which require
+/// leaving the mouse.
+///
+/// `action` is `PanelViewModel.requestCollapse`, which resolves to
+/// `PanelController.toggle()` → `.toggleRequested`. `PanelMachine` handles
+/// `(.expanded, .toggleRequested)` independently of `shouldCollapse`, the
+/// same way it handles Escape, so this overrides pin without unpinning it:
+/// pin state survives the collapse, and the next expand is still pinned.
+///
+/// Unlike the pin and maximize toggles, this control has no persistent
+/// "on" state to color permanently — it is a momentary action — so hover is
+/// tracked locally to drive the same secondary → accent step they use.
+private struct CollapseButton: View {
+    let action: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "chevron.right.2")
+                .font(.system(size: 15))
+                .foregroundStyle(isHovering ? Color.accentColor : Color.secondary)
+                .frame(width: Tokens.Size.railWidth, height: Tokens.Size.controlRowHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: Tokens.Radius.sm)
+                        .fill(isHovering ? Color.accentColor.opacity(0.08) : .clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .accessibilityLabel("Collapse panel")
     }
 }
 

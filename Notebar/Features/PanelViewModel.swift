@@ -41,6 +41,20 @@ final class PanelViewModel {
     /// currently on screen.
     var isMaximized = false
 
+    /// The rail's bottom-anchored collapse button (spec §6.1) calls this.
+    /// `PanelController.start()` installs it as `{ [weak self] in self?.toggle() }`
+    /// once the controller exists — the view is built before the controller
+    /// is, so it cannot be handed `toggle()` directly. Weak so this model
+    /// (which outlives no one in particular) can never keep the controller
+    /// alive; if nothing has installed it yet the button is inert rather
+    /// than crashing.
+    ///
+    /// This is a one-shot action, not state to mirror, so it is a plain
+    /// closure rather than something `PanelController` observes with
+    /// `observeModel` — there is nothing here for `withObservationTracking`
+    /// to track.
+    var requestCollapse: (() -> Void)?
+
     // MARK: - Collapse-suppression signals (spec §4.4)
     //
     // `PanelController` mirrors these into `PanelContext` the same way it

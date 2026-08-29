@@ -31,7 +31,8 @@ struct RootView: View {
                         get: { model.isMaximized },
                         set: { model.isMaximized = $0 }
                     ),
-                    isCompact: isCompact
+                    isCompact: isCompact,
+                    onCollapse: { model.requestCollapse?() }
                 )
 
                 Divider()
