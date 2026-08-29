@@ -9,6 +9,13 @@ refuses to collapse while you are typing, dragging a card, or have a menu open.
 
 **It has never shown a permission prompt, and by construction it cannot.**
 
+### [⬇ Download v0.1.0](https://github.com/Nguyen-Mau-Anh/Notebar/releases/latest)
+
+Requires macOS 26+. Open the `.dmg`, drag Notebar to Applications. **The first launch is
+blocked** — allow it under **System Settings → Privacy & Security → Open Anyway**. That is
+once per install, not per launch; the build is ad-hoc signed but not notarized. On macOS 15
+and later, Control-click → Open no longer bypasses this.
+
 <!-- Add a screenshot here: the handle at the edge, and the panel expanded. -->
 
 ## What it does
@@ -50,8 +57,9 @@ make check     # the core-purity guard
 `Notebar.xcodeproj` is **generated** from `project.yml` and is gitignored. Never edit it by
 hand — change `project.yml` and run `make gen`.
 
-There is no installer yet. `make run` launches from `build/`; see
-[Distribution](#distribution) for why there is no `.dmg`.
+`make dmg` builds a Release `.app` and wraps it in a drag-to-Applications `.dmg` under
+`build-release/`. That is how the [release](https://github.com/Nguyen-Mau-Anh/Notebar/releases/latest)
+is produced.
 
 ## Architecture
 
@@ -111,10 +119,10 @@ The panel, notes, tasks, settings, persistence, and diagnostics all work. 122 te
 
 ## Distribution
 
-There is no installer, and one is not straightforward.
+`make dmg` produces an installable `.dmg`, and releases are published from it.
 
-A `.dmg` can be built and will run on the machine that built it. Handing it to someone else
-means their Mac blocks it on first launch — they can allow it under **System Settings →
+The build is **ad-hoc signed but not notarized**, which means a Mac other than the one that
+built it blocks the first launch — they can allow it under **System Settings →
 Privacy & Security → Open Anyway**, which works but is alarming. Removing that warning
 requires notarization, which requires a Developer ID certificate, which requires the
 $99/year Apple Developer Program.
