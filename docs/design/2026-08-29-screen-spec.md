@@ -182,6 +182,12 @@ Centred inside it is the **18pt SF Symbol of the currently selected tab** in
 `text.secondary`, stepping to `accent` on hover. The handle is what the expand animation
 grows from and the collapse animation returns to.
 
+**Pin control.** The rail is topped by a 56x32pt pin toggle, separated from the three tabs
+by a 1px `border.separator` hairline with `space.xs` clearance either side. Idle: a 15pt
+`pin` glyph in `text.secondary`. Pinned: `pin.fill` in `accent`, with a `radius.sm`
+background at `accent` 10%. It is smaller and unlabelled precisely so it does not read as a
+fourth tab — it changes behaviour, not content.
+
 **Tab toolbar.** Every content tab opens with the same 36pt toolbar row across the top of
 the content area, flush under the panel's top edge, with a 1px `border.separator` hairline
 beneath it. Its shape is fixed: **context on the left, primary action on the right.**

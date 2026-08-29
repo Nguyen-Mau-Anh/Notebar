@@ -401,6 +401,19 @@ the content is not locked inside an Apple archive format.
 
 ### 6.1 Application tab rail (left)
 
+**Pin control, top-anchored.** Above the three tabs and separated from them by a hairline
+sits a pin toggle: 56pt wide, 32pt tall, a 15pt `pin` glyph in `text.secondary`. Active, it
+becomes `pin.fill` in `accent`. Toggling it drives `PanelContext.isPinned`, which
+`PanelMachine.shouldCollapse` already treats as an absolute veto — a pinned panel ignores
+cursor exit, the exit dwell, and every other collapse trigger. Only an explicit unpin or
+`Esc` closes it (spec section 4.3).
+
+The pin is deliberately not a fourth tab: it is smaller, unlabelled, and separated by a
+rule, because it changes the panel's *behaviour* rather than its content.
+
+The state machine has supported this since M0 — `isPinned` is one of the six suppression
+signals in section 4.4 and is already honoured by the reducer. Only the control was missing.
+
 A ~56 pt vertical rail: Notes, Tasks, Settings. Icon with label beneath at default width;
 icon-only below 340 pt. The selected tab persists in `app_state` and is what the panel
 shows on its next expand, so the panel resumes where the user left it.
