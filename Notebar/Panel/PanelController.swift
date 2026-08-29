@@ -155,9 +155,14 @@ final class PanelController {
         guard panel.isVisible else {
             // `.hidePanel` should only ever be emitted while the panel is
             // expanded or expanding. If this fires, the reducer and the
-            // window have drifted out of sync — surface it instead of
-            // silently doing nothing.
-            assertionFailure("hidePanel effect received while panel is not visible")
+            // window have drifted out of sync. Surface it instead of silently
+            // doing nothing — but a diagnostic must not be more destructive
+            // than the bug it reports, so this logs rather than asserts: it
+            // is reachable in production (e.g. `showPanel()` bailing out when
+            // `activeScreen()` returns nil), and `assertionFailure` would trap
+            // a Debug build over a benign no-op. Becomes a proper test
+            // assertion once there is a test target for the app (M1).
+            NSLog("Notebar: hidePanel effect received while the panel is not visible — reducer and window are out of sync")
             return
         }
         guard let screen = activeScreen() else { return }
