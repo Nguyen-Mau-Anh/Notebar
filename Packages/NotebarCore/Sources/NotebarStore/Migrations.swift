@@ -19,6 +19,15 @@ enum Migrations {
             try db.execute(sql: OpenTabSchema.createOpenTabTable)
         }
 
+        migrator.registerMigration(TaskSchema.migrationName) { db in
+            try db.execute(sql: TaskSchema.createBoardTable)
+            try db.execute(sql: TaskSchema.createBoardColumnTable)
+            try db.execute(sql: TaskSchema.createTaskTable)
+            try db.execute(sql: TaskSchema.createTaskFTSTable)
+            try db.execute(sql: TaskSchema.taskFTSTriggers)
+            try db.execute(sql: TaskSchema.seedDefaultBoardAndColumns)
+        }
+
         return migrator
     }
 }

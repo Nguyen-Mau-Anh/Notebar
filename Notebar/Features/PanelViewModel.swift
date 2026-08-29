@@ -12,14 +12,13 @@ import NotebarStore
 /// here rather than as `RootView`'s own `@State` because the collapsed
 /// handle must show the icon of the *currently selected* tab, and
 /// `PanelController` has no other way to know what that is. Note-tab state
-/// (`notes`, `activeNoteID`) and Task state (`taskGroups`) live here for the
+/// (`notes`, `activeNoteID`) and Task state (`taskColumnGroups`) live here for the
 /// same reason: they are UI state, not AppKit state, but `PanelController`
 /// still needs `isPinned` to forward into `PanelContext`.
 ///
-/// Notes and the open-tab strip now persist through `NoteRepository` /
-/// `OpenTabRepository` (`NotebarStore`'s GRDB implementations by default).
-/// Task state remains in-memory only — SQLite lands behind repository
-/// protocols for tasks in a later task without needing this UI to change.
+/// Notes, the open-tab strip, and tasks all persist through
+/// `NoteRepository` / `OpenTabRepository` / `TaskRepository`
+/// (`NotebarStore`'s GRDB implementations by default).
 @Observable
 final class PanelViewModel {
     var isExpanded = false
@@ -90,6 +89,7 @@ final class PanelViewModel {
 
     private let noteRepository: NoteRepository
     private let openTabRepository: OpenTabRepository
+    private let taskRepository: TaskRepository
 
     /// All repository writes happen off the main thread, so a debounced
     /// save (or the open-tab replace it triggers) never blocks typing or
@@ -102,10 +102,12 @@ final class PanelViewModel {
     var notes: [Note] = []
     var activeNoteID: Note.ID?
 
-    init(noteRepository: NoteRepository, openTabRepository: OpenTabRepository) {
+    init(noteRepository: NoteRepository, openTabRepository: OpenTabRepository, taskRepository: TaskRepository) {
         self.noteRepository = noteRepository
         self.openTabRepository = openTabRepository
+        self.taskRepository = taskRepository
         loadPersistedState()
+        loadTasks()
     }
 
     /// Convenience for SwiftUI previews and any caller that doesn't need a
@@ -118,7 +120,11 @@ final class PanelViewModel {
         // there's no disk I/O to fail here, so surfacing that as a crash
         // during preview/test setup is preferable to swallowing it.
         let repositories = try! NotebarDatabase.openInMemory()
-        self.init(noteRepository: repositories.notes, openTabRepository: repositories.openTabs)
+        self.init(
+            noteRepository: repositories.notes,
+            openTabRepository: repositories.openTabs,
+            taskRepository: repositories.tasks
+        )
     }
 
     /// Restores `notes` and `activeNoteID` from whatever was open when the
@@ -308,16 +314,40 @@ final class PanelViewModel {
 
     // MARK: - Tasks
 
-    var taskGroups: [TaskGroup] = TaskGroup.seeded
-
-    var totalTaskCount: Int {
-        taskGroups.reduce(0) { $0 + $1.tasks.count }
+    /// One status column paired with its tasks, in the shape `TasksTab`
+    /// renders — spec §6.3a's board groups cards by column, and this is
+    /// that grouping precomputed from `TaskRepository.columns()` /
+    /// `.all()` rather than left for the view to redo on every render.
+    struct TaskColumnGroup: Identifiable {
+        var id: BoardColumn.ID { column.id }
+        var column: BoardColumn
+        var tasks: [TaskItem]
     }
 
-    /// Appends a new task into the first group. Groups are fixed and
-    /// dragging between them is M2 scope — see spec §6.4a.
+    var taskColumnGroups: [TaskColumnGroup] = []
+
+    var totalTaskCount: Int {
+        taskColumnGroups.reduce(0) { $0 + $1.tasks.count }
+    }
+
+    /// Loads every column and task from the store and regroups them —
+    /// called once at startup (mirroring `loadPersistedState()`) and again
+    /// after any write below, so `taskColumnGroups` always reflects what was
+    /// actually persisted rather than an optimistic local guess.
+    private func loadTasks() {
+        guard let columns = try? taskRepository.columns(), let tasks = try? taskRepository.all() else { return }
+        let tasksByColumn = Dictionary(grouping: tasks, by: \.columnID)
+        taskColumnGroups = columns.map { column in
+            TaskColumnGroup(column: column, tasks: tasksByColumn[column.id] ?? [])
+        }
+    }
+
+    /// Appends a new task into the first column (Queue, spec §6.3a's
+    /// `backlogKind` — dragging into other columns is the next task, not
+    /// this one).
     func addTask() {
-        guard !taskGroups.isEmpty else { return }
-        taskGroups[0].tasks.append(TaskItem(title: "New task"))
+        guard let firstColumn = taskColumnGroups.first?.column else { return }
+        guard (try? taskRepository.create(title: "New task", columnID: firstColumn.id)) != nil else { return }
+        loadTasks()
     }
 }

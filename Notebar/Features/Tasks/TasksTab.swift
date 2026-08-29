@@ -1,4 +1,5 @@
 import SwiftUI
+import NotebarCore
 
 struct TasksTab: View {
     let model: PanelViewModel
@@ -34,7 +35,7 @@ struct TasksTab: View {
     private var board: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Tokens.Space.lg) {
-                ForEach(model.taskGroups) { group in
+                ForEach(model.taskColumnGroups) { group in
                     TaskGroupSection(group: group)
                 }
             }
@@ -48,12 +49,12 @@ struct TasksTab: View {
 /// list — the true side-by-side / collapsible-group board layouts (spec
 /// §6.3) are M2 scope, as is dragging a card between groups.
 private struct TaskGroupSection: View {
-    let group: TaskGroup
+    let group: PanelViewModel.TaskColumnGroup
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.sm) {
             HStack(spacing: Tokens.Space.xs) {
-                Text(group.name)
+                Text(group.column.name)
                     .font(.system(size: 12, weight: .semibold))
                 Text("\(group.tasks.count)")
                     .font(.system(size: 10, weight: .semibold))

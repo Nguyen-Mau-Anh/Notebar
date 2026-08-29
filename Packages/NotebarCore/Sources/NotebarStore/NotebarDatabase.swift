@@ -11,6 +11,7 @@ public enum NotebarDatabase {
     public struct Repositories {
         public let notes: NoteRepository
         public let openTabs: OpenTabRepository
+        public let tasks: TaskRepository
     }
 
     /// Opens (creating if needed) the on-disk database in this app's
@@ -29,7 +30,8 @@ public enum NotebarDatabase {
         try Migrations.migrator.migrate(dbQueue)
         return Repositories(
             notes: GRDBNoteRepository(dbQueue: dbQueue),
-            openTabs: GRDBOpenTabRepository(dbQueue: dbQueue)
+            openTabs: GRDBOpenTabRepository(dbQueue: dbQueue),
+            tasks: GRDBTaskRepository(dbQueue: dbQueue)
         )
     }
 

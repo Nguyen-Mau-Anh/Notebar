@@ -25,7 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             repositories = try! NotebarDatabase.openInMemory()
         }
 
-        let model = PanelViewModel(noteRepository: repositories.notes, openTabRepository: repositories.openTabs)
+        let model = PanelViewModel(
+            noteRepository: repositories.notes,
+            openTabRepository: repositories.openTabs,
+            taskRepository: repositories.tasks
+        )
         self.model = model
         let content = FirstMouseHostingView(rootView: RootView(model: model))
 
