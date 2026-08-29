@@ -464,8 +464,11 @@ switch, drag to reorder, middle-click or `⌘W` to close, `⌘T` for a new note.
 scrolls horizontally with an overflow chevron listing hidden tabs — necessary because at
 420 pt only three or four tabs fit.
 
-**Editor.** The primary implementation wraps `NSTextView` in an `NSViewRepresentable`
-behind a `NoteEditorView` interface. This is chosen over SwiftUI's `TextEditor` with an
+**Editor.** The implementation wraps `NSTextView` in an `NSViewRepresentable` behind the
+`NoteEditorView` interface — the seam the plain-text placeholder was built behind precisely
+so this swap costs one file. Storage moves from `body` as `String` to `body_rtf` as an RTF
+blob, with `body_plain` regenerated in the same transaction so FTS cannot drift (§5).
+Lists use `NSTextList`, which `NSTextView` renders and RTF round-trips natively. This is chosen over SwiftUI's `TextEditor` with an
 `AttributedString` binding because `NSTextView` gives full control over attributes,
 attachments, and first-responder behaviour — all of which the link chips in §6.4 require.
 A spike in M1 evaluates whether the SwiftUI-native path is sufficient; because both sit
@@ -475,6 +478,35 @@ Open tabs are rows in `open_tab`, so the session survives a restart. `⌘P` open
 search across `note_fts` and `task_fts`. Saves are debounced at 400 ms and on blur;
 `body_plain` is regenerated in the same transaction that writes `body_rtf`, so the search
 index cannot drift.
+
+### 6.2b Formatting bar
+
+A **32pt row directly beneath the tab toolbar**, visible only while a note is open, with a
+1px `border.separator` hairline beneath it. Left-aligned, 28x28pt hit targets, 15pt glyphs
+in `text.secondary`, `accent` when the caret sits inside that style:
+
+| Control | Glyph | Shortcut |
+|---|---|---|
+| Bold | `bold` | `⌘B` |
+| Italic | `italic` | `⌘I` |
+| Inline code | `chevron.left.forwardslash.chevron.right` | `⌘⇧C` |
+| Heading 1 | `textformat.size.larger` | `⌘⌥1` |
+| Heading 2 | `textformat.size` | `⌘⌥2` |
+| Bulleted list | `list.bullet` | `⌘⇧8` |
+| Numbered list | `list.number` | `⌘⇧7` |
+| Checklist | `checklist` | `⌘⇧9` |
+
+Buttons **toggle** — pressing Bold with the caret already inside bold text removes it — and
+reflect the caret's current state, so the bar doubles as an indicator of where you are.
+
+At 340pt eight 28pt targets fill roughly 224pt, which fits. Below the compact breakpoint
+the bar scrolls horizontally rather than wrapping to a second row: chrome must not grow
+taller as the panel narrows.
+
+**Why a persistent bar rather than a popover.** Formatting in a notes app is frequent, and
+a popover costs a click per use and hides the caret's current state. 32pt of chrome is the
+cheaper trade. Markdown-style input shortcuts (`- ` for a bullet, `1. ` for a number) are
+supported *in addition*, not instead — discoverability and speed are different needs.
 
 ### 6.3 Tasks
 
