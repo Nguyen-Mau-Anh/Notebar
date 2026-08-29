@@ -1,24 +1,20 @@
 import AppKit
+import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var panel: EdgePanel?
+    private var controller: PanelController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        // Temporary verification scaffold — replaced by PanelController in Task 7.
-        guard let screen = NSScreen.main else { return }
-        let width: CGFloat = 420
-        let frame = NSRect(
-            x: screen.visibleFrame.maxX - width,
-            y: screen.visibleFrame.minY,
-            width: width,
-            height: screen.visibleFrame.height
+        // Placeholder content, replaced by RootView in Task 8.
+        let placeholder = NSHostingView(
+            rootView: Color.blue.opacity(0.25).ignoresSafeArea()
         )
-        let panel = EdgePanel(contentRect: frame)
-        panel.backgroundColor = NSColor.systemRed.withAlphaComponent(0.35)
-        panel.orderFrontRegardless()
-        self.panel = panel
+
+        let controller = PanelController(content: placeholder)
+        controller.start()
+        self.controller = controller
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
