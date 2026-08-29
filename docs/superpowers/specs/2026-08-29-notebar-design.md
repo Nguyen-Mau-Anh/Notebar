@@ -468,6 +468,17 @@ outside the panel is cancelled, not dropped.
 - Deleting an entity soft-deletes it; existing chips render as tombstones rather than
   silently deleting text the user wrote.
 
+### 6.4a Tab toolbar
+
+Every content tab opens with the same 36pt toolbar: context on the left, primary action on
+the right, hairline beneath. Notes puts its tab strip on the left and `+ new note` on the
+right; Tasks puts its title and count on the left and `+ new task` on the right; Settings
+has a title and no action. A new task lands in the first `backlog`-kind column and is moved
+by dragging.
+
+One fixed location for the primary action beats a contextually smarter one that moves: the
+user should never have to look for it.
+
 ### 6.5 Settings
 
 Shell only in v1. The tab renders placeholder sections the design already implies —
