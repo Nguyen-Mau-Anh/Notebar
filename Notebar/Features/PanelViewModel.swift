@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import NotebarCore
@@ -72,20 +73,60 @@ final class PanelViewModel {
     /// a clock.
     var lastKeystrokeAt: Date?
 
-    /// A drag is in flight. No drag source exists yet (M2); settable now so
-    /// the channel is ready when one does.
+    /// A drag is in flight. Set by `beginTaskDrag()`/`endTaskDrag()`, the
+    /// task board's card-drag handlers (spec §6.3a) — the first real
+    /// producer of this signal.
     var isDragging = false
 
     /// A menu, popover, or sheet is open. No overlay exists yet; settable
     /// now so the channel is ready when one does.
     var hasOpenOverlay = false
 
+    /// Polls for the mouse-up that ends a task-card drag. Neither `.onDrag`
+    /// nor `.onDrop` gives SwiftUI a callback for "the drag session ended" —
+    /// only for a successful drop on a registered target — so a drag
+    /// released outside every group (spec §6.3a: "cancelled, not dropped")
+    /// would otherwise never clear `isDragging`, permanently blocking the
+    /// panel from collapsing (`PanelMachine.shouldCollapse` treats it as a
+    /// hard invariant). Polling `NSEvent.pressedMouseButtons`, like
+    /// `CursorMonitor` polls `NSEvent.mouseLocation`, needs no
+    /// Accessibility/Input Monitoring permission — unlike
+    /// `NSEvent.addGlobalMonitorForEvents`, deliberately avoided for the
+    /// same reason (spec section 4.2) — so this guarantees the flag clears
+    /// on both the successful and the cancelled path without that prompt.
+    private var dragEndPollTimer: Timer?
+
+    /// Called from a task card's `.onDrag` closure, exactly when a drag
+    /// begins — the one synchronous hook that API offers.
+    func beginTaskDrag() {
+        isDragging = true
+        dragEndPollTimer?.invalidate()
+        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+            guard NSEvent.pressedMouseButtons == 0 else { return }
+            self?.endTaskDrag()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        dragEndPollTimer = timer
+    }
+
+    /// Clears `isDragging`, however the drag ended — dropped on a group or
+    /// released outside every one. `beginTaskDrag()`'s poll timer calls this
+    /// the moment the mouse button lifts; a successful drop's own handler
+    /// calls it too, so the flag clears immediately rather than waiting out
+    /// the next 50ms tick.
+    func endTaskDrag() {
+        dragEndPollTimer?.invalidate()
+        dragEndPollTimer = nil
+        isDragging = false
+    }
+
     // MARK: - Notes
 
-    /// Notes save 400ms after the last keystroke, or immediately on blur
-    /// (`flushPendingSave`) — not on every keystroke, which would mean a
-    /// disk write per character typed.
-    private static let noteSaveDebounceInterval: TimeInterval = 0.4
+    /// Notes and tasks both save 400ms after the last keystroke, or
+    /// immediately on blur (`flushPendingSave`/`flushPendingTaskSave`) — not
+    /// on every keystroke, which would mean a disk write per character
+    /// typed. One shared constant rather than two identical ones.
+    private static let saveDebounceInterval: TimeInterval = 0.4
 
     private let noteRepository: NoteRepository
     private let openTabRepository: OpenTabRepository
@@ -265,7 +306,7 @@ final class PanelViewModel {
         pendingSaves[id]?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.persistNote(id: id) }
         pendingSaves[id] = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.noteSaveDebounceInterval, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.saveDebounceInterval, execute: work)
     }
 
     /// Saves a note immediately, bypassing the debounce, and cancels any
@@ -280,10 +321,14 @@ final class PanelViewModel {
 
     /// Called on quit (`AppDelegate.applicationWillTerminate`) and whenever
     /// the active tab changes, since only one note is ever being edited at
-    /// a time but this makes no assumption about that.
+    /// a time but this makes no assumption about that. Also flushes any
+    /// pending task-detail save, for the identical reason.
     func flushAllPendingSaves() {
         for id in pendingSaves.keys {
             flushPendingSave(id: id)
+        }
+        for id in pendingTaskSaves.keys {
+            flushPendingTaskSave(id: id)
         }
     }
 
@@ -326,6 +371,13 @@ final class PanelViewModel {
 
     var taskColumnGroups: [TaskColumnGroup] = []
 
+    /// The single card currently expanded in place (spec §6.3a). At most one
+    /// at a time: setting a new id is what collapses whichever one was open,
+    /// since there is nowhere else the "which card is expanded" fact lives.
+    var expandedTaskID: TaskItem.ID?
+
+    private var pendingTaskSaves: [TaskItem.ID: DispatchWorkItem] = [:]
+
     var totalTaskCount: Int {
         taskColumnGroups.reduce(0) { $0 + $1.tasks.count }
     }
@@ -348,6 +400,111 @@ final class PanelViewModel {
     func addTask() {
         guard let firstColumn = taskColumnGroups.first?.column else { return }
         guard (try? taskRepository.create(title: "New task", columnID: firstColumn.id)) != nil else { return }
+        loadTasks()
+    }
+
+    /// The current in-memory copy of a task, looked up by id rather than
+    /// held as a stale value — mirrors `bodyBinding(for:)`'s reasoning in
+    /// `NotesTab` so a card's detail editor always reads what was actually
+    /// last written, not a copy captured at some earlier render.
+    func task(withID id: TaskItem.ID) -> TaskItem? {
+        taskColumnGroups.lazy.flatMap(\.tasks).first { $0.id == id }
+    }
+
+    private func taskIndexPath(for id: TaskItem.ID) -> (group: Int, task: Int)? {
+        for (groupIndex, group) in taskColumnGroups.enumerated() {
+            if let taskIndex = group.tasks.firstIndex(where: { $0.id == id }) {
+                return (groupIndex, taskIndex)
+            }
+        }
+        return nil
+    }
+
+    /// Expands a card in place, or collapses it if it was already the one
+    /// expanded — the card header's click handler (spec §6.3a).
+    func toggleTaskExpansion(id: TaskItem.ID) {
+        expandedTaskID = (expandedTaskID == id) ? nil : id
+    }
+
+    /// Renames a task and persists the new title immediately — one discrete
+    /// commit (Return, blur, or the context menu's Rename), not a stream of
+    /// keystrokes, so nothing to debounce, mirroring `renameNote`. Unlike a
+    /// note's fallback to "Untitled", an empty title here falls back to the
+    /// task's *previous* title (spec §6.3a): simply not applying a blank
+    /// edit leaves the existing title in place. Persists only what's already
+    /// in memory, so a rename never touches the detail a debounced save
+    /// hasn't flushed yet.
+    func renameTask(id: TaskItem.ID, title: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let (groupIndex, taskIndex) = taskIndexPath(for: id) else { return }
+        taskColumnGroups[groupIndex].tasks[taskIndex].title = trimmed
+        let task = taskColumnGroups[groupIndex].tasks[taskIndex]
+        persistenceQueue.async { [taskRepository] in
+            try? taskRepository.update(task)
+        }
+    }
+
+    /// Deletes a task outright — the card's right-click "Delete". Cancels
+    /// any pending debounced detail save first, for the same reason
+    /// `deleteNote` does: writing a stale update immediately before the
+    /// delete would be wasted at best and a lost-update race at worst.
+    func deleteTask(id: TaskItem.ID) {
+        pendingTaskSaves.removeValue(forKey: id)?.cancel()
+        if expandedTaskID == id { expandedTaskID = nil }
+        for index in taskColumnGroups.indices {
+            taskColumnGroups[index].tasks.removeAll { $0.id == id }
+        }
+        persistenceQueue.async { [taskRepository] in
+            try? taskRepository.delete(id: id)
+        }
+    }
+
+    /// The single path every edit to a task's detail goes through: updates
+    /// the in-memory copy immediately and schedules a debounced save,
+    /// mirroring `updateNoteBody` exactly — same debounce interval, same
+    /// "no edit mode" reasoning (spec §6.3a).
+    func updateTaskDetail(id: TaskItem.ID, detail: String) {
+        guard let (groupIndex, taskIndex) = taskIndexPath(for: id) else { return }
+        taskColumnGroups[groupIndex].tasks[taskIndex].detailPlain = detail
+        scheduleTaskSave(id: id)
+    }
+
+    private func scheduleTaskSave(id: TaskItem.ID) {
+        pendingTaskSaves[id]?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.persistTask(id: id) }
+        pendingTaskSaves[id] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.saveDebounceInterval, execute: work)
+    }
+
+    /// Saves a task immediately, bypassing the debounce — called on the
+    /// detail editor's blur, so a pause shorter than the debounce interval
+    /// never loses a keystroke. Mirrors `flushPendingSave`.
+    func flushPendingTaskSave(id: TaskItem.ID) {
+        guard let work = pendingTaskSaves.removeValue(forKey: id) else { return }
+        work.cancel()
+        persistTask(id: id)
+    }
+
+    private func persistTask(id: TaskItem.ID) {
+        pendingTaskSaves[id] = nil
+        guard let task = task(withID: id) else { return }
+        persistenceQueue.async { [taskRepository] in
+            try? taskRepository.update(task)
+        }
+    }
+
+    /// Moves a dropped card into `columnID`, appended after that column's
+    /// current last task (spec §6.3a). `GRDBTaskRepository.move` already
+    /// writes the fresh fractional `sort_order` and owns the `completedAt`
+    /// stamping rule entirely — this only ever supplies the destination and
+    /// reloads, never reimplements either. Reordering within a column isn't
+    /// this deliverable's ask (only moving *between* groups is), so `before`
+    /// is always nil and `after` is always the destination's current last
+    /// task.
+    func moveTask(id: TaskItem.ID, toColumnID columnID: BoardColumn.ID) {
+        guard let destination = taskColumnGroups.first(where: { $0.column.id == columnID }) else { return }
+        let lastTaskID = destination.tasks.last?.id
+        guard (try? taskRepository.move(id: id, columnID: columnID, before: nil, after: lastTaskID)) != nil else { return }
         loadTasks()
     }
 }

@@ -71,6 +71,24 @@ struct GRDBTaskRepositoryCRUDTests {
         #expect(reloaded?.priority == 2)
     }
 
+    @Test("renaming — updating only the title — leaves the detail untouched")
+    func renamePreservesDetail() throws {
+        let repository = try makeRepository()
+        let queue = try #require(try repository.columns().first { $0.kind == BoardColumn.backlogKind })
+        var task = try repository.create(title: "Buy milk", columnID: queue.id)
+        task.detailPlain = "Two cartons, oat if they have it"
+        try repository.update(task)
+
+        // Mirrors `PanelViewModel.renameTask`: only `title` changes on the
+        // in-memory copy before it's persisted.
+        task.title = "Buy oat milk"
+        try repository.update(task)
+
+        let reloaded = try repository.all().first { $0.id == task.id }
+        #expect(reloaded?.title == "Buy oat milk")
+        #expect(reloaded?.detailPlain == "Two cartons, oat if they have it")
+    }
+
     @Test("update on an unknown id throws")
     func updateUnknownID() throws {
         let repository = try makeRepository()

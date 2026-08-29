@@ -41,6 +41,12 @@ enum Tokens {
         static let allNotesPopoverMaxHeight: CGFloat = 360
         /// The dot marking a row whose note is already open as a tab.
         static let allNotesOpenDotSize: CGFloat = 6
+
+        /// Caps an expanded task card's detail editor (spec §6.3a) and lets
+        /// it scroll internally instead. Without a cap, a long detail would
+        /// push every group below it far down the list and the board would
+        /// stop being a board.
+        static let taskDetailMaxHeight: CGFloat = 200
     }
 
     enum Space {
