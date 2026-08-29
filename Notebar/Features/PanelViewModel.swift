@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// State shared between `PanelController` (owns the window's geometry and
@@ -35,6 +36,32 @@ final class PanelViewModel {
     /// `isPinned`, and re-animates to the new frame if the panel is
     /// currently on screen.
     var isMaximized = false
+
+    // MARK: - Collapse-suppression signals (spec §4.4)
+    //
+    // `PanelController` mirrors these into `PanelContext` the same way it
+    // already mirrors `isPinned` — see `observePin()`. They live here, not on
+    // `PanelContext` directly, for the same reason `isPinned` does: this is
+    // the only channel SwiftUI has into the state machine.
+
+    /// A text editor in the panel holds first responder. Wired from
+    /// `NoteEditorView`'s `@FocusState`.
+    var isEditorFocused = false
+
+    /// When the user last typed a character, or nil if never this session.
+    /// A timestamp rather than a duration so it never ages by itself —
+    /// `PanelController` computes `msSinceLastKeystroke` from this at the
+    /// moment it snapshots `PanelContext`, since `PanelMachine` must not read
+    /// a clock.
+    var lastKeystrokeAt: Date?
+
+    /// A drag is in flight. No drag source exists yet (M2); settable now so
+    /// the channel is ready when one does.
+    var isDragging = false
+
+    /// A menu, popover, or sheet is open. No overlay exists yet; settable
+    /// now so the channel is ready when one does.
+    var hasOpenOverlay = false
 
     // MARK: - Notes
 

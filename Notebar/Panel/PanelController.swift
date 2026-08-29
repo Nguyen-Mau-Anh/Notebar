@@ -21,6 +21,13 @@ final class PanelController {
     private var timers: [PanelTimer: Timer] = [:]
     private var escapeMonitor: Any?
 
+    /// Mirrors `model.lastKeystrokeAt`. Kept as a timestamp here too, rather
+    /// than writing a duration straight into `context`, so that a duration is
+    /// never stored anywhere: `send(_:)` turns it into
+    /// `context.msSinceLastKeystroke` fresh at the moment the context is
+    /// snapshotted for the reducer. `PanelMachine` never reads a clock.
+    private var lastKeystrokeAt: Date?
+
     /// Incremented on every animation start. A completion handler that does not
     /// match the current value belongs to an animation that has been superseded,
     /// and must not run: acting on it fires `.animationFinished` for a transition
@@ -57,6 +64,10 @@ final class PanelController {
         installEscapeMonitor()
         observePin()
         observeMaximize()
+        observeEditorFocused()
+        observeLastKeystroke()
+        observeDragging()
+        observeOpenOverlay()
     }
 
     /// Puts the window on screen at its collapsed handle frame the moment the
@@ -77,9 +88,19 @@ final class PanelController {
     // MARK: - Reducer loop
 
     private func send(_ event: PanelEvent) {
+        context.msSinceLastKeystroke = msSinceLastKeystroke()
         let (next, effects) = PanelMachine.reduce(state, event, context)
         state = next
         for effect in effects { apply(effect) }
+    }
+
+    /// Computed fresh on every `send(_:)` from `lastKeystrokeAt`, never
+    /// stored — a stored duration would age between updates and quietly go
+    /// stale. This is the only clock read in the whole signal path;
+    /// `PanelMachine` only ever sees the resulting `Int?`.
+    private func msSinceLastKeystroke() -> Int? {
+        guard let lastKeystrokeAt else { return nil }
+        return Int(Date().timeIntervalSince(lastKeystrokeAt) * 1000)
     }
 
     private func apply(_ effect: PanelEffect) {
@@ -275,6 +296,62 @@ final class PanelController {
                 guard let self else { return }
                 self.applyMaximizeChange()
                 self.observeMaximize()
+            }
+        }
+    }
+
+    /// Mirrors `model.isEditorFocused` into `context`, same pattern as
+    /// `observePin()`.
+    private func observeEditorFocused() {
+        withObservationTracking {
+            _ = model.isEditorFocused
+        } onChange: { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.context.isEditorFocused = self.model.isEditorFocused
+                self.observeEditorFocused()
+            }
+        }
+    }
+
+    /// Mirrors `model.lastKeystrokeAt` into `lastKeystrokeAt`, not directly
+    /// into `context` — see `msSinceLastKeystroke()`.
+    private func observeLastKeystroke() {
+        withObservationTracking {
+            _ = model.lastKeystrokeAt
+        } onChange: { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.lastKeystrokeAt = self.model.lastKeystrokeAt
+                self.observeLastKeystroke()
+            }
+        }
+    }
+
+    /// Mirrors `model.isDragging` into `context`. No drag source exists yet
+    /// (M2); this keeps the channel ready without faking one.
+    private func observeDragging() {
+        withObservationTracking {
+            _ = model.isDragging
+        } onChange: { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.context.isDragging = self.model.isDragging
+                self.observeDragging()
+            }
+        }
+    }
+
+    /// Mirrors `model.hasOpenOverlay` into `context`. No overlay exists yet;
+    /// this keeps the channel ready without faking one.
+    private func observeOpenOverlay() {
+        withObservationTracking {
+            _ = model.hasOpenOverlay
+        } onChange: { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.context.hasOpenOverlay = self.model.hasOpenOverlay
+                self.observeOpenOverlay()
             }
         }
     }

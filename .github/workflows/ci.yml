@@ -40,13 +40,12 @@ jobs:
       - name: Core purity guard
         run: ./scripts/check-core-purity.sh
 
-  # The app target requires the macOS 26 SDK. GitHub's hosted runners may not
-  # carry Xcode 26 yet, so this job reports without failing the run. Flip
-  # continue-on-error to false once `xcodebuild -showsdks` here lists macosx26.
+  # The app target requires the macOS 26 SDK. GitHub's hosted runners carry
+  # macOS 26.5 (verified on run 33234440430 — newer than the 26.4 SDK on the
+  # development machine), so this is a required job, not best-effort.
   app:
-    name: App build (best effort until Xcode 26 runners exist)
+    name: App build
     runs-on: macos-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
