@@ -1,5 +1,12 @@
 # Notebar M0 (Shell) Implementation Plan
 
+> **Historical document.** This is the plan as executed for M0, kept as a record of how
+> the shell was built and why. Several of its values have since changed and are NOT current:
+> the panel was a 420pt full-height column here and is now a 340pt card at 70% height that
+> collapses to a 30x56 handle; `triggerWidth` was 2pt and is now 30pt, matching the handle.
+> The product spec is the current authority --
+> [`docs/superpowers/specs/2026-08-29-notebar-design.md`](../specs/2026-08-29-notebar-design.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A running menu-bar-only macOS app whose panel slides out when the cursor reaches the right screen edge, shows a three-tab rail with empty tabs, and collapses when the cursor leaves — without ever collapsing while the user is mid-thought.
