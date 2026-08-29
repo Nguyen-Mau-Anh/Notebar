@@ -2,13 +2,14 @@ import Foundation
 
 /// The SQL schema for notes, as constants rather than only prose, so
 /// `NotebarStore` never has to write SQL that this module doesn't already
-/// know about (spec §5's stated source of truth for the schema). Matches
-/// spec §5's `note` table with one deliberate deviation: `body` is plain
-/// text for this milestone rather than an RTF blob, since rich text is a
-/// later task — see `Note`'s doc comment. `body_plain` is kept as a
-/// dedicated shadow column now, ahead of that change, specifically so
-/// `note_fts` and the triggers below never need reworking: only how
-/// `body_plain` gets derived changes later, not the shape search relies on.
+/// know about (spec §5's stated source of truth for the schema).
+///
+/// `createNoteTable` below is the table's *original* shape — plain-text
+/// `body` rather than an RTF blob — and stays exactly as it was written,
+/// because this is a migration already run against real databases (see the
+/// module doc comment on `Migrations`). `NoteBodyRTFSchema` further down is
+/// the follow-up migration that adds `body_rtf` and drops `body`, bringing
+/// the table to spec §5's current shape without editing this one.
 ///
 /// Tasks, links, and tags (the rest of spec §5) are out of scope for this
 /// milestone and are not declared here.
@@ -77,4 +78,32 @@ public enum OpenTabSchema {
       is_active  INTEGER NOT NULL DEFAULT 0
     )
     """
+}
+
+/// The rich-text follow-up to `NoteSchema` (spec §6.2/§6.2b): adds the
+/// `body_rtf` blob the note editor's `NSTextView` now round-trips, and drops
+/// the plain-text `body` column it replaces. A *new* migration rather than an
+/// edit to `NoteSchema.createNoteTable` — the user's existing database
+/// already ran that migration, and `DatabaseMigrator` never re-runs a
+/// migration it has already applied, so changing that SQL would do nothing
+/// for anyone upgrading and would only matter for a database created fresh
+/// after this change, silently diverging the two.
+///
+/// `body_plain` is untouched: it already holds exactly the plain text every
+/// existing note's `body` was (`NoteRow`'s old derivation copied one straight
+/// into the other), so it needs no migrating and `note_fts` keeps working
+/// through the whole migration without a rebuild.
+public enum NoteBodyRTFSchema {
+    public static let migrationName = "addNoteBodyRTF"
+
+    /// Nullable, matching spec §5's `body_rtf BLOB` exactly: `Migrations`
+    /// backfills every existing row within this same migration, so in
+    /// practice no row is ever left NULL, but the column itself carries no
+    /// `NOT NULL` constraint forcing that.
+    public static let addBodyRTFColumn = "ALTER TABLE note ADD COLUMN body_rtf BLOB"
+
+    /// Run only after the backfill above has given every row a `body_rtf`
+    /// value — dropping `body` first would discard the plain text the
+    /// backfill still needs to read.
+    public static let dropBodyColumn = "ALTER TABLE note DROP COLUMN body"
 }

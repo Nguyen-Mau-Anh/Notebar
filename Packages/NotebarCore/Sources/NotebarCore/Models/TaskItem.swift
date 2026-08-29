@@ -6,10 +6,10 @@ import Foundation
 /// `NoteRepository`, which this mirrors.
 ///
 /// `detailPlain` is the only detail column for this milestone. Spec §5
-/// ultimately wants a `detail_rtf` blob once rich text lands, the same way
-/// `Note.body` is headed there — until then `detailPlain` *is* the detail,
-/// and adding the blob column later is additive rather than a rework of
-/// this type or of `task_fts` (`TaskSchema`).
+/// ultimately wants a `detail_rtf` blob, the same way `Note.bodyRTF` already
+/// has one — until then `detailPlain` *is* the detail, and adding the blob
+/// column later is additive rather than a rework of this type or of
+/// `task_fts` (`TaskSchema`).
 public struct TaskItem: Identifiable, Equatable, Sendable {
     public var id: String
     public var title: String

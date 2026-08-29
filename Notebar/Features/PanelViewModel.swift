@@ -328,10 +328,15 @@ final class PanelViewModel {
 
     /// The single path every edit to a note's body goes through: updates the
     /// in-memory copy immediately (so the UI never lags) and schedules a
-    /// debounced save of the persisted copy.
-    func updateNoteBody(id: Note.ID, body: String) {
+    /// debounced save of the persisted copy. `bodyPlain` is always supplied
+    /// alongside `bodyRTF` by the caller (`NoteEditorView.Coordinator`, which
+    /// derives both from the same live attributed string via `NoteRTF`), so
+    /// the two can never drift even before this reaches the repository (spec
+    /// §5, deliverable 3).
+    func updateNoteBody(id: Note.ID, bodyRTF: Data, bodyPlain: String) {
         guard let index = notes.firstIndex(where: { $0.id == id }) else { return }
-        notes[index].body = body
+        notes[index].bodyRTF = bodyRTF
+        notes[index].bodyPlain = bodyPlain
         scheduleSave(id: id)
     }
 

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 import GRDB
@@ -12,6 +13,12 @@ private func makeRepository() throws -> GRDBNoteRepository {
     return GRDBNoteRepository(dbQueue: dbQueue)
 }
 
+/// Builds an RTF blob the way the real note editor does — through `NoteRTF`
+/// — from a plain string, for tests that don't care about attributes.
+private func rtf(_ text: String) -> Data {
+    NoteRTF.data(from: NSAttributedString(string: text))
+}
+
 @Suite("GRDBNoteRepository CRUD")
 struct GRDBNoteRepositoryCRUDTests {
     @Test("a created note round-trips through all()")
@@ -22,20 +29,21 @@ struct GRDBNoteRepositoryCRUDTests {
         let all = try repository.all()
         #expect(all.count == 1)
         #expect(all.first?.id == created.id)
-        #expect(all.first?.body == "")
+        #expect(all.first?.bodyPlain == "")
     }
 
     @Test("update persists new field values")
     func update() throws {
         let repository = try makeRepository()
         var note = try repository.create()
-        note.body = "Buy milk"
+        note.bodyRTF = rtf("Buy milk")
+        note.bodyPlain = "Buy milk"
         note.isPinned = true
 
         try repository.update(note)
 
         let reloaded = try repository.all().first { $0.id == note.id }
-        #expect(reloaded?.body == "Buy milk")
+        #expect(reloaded?.bodyPlain == "Buy milk")
         #expect(reloaded?.isPinned == true)
     }
 
@@ -47,7 +55,8 @@ struct GRDBNoteRepositoryCRUDTests {
 
         // Guarantee a measurable gap regardless of clock resolution.
         Thread.sleep(forTimeInterval: 0.01)
-        note.body = "changed"
+        note.bodyRTF = rtf("changed")
+        note.bodyPlain = "changed"
         try repository.update(note)
 
         let reloaded = try repository.all().first { $0.id == note.id }
@@ -58,7 +67,8 @@ struct GRDBNoteRepositoryCRUDTests {
     func renameTitleLeavesBodyUntouched() throws {
         let repository = try makeRepository()
         var note = try repository.create()
-        note.body = "Some body text"
+        note.bodyRTF = rtf("Some body text")
+        note.bodyPlain = "Some body text"
         try repository.update(note)
 
         note.title = "My Renamed Note"
@@ -66,7 +76,7 @@ struct GRDBNoteRepositoryCRUDTests {
 
         let reloaded = try repository.all().first { $0.id == note.id }
         #expect(reloaded?.title == "My Renamed Note")
-        #expect(reloaded?.body == "Some body text")
+        #expect(reloaded?.bodyPlain == "Some body text")
     }
 
     @Test("update on an unknown id throws")
@@ -119,7 +129,8 @@ struct GRDBNoteRepositoryOpenTabTests {
         // something in it — otherwise this test would no longer describe
         // what closing a tab actually does for a real note.
         var note = try notes.create()
-        note.body = "Remember to feed the cat"
+        note.bodyRTF = rtf("Remember to feed the cat")
+        note.bodyPlain = "Remember to feed the cat"
         try notes.update(note)
         try openTabs.replaceAll([
             OpenTab(kind: OpenTab.noteKind, refID: note.id, sortOrder: 0, isActive: true)
@@ -134,9 +145,9 @@ struct GRDBNoteRepositoryOpenTabTests {
     }
 }
 
-@Suite("body_plain stays in sync with body")
+@Suite("body_plain stays in sync with body_rtf")
 struct GRDBNoteRepositoryBodyPlainTests {
-    @Test("body_plain matches body immediately after create")
+    @Test("body_plain matches bodyPlain immediately after create")
     func afterCreate() throws {
         let dbQueue = try DatabaseQueue()
         try Migrations.migrator.migrate(dbQueue)
@@ -147,23 +158,79 @@ struct GRDBNoteRepositoryBodyPlainTests {
         let bodyPlain = try dbQueue.read { db in
             try String.fetchOne(db, sql: "SELECT body_plain FROM note WHERE id = ?", arguments: [note.id])
         }
-        #expect(bodyPlain == note.body)
+        #expect(bodyPlain == note.bodyPlain)
     }
 
-    @Test("body_plain matches body after an update, in the same row write")
+    @Test("body_plain matches bodyPlain after an update, in the same row write")
     func afterUpdate() throws {
         let dbQueue = try DatabaseQueue()
         try Migrations.migrator.migrate(dbQueue)
         let repository = GRDBNoteRepository(dbQueue: dbQueue)
 
         var note = try repository.create()
-        note.body = "Remember to feed the cat"
+        note.bodyRTF = rtf("Remember to feed the cat")
+        note.bodyPlain = "Remember to feed the cat"
         try repository.update(note)
 
         let bodyPlain = try dbQueue.read { db in
             try String.fetchOne(db, sql: "SELECT body_plain FROM note WHERE id = ?", arguments: [note.id])
         }
         #expect(bodyPlain == "Remember to feed the cat")
+    }
+
+    @Test("body_plain derived from an RTF body matches its visible text")
+    func bodyPlainMatchesRTFVisibleText() throws {
+        let dbQueue = try DatabaseQueue()
+        try Migrations.migrator.migrate(dbQueue)
+        let repository = GRDBNoteRepository(dbQueue: dbQueue)
+
+        var note = try repository.create()
+        let attributed = NSMutableAttributedString(string: "Remember to buy oat milk")
+        attributed.addAttribute(
+            .font, value: NSFont.boldSystemFont(ofSize: 14),
+            range: NSRange(location: 0, length: 8)
+        )
+        note.bodyRTF = NoteRTF.data(from: attributed)
+        note.bodyPlain = NoteRTF.plainText(from: attributed)
+        try repository.update(note)
+
+        let reloaded = try repository.all().first { $0.id == note.id }
+        let storedBodyPlain = try dbQueue.read { db in
+            try String.fetchOne(db, sql: "SELECT body_plain FROM note WHERE id = ?", arguments: [note.id])
+        }
+
+        #expect(reloaded?.bodyPlain == "Remember to buy oat milk")
+        #expect(storedBodyPlain == "Remember to buy oat milk")
+        // The RTF blob itself still carries the bold attribute — only its
+        // plain-text projection collapsed to bare characters.
+        #expect(NoteRTF.plainText(fromRTF: reloaded?.bodyRTF ?? Data()) == "Remember to buy oat milk")
+    }
+}
+
+@Suite("RTF round-trip")
+struct GRDBNoteRepositoryRTFTests {
+    @Test("a bold run survives a save and reload")
+    func boldSurvivesRoundTrip() throws {
+        let repository = try makeRepository()
+        var note = try repository.create()
+
+        let attributed = NSMutableAttributedString(string: "Buy milk")
+        attributed.addAttribute(
+            .font, value: NSFont.boldSystemFont(ofSize: 14),
+            range: NSRange(location: 0, length: attributed.length)
+        )
+        note.bodyRTF = NoteRTF.data(from: attributed)
+        note.bodyPlain = attributed.string
+        try repository.update(note)
+
+        let reloaded = try repository.all().first { $0.id == note.id }
+        let reloadedAttributed = NoteRTF.attributedString(from: reloaded?.bodyRTF ?? Data())
+
+        #expect(reloadedAttributed.string == "Buy milk")
+        let font = reloadedAttributed.length > 0
+            ? reloadedAttributed.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+            : nil
+        #expect(font.map { NSFontManager.shared.traits(of: $0).contains(.boldFontMask) } == true)
     }
 }
 
@@ -173,7 +240,8 @@ struct GRDBNoteRepositorySearchTests {
     func findsByBodyWord() throws {
         let repository = try makeRepository()
         var note = try repository.create()
-        note.body = "Remember to buy oat milk tomorrow"
+        note.bodyRTF = rtf("Remember to buy oat milk tomorrow")
+        note.bodyPlain = "Remember to buy oat milk tomorrow"
         try repository.update(note)
 
         let results = try repository.search("oat")
@@ -185,7 +253,8 @@ struct GRDBNoteRepositorySearchTests {
     func excludesDeleted() throws {
         let repository = try makeRepository()
         var note = try repository.create()
-        note.body = "Remember to buy oat milk tomorrow"
+        note.bodyRTF = rtf("Remember to buy oat milk tomorrow")
+        note.bodyPlain = "Remember to buy oat milk tomorrow"
         try repository.update(note)
         try repository.delete(id: note.id)
 
@@ -199,7 +268,8 @@ struct GRDBNoteRepositorySearchTests {
         let repository = try makeRepository()
         var note = try repository.create()
         note.title = "Grocery List"
-        note.body = "Remember to buy oat milk"
+        note.bodyRTF = rtf("Remember to buy oat milk")
+        note.bodyPlain = "Remember to buy oat milk"
         try repository.update(note)
 
         try repository.delete(id: note.id)
@@ -213,7 +283,8 @@ struct GRDBNoteRepositorySearchTests {
     func blankQuery() throws {
         let repository = try makeRepository()
         var note = try repository.create()
-        note.body = "anything"
+        note.bodyRTF = rtf("anything")
+        note.bodyPlain = "anything"
         try repository.update(note)
 
         #expect(try repository.search("   ").isEmpty)
@@ -256,5 +327,47 @@ struct GRDBNoteRepositorySortOrderTests {
         let moved = try repository.reorder(id: first.id, before: second.id, after: nil)
 
         #expect(moved.sortOrder > second.sortOrder)
+    }
+}
+
+@Suite("RTF migration")
+struct NoteBodyRTFMigrationTests {
+    /// Reproduces exactly what a real upgrade sees: a database that only
+    /// ever knew the old plain-text `body` column, with a note the user
+    /// actually wrote something into. Migrating it forward must convert that
+    /// text into `body_rtf` rather than losing it or leaving it blank.
+    @Test("migrating an existing plain-text body converts it into body_rtf without losing the text")
+    func migratesExistingPlainTextBody() throws {
+        let dbQueue = try DatabaseQueue()
+        try Migrations.migrator.migrate(dbQueue, upTo: NoteSchema.migrationName)
+
+        let noteID = "legacy-note"
+        try dbQueue.write { db in
+            try db.execute(
+                sql: """
+                INSERT INTO note (id, title, body, body_plain, is_pinned, sort_order, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 0, 0, ?, ?)
+                """,
+                arguments: [
+                    noteID, "Untitled",
+                    "Remember to feed the cat", "Remember to feed the cat",
+                    Date(), Date(),
+                ]
+            )
+        }
+
+        try Migrations.migrator.migrate(dbQueue)
+
+        let rtfData = try dbQueue.read { db in
+            try Data.fetchOne(db, sql: "SELECT body_rtf FROM note WHERE id = ?", arguments: [noteID])
+        }
+        #expect(rtfData != nil)
+        #expect(NoteRTF.plainText(fromRTF: rtfData ?? Data()) == "Remember to feed the cat")
+
+        // `NoteRow` no longer declares a `body` column at all — confirms the
+        // migration actually dropped it rather than leaving it dangling.
+        let repository = GRDBNoteRepository(dbQueue: dbQueue)
+        let migratedNote = try repository.all().first { $0.id == noteID }
+        #expect(migratedNote?.bodyPlain == "Remember to feed the cat")
     }
 }

@@ -3,11 +3,24 @@
 # See spec section 3, rule 1.
 set -euo pipefail
 
+# Scoped to the NotebarCore *target*'s own directory, not the whole package:
+# `Packages/NotebarCore/Sources/` also contains `NotebarStore`, which is
+# expressly allowed platform-specific dependencies NotebarCore is not — it
+# already depends on GRDB (Apple platforms + Linux, not Windows, per
+# Package.swift's comment on that dependency) and, since the RTF note editor
+# (spec §6.2), on AppKit for RTF encoding. NotebarStore was never a candidate
+# for the M5 Windows port either target's rule is protecting; only
+# NotebarCore is. The Package.swift dependency check further down already
+# makes this same target-level distinction — this scoping keeps the import
+# scan consistent with it instead of accidentally banning NotebarStore's
+# legitimate dependencies.
+CORE_TARGET_SOURCES="Packages/NotebarCore/Sources/NotebarCore/"
+
 # These are never legitimate in NotebarCore, conditional or not: they are
 # Apple-only UI frameworks with no counterpart on other platforms, so there is
 # no #if canImport(...) that makes them acceptable here.
 if grep -rnE '^[[:space:]]*import[[:space:]]+(AppKit|SwiftUI|UIKit|Cocoa)' \
-     Packages/NotebarCore/Sources/ 2>/dev/null; then
+     "$CORE_TARGET_SOURCES" 2>/dev/null; then
   echo "ERROR: NotebarCore imports a UI framework (see above)." >&2
   echo "AppKit/SwiftUI/UIKit/Cocoa are Apple-only and have no place in this package." >&2
   echo "Move that code into the Notebar app target instead." >&2
@@ -23,7 +36,7 @@ fi
 # module falls back to Foundation's types on platforms where they're missing.
 for module in CoreGraphics QuartzCore; do
   files_importing=$(grep -rlE "^[[:space:]]*import[[:space:]]+${module}\b" \
-       Packages/NotebarCore/Sources/ 2>/dev/null || true)
+       "$CORE_TARGET_SOURCES" 2>/dev/null || true)
   for file in $files_importing; do
     if ! grep -qE "#if[[:space:]]+canImport\(${module}\)" "$file"; then
       echo "ERROR: $file unconditionally imports ${module}." >&2

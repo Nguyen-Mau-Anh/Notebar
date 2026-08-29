@@ -35,11 +35,11 @@ public final class GRDBNoteRepository: NoteRepository {
         try dbQueue.write { db in
             var row = NoteRow(note)
             row.updatedAt = Date()
-            // `body` and `body_plain` land in this one `UPDATE` statement —
-            // deliverable 3's "same transaction" requirement is structural
-            // here, not just documented, since `NoteRow.init` always derives
-            // `bodyPlain` from `body` and there is no path that writes one
-            // without the other. GRDB's `update(_:)` throws
+            // `body_rtf` and `body_plain` land in this one `UPDATE`
+            // statement — deliverable 3's "same transaction" requirement is
+            // structural here, not just documented, since `NoteRow.init`
+            // always copies both from `Note` together and there is no path
+            // that writes one without the other. GRDB's `update(_:)` throws
             // `RecordError.recordNotFound` on its own when `note.id`
             // matches no row, so there is nothing extra to check here.
             try row.update(db)

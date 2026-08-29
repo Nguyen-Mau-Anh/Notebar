@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import NotebarCore
 
@@ -17,7 +18,7 @@ struct NoteEmptyAndUntitledTests {
 
     @Test("a note with a body is not empty and untitled, even with the default title")
     func noteWithBodyIsNotEmptyAndUntitled() {
-        let note = Note(body: "Buy milk")
+        let note = Note(bodyPlain: "Buy milk")
         #expect(!note.isEmptyAndUntitled)
     }
 
@@ -29,7 +30,18 @@ struct NoteEmptyAndUntitledTests {
 
     @Test("a body of only whitespace still counts as empty")
     func whitespaceOnlyBodyIsStillEmpty() {
-        let note = Note(body: "   \n\t")
+        let note = Note(bodyPlain: "   \n\t")
+        #expect(note.isEmptyAndUntitled)
+    }
+
+    @Test("an RTF body with no visible characters is still empty and untitled")
+    func rtfBodyWithNoVisibleTextIsStillEmpty() {
+        // `bodyRTF` carries real (non-empty) bytes here — an RTF header for
+        // an attributed string with no visible characters is never actually
+        // empty `Data` — but `isEmptyAndUntitled` must key off `bodyPlain`,
+        // the shadow column that actually answers "is there anything here",
+        // not `bodyRTF.isEmpty`. See the doc comment on `isEmptyAndUntitled`.
+        let note = Note(bodyRTF: Data("{\\rtf1\\ansi}".utf8), bodyPlain: "")
         #expect(note.isEmptyAndUntitled)
     }
 }

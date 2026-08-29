@@ -53,6 +53,36 @@ enum Tokens {
         /// shrinks to just its header row and there is nowhere to aim a
         /// drop (spec §6.3a).
         static let taskEmptyGroupMinHeight: CGFloat = 44
+
+        /// The note editor's formatting bar (spec §6.2b): a 32pt row of
+        /// 28x28pt hit targets directly beneath the tab toolbar.
+        static let formattingBarHeight: CGFloat = 32
+        static let formattingBarButtonSize: CGFloat = 28
+    }
+
+    /// The note editor's type scale (spec §6.2/§6.2b): a fixed set of four
+    /// sizes, each with its own line height, so body text, headings, and
+    /// inline code are visually distinct without the user picking a font.
+    /// `NoteTextStyling` (app target) also uses the point sizes here to tell
+    /// which style a run of text currently is — see its `isHeadingFont`.
+    enum Typography {
+        static let bodySize: CGFloat = 14
+        static let bodyLineHeight: CGFloat = 20
+
+        static let heading1Size: CGFloat = 22
+        static let heading1LineHeight: CGFloat = 28
+
+        static let heading2Size: CGFloat = 17
+        static let heading2LineHeight: CGFloat = 22
+
+        static let codeSize: CGFloat = 13
+        static let codeLineHeight: CGFloat = 18
+
+        /// A list item's marker sits `listMarkerIndent` in from the margin;
+        /// its wrapped text (and every item after the first line) sits
+        /// `listIndent` in, so a marker reads as hanging left of its text.
+        static let listMarkerIndent: CGFloat = 4
+        static let listIndent: CGFloat = 20
     }
 
     enum Space {

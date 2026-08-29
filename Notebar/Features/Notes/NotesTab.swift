@@ -25,7 +25,7 @@ struct NotesTab: View {
             }
 
             if let activeID = model.activeNoteID, model.notes.contains(where: { $0.id == activeID }) {
-                NoteEditorView(text: bodyBinding(for: activeID), model: model, noteID: activeID)
+                NoteEditorContainer(model: model, noteID: activeID)
                     .id(activeID)
             } else {
                 PlaceholderTab(
@@ -36,16 +36,25 @@ struct NotesTab: View {
             }
         }
     }
+}
 
-    /// Keyed by id rather than array index: closing an earlier tab shifts
-    /// every later index, but the id stays stable. The setter routes through
-    /// `updateNoteBody` rather than mutating `model.notes` directly so every
-    /// keystroke also schedules the debounced save (spec deliverable 4).
-    private func bodyBinding(for id: Note.ID) -> Binding<String> {
-        Binding(
-            get: { model.notes.first(where: { $0.id == id })?.body ?? "" },
-            set: { newValue in model.updateNoteBody(id: id, body: newValue) }
-        )
+/// Pairs the formatting bar with the editor it formats, both keyed to the
+/// same note (`NotesTab`'s `.id(activeID)` on this whole view). `editingContext`
+/// is `@State` rather than passed in from above specifically so it gets
+/// recreated whenever this view does — a fresh bridge per note, so no
+/// button state (`NoteEditingContext.activeStyles`) ever leaks from one
+/// note's editor into the next.
+private struct NoteEditorContainer: View {
+    let model: PanelViewModel
+    let noteID: Note.ID
+
+    @State private var editingContext = NoteEditingContext()
+
+    var body: some View {
+        VStack(spacing: 0) {
+            FormattingBarView(context: editingContext)
+            NoteEditorView(model: model, noteID: noteID, editingContext: editingContext)
+        }
     }
 }
 
@@ -171,41 +180,3 @@ private struct NoteTabButton: View {
     }
 }
 
-/// The seam for the note body editor. A SwiftUI `TextEditor` over a plain
-/// `String` for this slice; the spec's rich-text `NSTextView` wrapper (spec
-/// §6.2) is a later task, and this is the only view that will need to change
-/// when it lands.
-///
-/// Also the real source for two of `PanelContext`'s collapse-suppression
-/// signals (spec §4.4): focus mirrors into `model.isEditorFocused` via
-/// `@FocusState`, and every text change stamps `model.lastKeystrokeAt`.
-/// `PanelController` picks both up the same way it already picks up
-/// `isPinned` — see `observeEditorFocused()`/`observeLastKeystroke()`.
-struct NoteEditorView: View {
-    @Binding var text: String
-    let model: PanelViewModel
-    let noteID: Note.ID
-
-    @FocusState private var isFocused: Bool
-
-    var body: some View {
-        TextEditor(text: $text)
-            .font(.system(size: 14))
-            .scrollContentBackground(.hidden)
-            .padding(Tokens.Space.md)
-            .focused($isFocused)
-            .onChange(of: isFocused) { _, newValue in
-                model.isEditorFocused = newValue
-                // Blur flushes any debounced save immediately (spec
-                // deliverable 4: "save on a 400ms pause and on blur") —
-                // losing focus is exactly the moment the user might switch
-                // away or quit, so a pending write can't be left dangling.
-                if !newValue {
-                    model.flushPendingSave(id: noteID)
-                }
-            }
-            .onChange(of: text) { _, _ in
-                model.lastKeystrokeAt = .now
-            }
-    }
-}

@@ -411,8 +411,8 @@ final class PanelController {
             guard event.keyCode == 53 else { return event }   // 53 = Escape
             return MainActor.assumeIsolated {
                 guard let self, self.model.isExpanded else { return event }
-                // A SwiftUI `TextEditor` is backed by an `NSTextView`, which
-                // conforms to the `NSText` protocol — as does the field
+                // The note editor's `NSTextView` (`NoteEditorView`) conforms
+                // to the `NSText` protocol directly — as does the field
                 // editor any `NSTextField` borrows — so this check catches
                 // any field editor, not just the note body.
                 if self.panel.firstResponder is NSText { return event }
