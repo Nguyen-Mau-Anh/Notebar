@@ -265,94 +265,93 @@ final class PanelController {
         })
     }
 
+    /// Generic fix for a bug that used to be copy-pasted into every observer
+    /// below: `withObservationTracking`'s `onChange` fires with `willSet`
+    /// semantics — *before* the observed property's new value actually
+    /// lands — so reading it synchronously inside `onChange` yields the
+    /// value from before the change that triggered it. The mirror ends up
+    /// permanently one change behind (pin needed two clicks to register
+    /// one, maximize needed two toggles, and the keystroke/editor-focus
+    /// mirrors used to suppress collapse a beat late).
+    ///
+    /// Hopping to the next main-actor turn via `Task` before calling
+    /// `read()` lets the mutation finish landing first, so `read()` sees the
+    /// post-change value. `Task { @MainActor in }` rather than
+    /// `DispatchQueue.main.async` since this type is already `@MainActor`
+    /// and everything else here reads that way. Re-arms itself after every
+    /// fire, same as the bespoke versions this replaces — `withObservationTracking`
+    /// only observes the next single change otherwise.
+    private func observeModel<Value>(
+        _ read: @escaping () -> Value,
+        onChange apply: @escaping (Value) -> Void
+    ) {
+        withObservationTracking {
+            _ = read()
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                apply(read())
+                self.observeModel(read, onChange: apply)
+            }
+        }
+    }
+
     /// `model.isPinned` is the only channel from SwiftUI into `isPinned` —
     /// the rail's pin button sets it, and this mirrors it into `context`
-    /// every time it changes. `withObservationTracking` must be re-armed
-    /// after every fire; it only observes the next single change otherwise.
+    /// every time it changes.
     private func observePin() {
-        withObservationTracking {
-            _ = model.isPinned
-        } onChange: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.isPinned = self.model.isPinned
-                self.observePin()
-            }
+        let model = self.model
+        observeModel({ model.isPinned }) { [weak self] newValue in
+            self?.isPinned = newValue
         }
     }
 
     /// `model.isMaximized` has no `PanelContext` counterpart — size is a
     /// framing concern this controller owns, not something the reducer
-    /// decides (see `frames(on:)`). Like `observePin`, this must be re-armed
-    /// after every fire. If the panel is on screen when the toggle flips, it
-    /// animates to the new frame; if it is collapsed, `showPanel()` simply
-    /// picks up the current geometry next time it runs, with nothing extra
-    /// to reconcile.
+    /// decides (see `frames(on:)`). If the panel is on screen when the
+    /// toggle flips, it animates to the new frame; if it is collapsed,
+    /// `showPanel()` simply picks up the current geometry next time it
+    /// runs, with nothing extra to reconcile.
     private func observeMaximize() {
-        withObservationTracking {
-            _ = model.isMaximized
-        } onChange: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.applyMaximizeChange()
-                self.observeMaximize()
-            }
+        let model = self.model
+        observeModel({ model.isMaximized }) { [weak self] _ in
+            self?.applyMaximizeChange()
         }
     }
 
     /// Mirrors `model.isEditorFocused` into `context`, same pattern as
     /// `observePin()`.
     private func observeEditorFocused() {
-        withObservationTracking {
-            _ = model.isEditorFocused
-        } onChange: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.context.isEditorFocused = self.model.isEditorFocused
-                self.observeEditorFocused()
-            }
+        let model = self.model
+        observeModel({ model.isEditorFocused }) { [weak self] newValue in
+            self?.context.isEditorFocused = newValue
         }
     }
 
     /// Mirrors `model.lastKeystrokeAt` into `lastKeystrokeAt`, not directly
     /// into `context` — see `msSinceLastKeystroke()`.
     private func observeLastKeystroke() {
-        withObservationTracking {
-            _ = model.lastKeystrokeAt
-        } onChange: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.lastKeystrokeAt = self.model.lastKeystrokeAt
-                self.observeLastKeystroke()
-            }
+        let model = self.model
+        observeModel({ model.lastKeystrokeAt }) { [weak self] newValue in
+            self?.lastKeystrokeAt = newValue
         }
     }
 
     /// Mirrors `model.isDragging` into `context`. No drag source exists yet
     /// (M2); this keeps the channel ready without faking one.
     private func observeDragging() {
-        withObservationTracking {
-            _ = model.isDragging
-        } onChange: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.context.isDragging = self.model.isDragging
-                self.observeDragging()
-            }
+        let model = self.model
+        observeModel({ model.isDragging }) { [weak self] newValue in
+            self?.context.isDragging = newValue
         }
     }
 
     /// Mirrors `model.hasOpenOverlay` into `context`. No overlay exists yet;
     /// this keeps the channel ready without faking one.
     private func observeOpenOverlay() {
-        withObservationTracking {
-            _ = model.hasOpenOverlay
-        } onChange: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.context.hasOpenOverlay = self.model.hasOpenOverlay
-                self.observeOpenOverlay()
-            }
+        let model = self.model
+        observeModel({ model.hasOpenOverlay }) { [weak self] newValue in
+            self?.context.hasOpenOverlay = newValue
         }
     }
 

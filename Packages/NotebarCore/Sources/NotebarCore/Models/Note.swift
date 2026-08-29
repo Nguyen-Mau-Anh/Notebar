@@ -21,7 +21,7 @@ public struct Note: Identifiable, Equatable, Sendable {
 
     public init(
         id: String = UUID().uuidString,
-        title: String = "",
+        title: String = "Untitled",
         body: String = "",
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
@@ -39,20 +39,12 @@ public struct Note: Identifiable, Equatable, Sendable {
 }
 
 public extension Note {
-    /// The tab strip's live label: the first non-empty line of `body`,
-    /// trimmed, falling back to "Untitled" so a fresh note always reads
-    /// clearly. This mirrors the note-tab title derivation that shipped in
-    /// M0's in-memory `Note` exactly, so the UI behaves identically once it
-    /// reads from this type instead.
-    ///
-    /// `title` itself is a stored column — repositories keep it in sync with
-    /// this derivation on every save, ahead of a future explicit-rename
-    /// feature that would let it diverge on purpose.
-    var derivedTitle: String {
-        let firstNonEmptyLine = body
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .first { !$0.isEmpty }
-        return firstNonEmptyLine ?? "Untitled"
+    /// The tab strip's label. `title` is a stored, user-editable column —
+    /// it no longer tracks `body` in any way, so typing in a note never
+    /// changes its tab. New notes are created with `title == "Untitled"`
+    /// and the rename UI itself refuses to commit a blank title, so `title`
+    /// should never actually be empty; this stays defensive regardless.
+    var displayTitle: String {
+        title.isEmpty ? "Untitled" : title
     }
 }

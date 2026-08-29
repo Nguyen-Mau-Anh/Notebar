@@ -136,8 +136,46 @@ final class PanelViewModel {
     /// note is gone — `NotesTab` shows the empty state in that case. Closing
     /// removes the tab, not the note itself — the note stays in the store.
     func closeNote(id: Note.ID) {
-        guard let index = notes.firstIndex(where: { $0.id == id }) else { return }
         flushAllPendingSaves()
+        removeTab(id: id)
+    }
+
+    /// Deletes a note outright — the tab's right-click "Delete", which
+    /// removes the note from the database too, not just its tab (unlike
+    /// `closeNote`). Cancels any pending debounced save for this note first
+    /// rather than flushing it: writing a body update immediately before
+    /// deleting the row would be wasted work at best and a lost-update race
+    /// against the delete at worst.
+    func deleteNote(id: Note.ID) {
+        pendingSaves.removeValue(forKey: id)?.cancel()
+        removeTab(id: id)
+        persistenceQueue.async { [noteRepository] in
+            try? noteRepository.delete(id: id)
+        }
+    }
+
+    /// Renames a note and persists the new title immediately. Unlike
+    /// `updateNoteBody`, a rename is one discrete commit (Return, blur, or
+    /// the context menu's Rename), not a stream of keystrokes, so there is
+    /// nothing to debounce. An empty or all-whitespace title falls back to
+    /// "Untitled" so a tab can never go blank — the inline editor also
+    /// guards this, but this is the actual source of truth.
+    func renameNote(id: Note.ID, title: String) {
+        guard let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        notes[index].title = trimmed.isEmpty ? "Untitled" : trimmed
+        let note = notes[index]
+        persistenceQueue.async { [noteRepository] in
+            try? noteRepository.update(note)
+        }
+    }
+
+    /// Removes a tab from the strip and repoints `activeNoteID` if needed.
+    /// Shared by `closeNote` (note stays in the store) and `deleteNote`
+    /// (note is also removed from the store) — both need identical tab
+    /// bookkeeping.
+    private func removeTab(id: Note.ID) {
+        guard let index = notes.firstIndex(where: { $0.id == id }) else { return }
         notes.remove(at: index)
         if activeNoteID == id {
             activeNoteID = notes.indices.contains(index) ? notes[index].id : notes.last?.id

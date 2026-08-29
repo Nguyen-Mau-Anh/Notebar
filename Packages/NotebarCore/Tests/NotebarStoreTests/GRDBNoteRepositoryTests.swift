@@ -54,6 +54,21 @@ struct GRDBNoteRepositoryCRUDTests {
         #expect((reloaded?.updatedAt ?? .distantPast) > originalUpdatedAt)
     }
 
+    @Test("renaming a note persists the new title and does not change the body")
+    func renameTitleLeavesBodyUntouched() throws {
+        let repository = try makeRepository()
+        var note = try repository.create()
+        note.body = "Some body text"
+        try repository.update(note)
+
+        note.title = "My Renamed Note"
+        try repository.update(note)
+
+        let reloaded = try repository.all().first { $0.id == note.id }
+        #expect(reloaded?.title == "My Renamed Note")
+        #expect(reloaded?.body == "Some body text")
+    }
+
     @Test("update on an unknown id throws")
     func updateUnknownID() throws {
         let repository = try makeRepository()
@@ -142,6 +157,21 @@ struct GRDBNoteRepositorySearchTests {
         let results = try repository.search("oat")
 
         #expect(results.isEmpty)
+    }
+
+    @Test("deleting a note removes it from all() and drops it from FTS, by title or body")
+    func deleteRemovesFromSearchIndex() throws {
+        let repository = try makeRepository()
+        var note = try repository.create()
+        note.title = "Grocery List"
+        note.body = "Remember to buy oat milk"
+        try repository.update(note)
+
+        try repository.delete(id: note.id)
+
+        #expect(try repository.all().isEmpty)
+        #expect(try repository.search("Grocery").isEmpty)
+        #expect(try repository.search("oat").isEmpty)
     }
 
     @Test("a blank query returns no results")

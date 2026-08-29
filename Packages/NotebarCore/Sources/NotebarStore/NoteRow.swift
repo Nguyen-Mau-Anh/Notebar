@@ -37,7 +37,7 @@ extension NoteRow {
     /// changes: deriving plain text from an RTF blob instead of copying it.
     init(_ note: Note) {
         id = note.id
-        title = note.derivedTitle
+        title = note.title
         body = note.body
         bodyPlain = note.body
         isPinned = note.isPinned
