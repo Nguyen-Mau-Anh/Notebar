@@ -112,7 +112,15 @@ struct GRDBNoteRepositoryOpenTabTests {
         let notes = GRDBNoteRepository(dbQueue: dbQueue)
         let openTabs = GRDBOpenTabRepository(dbQueue: dbQueue)
 
-        let note = try notes.create()
+        // Given content, not left as the default "Untitled" + empty body:
+        // `PanelViewModel.closeNote` deletes an untouched note outright
+        // rather than merely closing its tab (see `Note.isEmptyAndUntitled`),
+        // so a fixture note this test expects to survive closing must have
+        // something in it — otherwise this test would no longer describe
+        // what closing a tab actually does for a real note.
+        var note = try notes.create()
+        note.body = "Remember to feed the cat"
+        try notes.update(note)
         try openTabs.replaceAll([
             OpenTab(kind: OpenTab.noteKind, refID: note.id, sortOrder: 0, isActive: true)
         ])

@@ -43,6 +43,7 @@ struct ToolbarActionButton: View {
                     RoundedRectangle(cornerRadius: Tokens.Radius.sm)
                         .fill(isHovering ? Color.accentColor.opacity(0.08) : .clear)
                 )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }

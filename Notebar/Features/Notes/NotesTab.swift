@@ -100,6 +100,7 @@ private struct NoteTabButton: View {
                     Image(systemName: "xmark")
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close note")

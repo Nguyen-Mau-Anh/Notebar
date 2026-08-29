@@ -76,6 +76,7 @@ private struct PinToggle: View {
                     RoundedRectangle(cornerRadius: Tokens.Radius.sm)
                         .fill(isPinned ? Color.accentColor.opacity(0.10) : .clear)
                 )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isPinned ? "Unpin panel" : "Pin panel")
@@ -102,6 +103,7 @@ private struct MaximizeToggle: View {
                     RoundedRectangle(cornerRadius: Tokens.Radius.sm)
                         .fill(isMaximized ? Color.accentColor.opacity(0.10) : .clear)
                 )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isMaximized ? "Restore panel size" : "Maximize panel")
@@ -140,6 +142,7 @@ private struct CollapseButton: View {
                     RoundedRectangle(cornerRadius: Tokens.Radius.sm)
                         .fill(isHovering ? Color.accentColor.opacity(0.08) : .clear)
                 )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
@@ -170,6 +173,13 @@ private struct TabRailButton: View {
                 RoundedRectangle(cornerRadius: Tokens.Radius.sm)
                     .fill(isSelected ? Color.accentColor.opacity(0.12) : .clear)
             )
+            // Without this, SwiftUI only hit-tests the glyph and label text
+            // themselves, not the padding or the `maxWidth: .infinity`
+            // expanse around them — so most of what visually reads as the
+            // button (user report: "need to click a few times or somehow
+            // click not work") silently swallows taps. This makes the whole
+            // frame, background included, respond.
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .padding(.horizontal, Tokens.Space.xs)

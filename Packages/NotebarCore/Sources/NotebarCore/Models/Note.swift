@@ -47,4 +47,15 @@ public extension Note {
     var displayTitle: String {
         title.isEmpty ? "Untitled" : title
     }
+
+    /// Whether the note is exactly as it was created: still titled
+    /// "Untitled" and its body, once whitespace is stripped, empty. Such a
+    /// note carries no information the user typed, so `PanelViewModel`
+    /// deletes it outright when its tab is closed rather than leaving a
+    /// contentless row to clutter the all-notes menu. A note with a title
+    /// or a body is the user's actual content, and closing a tab must never
+    /// destroy that.
+    var isEmptyAndUntitled: Bool {
+        displayTitle == "Untitled" && body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 }

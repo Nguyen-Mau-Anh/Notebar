@@ -148,8 +148,22 @@ final class PanelViewModel {
     /// Closes a note tab. If it was active, falls back to the note that took
     /// its place in the strip, or the new last tab, or nil once the last
     /// note is gone — `NotesTab` shows the empty state in that case. Closing
-    /// removes the tab, not the note itself — the note stays in the store.
+    /// normally removes only the tab, not the note itself — the note stays
+    /// in the store.
+    ///
+    /// The exception is a note that is still `isEmptyAndUntitled`: an
+    /// untouched note carries no information, so keeping it around would
+    /// only clutter the all-notes list, and closing its tab deletes it
+    /// outright instead. Any note with a title or a body is the user's
+    /// content, so this check runs on the in-memory `notes` entry — which is
+    /// always current, unlike the repository row until the next debounced
+    /// save — before anything is flushed, and closing a tab and deleting a
+    /// note stay distinct operations for every note that has any content.
     func closeNote(id: Note.ID) {
+        if let note = notes.first(where: { $0.id == id }), note.isEmptyAndUntitled {
+            deleteNote(id: id)
+            return
+        }
         flushAllPendingSaves()
         removeTab(id: id)
     }
