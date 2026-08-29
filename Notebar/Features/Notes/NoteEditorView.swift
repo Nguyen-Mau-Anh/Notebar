@@ -3,6 +3,28 @@ import SwiftUI
 import NotebarCore
 import NotebarStore
 
+/// `NSTextView` renders every character with no `.foregroundColor` attribute
+/// (the whole storage, per `NoteFont.typingAttributes` and `NoteRTF`'s
+/// stripping) using its own `textColor` — but `textColor` is a plain stored
+/// property, not something that re-resolves itself. AppKit calls
+/// `viewDidChangeEffectiveAppearance()` on a view whenever its
+/// `effectiveAppearance` changes, which covers both ways the app's
+/// appearance can change: `PanelViewModel.applyTheme`/`AppDelegate` setting
+/// `NSApp.appearance` directly when the user picks a Theme, and macOS itself
+/// flipping light/dark while Theme is "System" (no explicit `NSApp.appearance`
+/// override in that case to shadow the system value). Re-applying
+/// `.labelColor` here and marking the view dirty is what makes already-typed
+/// text actually repaint in the new colour instead of sitting frozen at
+/// whatever `.labelColor` last resolved to when it was drawn.
+private final class NoteTextView: NSTextView {
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        textColor = .labelColor
+        insertionPointColor = .labelColor
+        needsDisplay = true
+    }
+}
+
 /// The seam `NotesTab`'s plain-text placeholder was built behind precisely
 /// for this swap (spec §6.2): an `NSTextView`, wrapped in `NSViewRepresentable`,
 /// replacing the SwiftUI `TextEditor` that used to sit here. `NSTextView`
@@ -33,8 +55,11 @@ struct NoteEditorView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         // Apple's own convenience for pairing a text view with a correctly
         // configured scroll view — resizing masks, container tracking, and
-        // min/max size are all handled by this rather than hand-rolled.
-        let scrollView = NSTextView.scrollableTextView()
+        // min/max size are all handled by this rather than hand-rolled. Its
+        // doc comment guarantees the document view is an instance of the
+        // receiver, so calling it on `NoteTextView` (rather than plain
+        // `NSTextView`) is what wires the appearance-change override in.
+        let scrollView = NoteTextView.scrollableTextView()
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
@@ -50,10 +75,9 @@ struct NoteEditorView: NSViewRepresentable {
         // file-path string — `NSTextView` does the rest of the work itself.
         textView.importsGraphics = true
         // Without these, `NSTextView` falls back to hard black regardless of
-        // appearance — nothing else here ever sets a colour. `labelColor` is
-        // a dynamic system colour that resolves per appearance, so it
-        // follows the theme setting automatically, including "System"
-        // tracking macOS live.
+        // appearance. `labelColor` is a dynamic system colour that resolves
+        // per appearance at load time; `NoteTextView.viewDidChangeEffectiveAppearance`
+        // above is what keeps it correct afterward, on a live theme switch.
         textView.textColor = .labelColor
         textView.insertionPointColor = .labelColor
         textView.textContainerInset = NSSize(width: Tokens.Space.md, height: Tokens.Space.md)

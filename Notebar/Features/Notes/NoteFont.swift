@@ -27,11 +27,13 @@ enum NoteFont {
     /// very first character typed already carries body size and line height
     /// rather than whatever `NSTextView`'s own built-in default is.
     ///
-    /// `.foregroundColor: .labelColor` matches `NoteEditorView`'s own
-    /// `textView.textColor` — a dynamic system colour, not hardcoded black —
-    /// so a freshly typed character stays readable if the appearance flips
-    /// mid-edit rather than waiting on `textColor` alone to cover it.
+    /// Deliberately carries no `.foregroundColor`: `NSTextView.textColor` is
+    /// the single source of truth for text colour (see `NoteEditorView`'s
+    /// `viewDidChangeEffectiveAppearance` override). Baking `.labelColor` in
+    /// here too would give every typed character its own frozen colour
+    /// attribute that a live theme switch can't reach — exactly the bug
+    /// that split colour into two places that could disagree.
     static var typingAttributes: [NSAttributedString.Key: Any] {
-        [.font: body, .paragraphStyle: bodyParagraphStyle, .foregroundColor: NSColor.labelColor]
+        [.font: body, .paragraphStyle: bodyParagraphStyle]
     }
 }
