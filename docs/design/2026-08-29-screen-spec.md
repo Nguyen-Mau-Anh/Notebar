@@ -182,6 +182,12 @@ Centred inside it is the **18pt SF Symbol of the currently selected tab** in
 `text.secondary`, stepping to `accent` on hover. The handle is what the expand animation
 grows from and the collapse animation returns to.
 
+**Collapse control.** Bottom-anchored in the rail, 56x32pt above a 1px `border.separator`
+hairline with `space.xs` clearance: a 15pt `chevron.right.2` in `text.secondary`, stepping to
+`accent` on hover with a `radius.sm` background at `accent` 8%. Dismisses the panel without
+requiring the cursor to leave it — the mouse-reachable equivalent of Escape, and the only
+in-panel way out when pinned.
+
 **Maximize control.** Beside the pin, in the same 56x32pt row, a 24x24pt maximize toggle:
 15pt `arrow.up.left.and.arrow.down.right` in `text.secondary`, becoming
 `arrow.down.right.and.arrow.up.left` in `accent` when active, with a `radius.sm` background
