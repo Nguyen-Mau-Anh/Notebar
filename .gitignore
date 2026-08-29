@@ -52,3 +52,6 @@ xcuserdata/
 .build/
 DerivedData/
 .flezi/signals.json
+
+# Xcode build output (we build with -derivedDataPath build)
+build/
