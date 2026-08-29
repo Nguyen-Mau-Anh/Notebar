@@ -65,6 +65,47 @@ public enum PanelMachine {
         }
     }
 
-    // Replaced properly in Task 3.
-    static func shouldCollapse(_ context: PanelContext) -> Bool { true }
+    /// Decides whether the panel is allowed to collapse right now.
+    ///
+    /// Called twice per collapse: once when the cursor leaves (to decide whether
+    /// to arm the exit timer at all) and again when that timer elapses (against a
+    /// fresh context, because things may have changed in 350 ms).
+    ///
+    /// Available signals on `context`:
+    ///   - `isPinned`              user pinned it, or summoned it by hotkey
+    ///   - `hasOpenOverlay`        a menu, popover, or sheet is open
+    ///   - `isDragging`            a drag is in flight
+    ///   - `isEditorFocused`       a text editor holds first responder
+    ///   - `msSinceLastKeystroke`  milliseconds since last keypress, nil if none
+    ///   - `isWindowKey`           the panel is the key window
+    ///
+    /// `PanelTiming.typingGrace` is 2.0 seconds.
+    ///
+    /// The trade-off: collapsing eagerly keeps the screen clean but interrupts
+    /// you mid-thought; collapsing lazily never interrupts but leaves the panel
+    /// loitering over your work. The first three signals are hard requirements
+    /// (see CollapsePolicyTests); the last three are judgment.
+    ///
+    /// Worth deciding explicitly: should a focused editor with no recent typing
+    /// keep the panel open indefinitely, or should the grace period win? And is
+    /// `isWindowKey` alone enough to suppress, given a panel can be key simply
+    /// because you clicked it once?
+    static func shouldCollapse(_ context: PanelContext) -> Bool {
+        // ─────────────────────────────────────────────────────────────
+        // PROVISIONAL — the three signals below are deliberately unused.
+        // The hard invariants above are settled (see CollapsePolicyTests).
+        // What is NOT settled, and is the app author's call:
+        //   · isEditorFocused      — should a focused editor with no recent
+        //                            typing hold the panel open indefinitely,
+        //                            or should PanelTiming.typingGrace win?
+        //   · msSinceLastKeystroke — is 2.0s the right grace period?
+        //   · isWindowKey          — is being key enough to suppress, given a
+        //                            panel can be key just from one stray click?
+        // Until that is decided, this policy ignores all three.
+        // ─────────────────────────────────────────────────────────────
+        if context.isPinned || context.hasOpenOverlay || context.isDragging {
+            return false
+        }
+        return true
+    }
 }
