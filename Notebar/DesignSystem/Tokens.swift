@@ -47,6 +47,12 @@ enum Tokens {
         /// push every group below it far down the list and the board would
         /// stop being a board.
         static let taskDetailMaxHeight: CGFloat = 200
+
+        /// The minimum height reserved for a task group with no cards —
+        /// roughly one card's worth of space. Without it, an empty group
+        /// shrinks to just its header row and there is nowhere to aim a
+        /// drop (spec §6.3a).
+        static let taskEmptyGroupMinHeight: CGFloat = 44
     }
 
     enum Space {

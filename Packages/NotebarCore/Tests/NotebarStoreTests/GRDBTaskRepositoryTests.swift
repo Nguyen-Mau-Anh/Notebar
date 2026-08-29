@@ -180,6 +180,23 @@ struct GRDBTaskRepositorySortOrderTests {
         #expect(moved.sortOrder > first.sortOrder)
         #expect(moved.sortOrder < second.sortOrder)
     }
+
+    @Test("moving into an empty column — no neighbours on either side — settles on sort_order 0")
+    func moveIntoEmptyColumn() throws {
+        let repository = try makeRepository()
+        let queue = try #require(try repository.columns().first { $0.kind == BoardColumn.backlogKind })
+        let working = try #require(try repository.columns().first { $0.kind == BoardColumn.activeKind })
+        let task = try repository.create(title: "First into Working", columnID: queue.id)
+
+        // `before` and `after` are both nil: the board's own drop handler
+        // passes `after: destination.tasks.last?.id`, which is nil for an
+        // empty column, and `before` is always nil (dropping between two
+        // existing cards isn't part of this deliverable).
+        let moved = try repository.move(id: task.id, columnID: working.id, before: nil, after: nil)
+
+        #expect(moved.columnID == working.id)
+        #expect(moved.sortOrder == 0)
+    }
 }
 
 @Suite("FTS search")

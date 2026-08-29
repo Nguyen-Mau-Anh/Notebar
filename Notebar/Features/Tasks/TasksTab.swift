@@ -68,13 +68,34 @@ private struct TaskGroupSection: View {
                 Text("\(group.tasks.count)")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
+                // Without a `Spacer`, this row is only as wide as its two
+                // text labels — which, for an empty group with no cards
+                // beneath it to stretch the section, left the whole drop
+                // target a sliver in the leading corner. Pushing the row
+                // itself to fill the width is what `.frame(maxWidth:)`
+                // below relies on to make the *section* full-width too.
+                Spacer(minLength: 0)
             }
 
-            ForEach(group.tasks) { task in
-                TaskCardView(model: model, task: task)
+            if group.tasks.isEmpty {
+                emptyPlaceholder
+            } else {
+                ForEach(group.tasks) { task in
+                    TaskCardView(model: model, task: task)
+                }
             }
         }
         .padding(Tokens.Space.xs)
+        // Full width regardless of content: a group with cards already
+        // stretched to fit the widest card, but an empty group (or one
+        // with only a short header) would otherwise shrink-wrap, leaving
+        // most of the board's width outside the droppable area.
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // The droppable region is this exact shape, not whatever glyphs
+        // happen to be painted inside it — same reasoning as the
+        // `.contentShape(Rectangle())` every custom button needs, applied
+        // here to a drop target instead of a tap target.
+        .contentShape(Rectangle())
         .background(
             RoundedRectangle(cornerRadius: Tokens.Radius.md)
                 .fill(isDropTargeted ? Color.accentColor.opacity(0.08) : .clear)
@@ -85,6 +106,8 @@ private struct TaskGroupSection: View {
         // this group's own bounds, so there's nothing to reject — while a
         // release outside every group's bounds never reaches any
         // `onDrop` at all and is cancelled by construction, per spec §6.3a.
+        // That bounds check now covers the header row and the empty-state
+        // placeholder too, since both sit inside this same modified view.
         .onDrop(of: [.plainText], isTargeted: $isDropTargeted) { providers in
             guard let provider = providers.first else { return false }
             provider.loadObject(ofClass: NSString.self) { reading, _ in
@@ -95,6 +118,21 @@ private struct TaskGroupSection: View {
             }
             return true
         }
+    }
+
+    /// An empty group has no cards to give the section height, so without
+    /// this it collapses to just its header row — nowhere to aim a drop.
+    /// `Tokens.Size.taskEmptyGroupMinHeight` reserves roughly one card's
+    /// worth of space, dashed at the `radius.md` corner treatment the
+    /// design spec calls for on drop placeholders (§1.5). It stays faint at
+    /// rest and turns clearly visible for the whole duration of any
+    /// drag (`model.isDragging`) rather than only while hovered, so every
+    /// valid target is visible as soon as a card is picked up.
+    private var emptyPlaceholder: some View {
+        RoundedRectangle(cornerRadius: Tokens.Radius.md)
+            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            .foregroundStyle(.secondary.opacity(model.isDragging ? 0.5 : 0.12))
+            .frame(maxWidth: .infinity, minHeight: Tokens.Size.taskEmptyGroupMinHeight)
     }
 }
 
