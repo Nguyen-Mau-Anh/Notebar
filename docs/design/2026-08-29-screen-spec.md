@@ -182,13 +182,26 @@ Centred inside it is the **18pt SF Symbol of the currently selected tab** in
 `text.secondary`, stepping to `accent` on hover. The handle is what the expand animation
 grows from and the collapse animation returns to.
 
-**New-item affordances.** Both content tabs need an explicit create control, in a
-consistent position:
-- **Notes** — a `+` button at the right end of the tab strip, 28x28pt hit target,
-  `text.secondary`, `accent` on hover. Creates a new note and opens it as the active tab.
-- **Tasks** — a `+` button in each group header, right-aligned beside the count, same
-  28x28pt target and colours. Creating from a group header places the new task in that
-  status, which is why it lives per-group rather than as one global button.
+**Tab toolbar.** Every content tab opens with the same 36pt toolbar row across the top of
+the content area, flush under the panel's top edge, with a 1px `border.separator` hairline
+beneath it. Its shape is fixed: **context on the left, primary action on the right.**
+
+| Tab | Left of the bar | Right of the bar |
+|---|---|---|
+| Notes | The horizontal tab strip (scrollable, with the overflow chevron) | `+` — new note |
+| Tasks | `Tasks` title, then the total count in `chrome.micro` | `+` — new task |
+| Settings | `Settings` title | none |
+
+The action button is a 28x28pt hit target with a 15pt glyph, `text.secondary`, stepping to
+`accent` on hover with a `radius.sm` background at `accent` 8%.
+
+**Why one bar rather than per-group buttons.** An earlier draft put a `+` in each Tasks
+group header so that creating from "Working" would file the task in Working. That is a
+genuinely nice property, but it costs the user a consistent place to look: the control
+moves between tabs and multiplies with the number of groups. A single right-aligned action
+in a fixed bar is findable without hunting, and matches how the rest of macOS places a
+primary action. New tasks therefore land in the first `backlog`-kind column, and the user
+moves them by dragging — which is the board's whole idiom anyway.
 
 **Trigger band.** Because the panel covers only the middle 70% of the edge, the armed strip
 covers that same band — not the full edge. See product spec §4.2 for why: a full-edge
