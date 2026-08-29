@@ -507,6 +507,32 @@ dragging back out clears it.
 A drag in flight suppresses collapse for its whole duration (§4.4). A drag released
 outside the panel is cancelled, not dropped.
 
+### 6.3a Task interaction
+
+**Click a card to expand it in place.** The card grows to reveal an editable `detail`
+field plus its metadata; clicking its header again collapses it, and expanding another
+card collapses the first. Only one card is expanded at a time.
+
+Inline expansion rather than the detail sheet §9 frame 18 describes: that sheet is 380pt
+wide and the panel's default width is 340pt, so a sheet cannot fit without either
+shrinking below its own spec or forcing the user to maximise first. Expanding in place
+works at every width, keeps the rest of the board visible for context, and avoids a modal
+layer over a panel that is already an overlay. The sheet may return at the wide breakpoint
+later; it is not the primary interaction.
+
+**Rename** is inline on the card title — double-click, or Rename from the right-click
+menu — matching how note tabs behave. **Delete** is on the same right-click menu.
+
+**Drag a card between groups** to change its status. The drop writes the new `column_id`
+and a fractional `sort_order` midway between its new neighbours; dropping into a
+`done`-kind column stamps `completed_at`, and dragging back out clears it.
+
+**Dragging is the last unfed collapse-suppression signal.** `PanelContext.isDragging` has
+been wired from `PanelViewModel` since the collapse-policy work and nothing has ever set
+it. A drag must set it, or the panel can collapse mid-drag when the cursor strays past the
+edge — losing the card and the gesture together. `PanelMachine.shouldCollapse` already
+treats it as a hard invariant, so this needs a producer, not a reducer change.
+
 ### 6.4 Linking
 
 - Typing `@` in a note or task detail opens an autocomplete popover over notes and tasks,
