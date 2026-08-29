@@ -479,6 +479,29 @@ search across `note_fts` and `task_fts`. Saves are debounced at 400 ms and on bl
 `body_plain` is regenerated in the same transaction that writes `body_rtf`, so the search
 index cannot drift.
 
+### 6.2d List behaviour
+
+Applying a list style must make a marker appear **immediately**, including on an empty
+line. Setting `NSTextList` in a paragraph style is not enough: TextKit does not render the
+marker from the style, so the marker must exist as text in the paragraph. Without that,
+applying a list to an empty line looks like nothing happened — the paragraph style's
+indentation is invisible with no content to indent.
+
+Required behaviour:
+
+- Applying a list inserts the marker (`NSTextList.marker(forItemNumber:)` plus a tab) at
+  the paragraph's start, on an empty paragraph as much as a populated one.
+- Return at the end of a list item starts the next item with its own marker.
+- Return on an **empty** list item ends the list — the standard editor idiom for getting
+  out, and without it a list is a trap.
+- Removing the list style strips the markers it inserted.
+- Ordered lists **renumber** when items are inserted or deleted mid-run, so a list never
+  reads 1, 2, 2, 3.
+
+This is text-level bookkeeping rather than attribute-setting, which is the same reason
+checkboxes (§6.2b) were deferred: both need the editor to manage characters, not just
+styles.
+
 ### 6.2c Images in notes
 
 Pasting or dragging an image into a note embeds it inline. `NSTextView` produces an
