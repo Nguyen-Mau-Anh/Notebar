@@ -56,6 +56,7 @@ final class PanelController {
         observeKeyWindow()
         installEscapeMonitor()
         observePin()
+        observeMaximize()
     }
 
     /// Puts the window on screen at its collapsed handle frame the moment the
@@ -125,19 +126,28 @@ final class PanelController {
     /// `visibleFrame` rather than `frame` so the panel does not sit under the
     /// menu bar or over the Dock.
     ///
-    /// The panel is flush to the right edge (x pinned to `area.maxX`) but
-    /// vertically centred at 70% height, so it reads as a card rather than a
-    /// permanent sidebar.
+    /// The panel is flush to the right edge (x pinned to `area.maxX`) in both
+    /// geometries (spec §6.1). Normally it is `panelWidth` wide and vertically
+    /// centred at `panelHeightFraction` of the height, so it reads as a card
+    /// rather than a permanent sidebar. Maximized, it widens to
+    /// `maximizedWidthFraction` of the screen at full height instead — a
+    /// docked half-screen column.
     private func frames(on screen: NSScreen) -> (onscreen: NSRect, offscreen: NSRect) {
         let area = screen.visibleFrame
-        let height = (area.height * PanelTiming.panelHeightFraction).rounded()
-        let onscreen = NSRect(
-            x: area.maxX - PanelTiming.panelWidth,
-            y: (area.minY + (area.height - height) / 2).rounded(),
-            width: PanelTiming.panelWidth,
-            height: height
-        )
-        return (onscreen, onscreen.offsetBy(dx: PanelTiming.panelWidth, dy: 0))
+        let width: CGFloat
+        let height: CGFloat
+        let y: CGFloat
+        if model.isMaximized {
+            width = (area.width * PanelTiming.maximizedWidthFraction).rounded()
+            height = area.height
+            y = area.minY
+        } else {
+            width = PanelTiming.panelWidth
+            height = (area.height * PanelTiming.panelHeightFraction).rounded()
+            y = (area.minY + (area.height - height) / 2).rounded()
+        }
+        let onscreen = NSRect(x: area.maxX - width, y: y, width: width, height: height)
+        return (onscreen, onscreen.offsetBy(dx: width, dy: 0))
     }
 
     /// The vertical band of the screen edge that arms the panel.
@@ -248,6 +258,35 @@ final class PanelController {
                 self.observePin()
             }
         }
+    }
+
+    /// `model.isMaximized` has no `PanelContext` counterpart — size is a
+    /// framing concern this controller owns, not something the reducer
+    /// decides (see `frames(on:)`). Like `observePin`, this must be re-armed
+    /// after every fire. If the panel is on screen when the toggle flips, it
+    /// animates to the new frame; if it is collapsed, `showPanel()` simply
+    /// picks up the current geometry next time it runs, with nothing extra
+    /// to reconcile.
+    private func observeMaximize() {
+        withObservationTracking {
+            _ = model.isMaximized
+        } onChange: { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.applyMaximizeChange()
+                self.observeMaximize()
+            }
+        }
+    }
+
+    private func applyMaximizeChange() {
+        guard model.isExpanded, panel.isVisible, let screen = activeScreen() else { return }
+        // Reusing `animate` is safe here even though the reducer stays in
+        // `.expanded` throughout: `PanelMachine` has no `(.expanded,
+        // .animationFinished)` case, so the completion's `.animationFinished`
+        // send is inert, and the existing `animationGeneration` guard already
+        // makes a rapid double-toggle collapse cleanly onto the latest frame.
+        animate(to: frames(on: screen).onscreen, duration: PanelTiming.expandDuration)
     }
 
     // MARK: - Context signals

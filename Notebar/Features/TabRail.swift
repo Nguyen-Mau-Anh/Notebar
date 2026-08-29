@@ -3,11 +3,12 @@ import SwiftUI
 struct TabRail: View {
     @Binding var selection: AppTab
     @Binding var isPinned: Bool
+    @Binding var isMaximized: Bool
     let isCompact: Bool
 
     var body: some View {
         VStack(spacing: Tokens.Space.xs) {
-            PinToggle(isPinned: $isPinned)
+            ControlRow(isPinned: $isPinned, isMaximized: $isMaximized)
 
             Divider()
 
@@ -29,12 +30,28 @@ struct TabRail: View {
     }
 }
 
-/// The 56x32pt pin toggle above the three tabs (spec §6.1). Deliberately
-/// smaller and unlabelled so it does not read as a fourth tab — it changes
-/// the panel's behaviour, not its content. Toggling it flows into
-/// `PanelController.isPinned`, which `PanelMachine.shouldCollapse` already
-/// treats as an absolute veto; this button is the only piece that was
-/// missing.
+/// The 56x32pt control row above the three tabs (spec §6.1): pin on the
+/// left, maximize on the right, each a 24x24pt toggle with `Space.xs` (4pt)
+/// between them. Deliberately smaller and unlabelled so the row does not
+/// read as a fourth tab — these change the panel's *behaviour and size*, not
+/// its content. The two toggles are independent: maximizing does not imply
+/// pinning, so the user can combine them or use either alone.
+private struct ControlRow: View {
+    @Binding var isPinned: Bool
+    @Binding var isMaximized: Bool
+
+    var body: some View {
+        HStack(spacing: Tokens.Space.xs) {
+            PinToggle(isPinned: $isPinned)
+            MaximizeToggle(isMaximized: $isMaximized)
+        }
+        .frame(width: Tokens.Size.railWidth, height: Tokens.Size.pinHeight)
+    }
+}
+
+/// Toggling this flows into `PanelController.isPinned`, which
+/// `PanelMachine.shouldCollapse` already treats as an absolute veto — this
+/// button is the only piece that was missing.
 private struct PinToggle: View {
     @Binding var isPinned: Bool
 
@@ -45,8 +62,7 @@ private struct PinToggle: View {
             Image(systemName: isPinned ? "pin.fill" : "pin")
                 .font(.system(size: 15))
                 .foregroundStyle(isPinned ? Color.accentColor : Color.secondary)
-                .frame(maxWidth: .infinity)
-                .frame(height: Tokens.Size.pinHeight)
+                .frame(width: Tokens.Size.controlToggleSize, height: Tokens.Size.controlToggleSize)
                 .background(
                     RoundedRectangle(cornerRadius: Tokens.Radius.sm)
                         .fill(isPinned ? Color.accentColor.opacity(0.10) : .clear)
@@ -55,6 +71,32 @@ private struct PinToggle: View {
         .buttonStyle(.plain)
         .accessibilityLabel(isPinned ? "Unpin panel" : "Pin panel")
         .accessibilityAddTraits(isPinned ? [.isSelected] : [])
+    }
+}
+
+/// Toggling this flows into `PanelViewModel.isMaximized`, which
+/// `PanelController` observes to switch the expanded panel between its
+/// normal size and half the screen (spec §6.1). Independent of pin: a
+/// maximized panel still collapses on cursor exit unless also pinned.
+private struct MaximizeToggle: View {
+    @Binding var isMaximized: Bool
+
+    var body: some View {
+        Button {
+            isMaximized.toggle()
+        } label: {
+            Image(systemName: isMaximized ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 15))
+                .foregroundStyle(isMaximized ? Color.accentColor : Color.secondary)
+                .frame(width: Tokens.Size.controlToggleSize, height: Tokens.Size.controlToggleSize)
+                .background(
+                    RoundedRectangle(cornerRadius: Tokens.Radius.sm)
+                        .fill(isMaximized ? Color.accentColor.opacity(0.10) : .clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isMaximized ? "Restore panel size" : "Maximize panel")
+        .accessibilityAddTraits(isMaximized ? [.isSelected] : [])
     }
 }
 

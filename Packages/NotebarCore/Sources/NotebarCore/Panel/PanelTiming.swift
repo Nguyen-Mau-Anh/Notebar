@@ -25,6 +25,12 @@ public enum PanelTiming {
     /// vertically centred (spec §4.1) — a card, not a full-height column.
     public static let panelHeightFraction: CGFloat = 0.70
 
+    /// Fraction of `visibleFrame.width` the panel occupies when maximized
+    /// (spec §6.1). At that width it fills the full screen height instead of
+    /// `panelHeightFraction` — maximized reads as a docked half-screen
+    /// column, not a bigger card.
+    public static let maximizedWidthFraction: CGFloat = 0.5
+
     /// Width of the activation strip at the screen edge. Equal to the handle
     /// width so that hovering the handle — the only thing the user can see —
     /// arms the panel. The 120 ms `edgeDwell` remains the guard against

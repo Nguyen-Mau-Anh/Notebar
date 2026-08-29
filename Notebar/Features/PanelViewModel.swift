@@ -26,6 +26,16 @@ final class PanelViewModel {
     /// missing path from SwiftUI into it.
     var isPinned = false
 
+    /// Toggles the expanded panel between its normal size and half the
+    /// screen (spec §6.1). This has no `PanelContext` counterpart — size is
+    /// a `PanelController` framing concern, not a state-machine concern, and
+    /// is deliberately independent of `isPinned`: maximizing does not imply
+    /// pinning, so a maximized-but-unpinned panel still collapses on cursor
+    /// exit. `PanelController` observes this the same way it observes
+    /// `isPinned`, and re-animates to the new frame if the panel is
+    /// currently on screen.
+    var isMaximized = false
+
     // MARK: - Notes
 
     var notes: [Note] = []

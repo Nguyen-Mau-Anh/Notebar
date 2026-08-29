@@ -27,6 +27,10 @@ struct RootView: View {
                         get: { model.isPinned },
                         set: { model.isPinned = $0 }
                     ),
+                    isMaximized: Binding(
+                        get: { model.isMaximized },
+                        set: { model.isMaximized = $0 }
+                    ),
                     isCompact: isCompact
                 )
 
