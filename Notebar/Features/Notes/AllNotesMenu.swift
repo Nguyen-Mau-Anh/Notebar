@@ -13,6 +13,18 @@ import NotebarCore
 /// setting it true while the popover is open (and false the instant it
 /// closes, however it closes — row selection, click-away, or Escape) is all
 /// that's needed here.
+///
+/// Known limitation: unlike `isEditorFocused` (reconciled against
+/// `panel.firstResponder` in `PanelController.send(_:)`), there is no
+/// equivalent "reality" to check a SwiftUI `.popover` against from outside
+/// the view — no reliable, public way to ask "is a popover currently
+/// presented" independent of the `isShowingMenu` binding that drives it.
+/// `hasOpenOverlay` therefore stays event-driven, and the `.onDisappear`
+/// below is a mitigation, not a guarantee: it only catches this view being
+/// torn down (e.g. a future tab switch away from Notes) while its own
+/// popover is open. If SwiftUI ever tears this view down without calling
+/// `onDisappear`, `hasOpenOverlay` can still stick `true` forever, exactly
+/// like the bug this fix is patterned after.
 struct AllNotesMenuButton: View {
     let model: PanelViewModel
 
@@ -27,6 +39,13 @@ struct AllNotesMenuButton: View {
         }
         .onChange(of: isShowingMenu) { _, isOpen in
             model.hasOpenOverlay = isOpen
+        }
+        .onDisappear {
+            // Mitigation for this view being torn down while its popover is
+            // still open — see the type doc comment above. Not a guarantee.
+            if isShowingMenu {
+                model.hasOpenOverlay = false
+            }
         }
     }
 }

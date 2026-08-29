@@ -95,6 +95,20 @@ final class PanelController {
 
     private func send(_ event: PanelEvent) {
         context.msSinceLastKeystroke = msSinceLastKeystroke()
+        // `model.isEditorFocused` is only cleared by `NoteEditorView`'s
+        // `textDidEndEditing` delegate callback. If the editor's `NSTextView`
+        // is torn down while it still holds first responder — switching
+        // tabs, closing the note, or the panel collapsing out from under it
+        // — that callback never fires, `model.isEditorFocused` is stuck
+        // `true` forever, and the panel can never collapse again short of
+        // quitting. Rather than trust an event that may never arrive,
+        // reconcile against the window's own first responder fresh on every
+        // `send(_:)`, the same way `msSinceLastKeystroke` is computed fresh
+        // above instead of trusted from a stored value. `NSTextView`
+        // conforms to `NSText` directly, as does any field editor an
+        // `NSTextField` borrows — the same check `installEscapeMonitor`
+        // already uses for the identical reason.
+        context.isEditorFocused = panel.firstResponder is NSText
         let (next, effects) = PanelMachine.reduce(state, event, context)
         state = next
         for effect in effects { apply(effect) }
@@ -326,7 +340,13 @@ final class PanelController {
     }
 
     /// Mirrors `model.isEditorFocused` into `context`, same pattern as
-    /// `observePin()`.
+    /// `observePin()`. Purely advisory now: `send(_:)` overwrites
+    /// `context.isEditorFocused` from `panel.firstResponder` immediately
+    /// before every `reduce` call, so this mirror can never be the value the
+    /// reducer actually sees. Kept anyway — `NoteEditorView` still writes
+    /// `model.isEditorFocused` for its own bookkeeping (`textDidBeginEditing`/
+    /// `textDidEndEditing` also drive `flushPendingSave`), and a future view
+    /// may want to read the model property for UI, not just the reducer.
     private func observeEditorFocused() {
         let model = self.model
         observeModel({ model.isEditorFocused }) { [weak self] newValue in
@@ -373,12 +393,15 @@ final class PanelController {
 
     // MARK: - Context signals
 
-    /// `isWindowKey`'s only real source. `isEditorFocused` and
-    /// `msSinceLastKeystroke` now have real sources too (`NoteEditorView` via
-    /// `observeEditorFocused()`/`observeLastKeystroke()`). `isDragging` and
-    /// `hasOpenOverlay` are wired (`observeDragging()`/`observeOpenOverlay()`)
-    /// but still have no real source — there is no drag and no popover yet
-    /// (M2).
+    /// `isWindowKey`'s only real source. `msSinceLastKeystroke` has a real
+    /// source too (`NoteEditorView` via `observeLastKeystroke()`).
+    /// `isEditorFocused` is reconciled straight from `panel.firstResponder`
+    /// in `send(_:)` rather than trusted from `NoteEditorView`'s mirror (see
+    /// `send(_:)`). `isDragging` and `hasOpenOverlay` are wired
+    /// (`observeDragging()`/`observeOpenOverlay()`) but still have no
+    /// equivalent reality to reconcile against — see `AllNotesMenuButton`'s
+    /// `.onDisappear` mitigation for the known limitation on
+    /// `hasOpenOverlay`.
     private func observeKeyWindow() {
         let center = NotificationCenter.default
         center.addObserver(
