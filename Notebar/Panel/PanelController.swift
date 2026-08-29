@@ -32,11 +32,6 @@ final class PanelController {
     /// The panel is a vertically centred card, not a full-height column.
     private static let panelHeightFraction: CGFloat = 0.70
 
-    /// Footprint of the collapsed handle the panel retreats to instead of
-    /// vanishing (see `hidePanel`).
-    private static let handleWidth: CGFloat = 30
-    private static let handleHeight: CGFloat = 56
-
     var isPinned: Bool {
         get { context.isPinned }
         set { context.isPinned = newValue }
@@ -58,9 +53,21 @@ final class PanelController {
         monitor.triggerBand = { [weak self] screen in
             self?.triggerBand(on: screen)
         }
+        presentHandle()
         monitor.start()
         observeKeyWindow()
         installEscapeMonitor()
+    }
+
+    /// Puts the window on screen at its collapsed handle frame the moment the
+    /// app launches. Without this, the window doesn't exist until the user's
+    /// first successful hover — defeating the point of a handle the user can
+    /// see without knowing to hover in the first place.
+    private func presentHandle() {
+        guard let screen = activeScreen() else { return }
+        model.isExpanded = false
+        panel.setFrame(collapsedFrame(on: screen), display: false)
+        panel.orderFrontRegardless()
     }
 
     func toggle() {
@@ -151,11 +158,13 @@ final class PanelController {
     /// window's resting frame between launch and the first expand.
     private func collapsedFrame(on screen: NSScreen) -> NSRect {
         let area = screen.visibleFrame
+        let width = Tokens.Size.handleWidth
+        let height = Tokens.Size.handleHeight
         return NSRect(
-            x: area.maxX - Self.handleWidth,
-            y: (area.minY + (area.height - Self.handleHeight) / 2).rounded(),
-            width: Self.handleWidth,
-            height: Self.handleHeight
+            x: area.maxX - width,
+            y: (area.minY + (area.height - height) / 2).rounded(),
+            width: width,
+            height: height
         )
     }
 
@@ -196,8 +205,15 @@ final class PanelController {
         // in `.expanded` while `panel.isVisible == false`. With the window
         // always visible, the worst a stale completion can do is set a frame
         // the next event corrects.
-        model.isExpanded = false
-        animate(to: collapsedFrame(on: screen), duration: PanelTiming.collapseDuration)
+        //
+        // `isExpanded` flips on completion, not here at the start: `RootView`
+        // switches to the 30x56 handle content the instant it flips, so
+        // flipping early would render the handle inside the still-full-size
+        // window for the whole 140ms shrink. `animate`'s `animationGeneration`
+        // guard already keeps a superseded collapse's completion from firing.
+        animate(to: collapsedFrame(on: screen), duration: PanelTiming.collapseDuration) { [weak self] in
+            self?.model.isExpanded = false
+        }
     }
 
     private func animate(
