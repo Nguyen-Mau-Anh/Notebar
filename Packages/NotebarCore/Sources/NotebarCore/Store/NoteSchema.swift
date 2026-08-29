@@ -107,3 +107,25 @@ public enum NoteBodyRTFSchema {
     /// backfill still needs to read.
     public static let dropBodyColumn = "ALTER TABLE note DROP COLUMN body"
 }
+
+/// The RTFD follow-up to `NoteBodyRTFSchema` (spec §6.2c): images pasted or
+/// dragged into a note need `NSTextAttachment`, which plain RTF cannot
+/// carry — an embedded image would be silently dropped on save, no error,
+/// just a note that loses its picture. This migration reinterprets every
+/// row's existing `body_rtf` blob as RTFD instead.
+///
+/// Purely a data migration, not a schema change: `body_rtf` stays exactly
+/// the column it already is (`BLOB`, same name), since RTFD is still just
+/// bytes in that same column — no `ALTER TABLE` is needed, and the name
+/// stays RTF-era rather than being renamed to `body_rtfd`. Renaming would
+/// touch `NoteRow`'s column mapping and every raw-SQL reference to
+/// `body_rtf` across the store and its tests for a purely cosmetic gain;
+/// the doc comments on this type and on `NoteRTF` are the record of what the
+/// column actually holds now.
+///
+/// No existing note can contain an attachment yet — attachments only exist
+/// from this feature onward — so converting is a lossless format change for
+/// every row this runs against, not a real risk of losing content.
+public enum NoteBodyRTFDSchema {
+    public static let migrationName = "convertNoteBodyToRTFD"
+}

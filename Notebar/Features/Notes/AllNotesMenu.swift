@@ -81,7 +81,7 @@ private struct AllNotesPopover: View {
                                 note: note,
                                 isOpen: model.notes.contains { $0.id == note.id },
                                 onSelect: {
-                                    model.openNote(note)
+                                    model.openNote(id: note.id)
                                     dismiss()
                                 }
                             )
@@ -98,7 +98,7 @@ private struct AllNotesPopover: View {
 /// One row: title, a relative "updated" timestamp, and — for a note already
 /// open as a tab — a small accent dot ahead of the title.
 private struct AllNotesRow: View {
-    let note: Note
+    let note: NoteSummary
     let isOpen: Bool
     let onSelect: () -> Void
 

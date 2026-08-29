@@ -20,6 +20,20 @@ public protocol NoteRepository {
     /// Every note, ordered by `sortOrder` ascending.
     func all() throws -> [Note]
 
+    /// Every note's lightweight summary — id, title, `updatedAt`, nothing
+    /// else — ordered by `sortOrder` ascending same as `all()` (spec §6.2c
+    /// deliverable 4). Never selects `body_rtf`, so a caller that only needs
+    /// to render a list of names (the all-notes menu) never pays for
+    /// reading every note's body off disk. Fetching the note actually being
+    /// opened still goes through `fetch(id:)` or `all()`.
+    func summaries() throws -> [NoteSummary]
+
+    /// Fetches a single note by id, or `nil` if it doesn't exist. The
+    /// all-notes menu's row action uses this to open a note it only has a
+    /// `NoteSummary` for, so opening one note never reads every other note's
+    /// body along the way (spec §6.2c deliverable 4).
+    func fetch(id: Note.ID) throws -> Note?
+
     /// Creates a new note, appended after the current last note (or first,
     /// if the store is empty), and persists it immediately.
     @discardableResult

@@ -18,6 +18,20 @@ public final class GRDBNoteRepository: NoteRepository {
         }
     }
 
+    public func summaries() throws -> [NoteSummary] {
+        try dbQueue.read { db in
+            try NoteSummaryRow
+                .fetchAll(db, sql: "SELECT id, title, updated_at FROM note ORDER BY sort_order")
+                .map { NoteSummary(id: $0.id, title: $0.title, updatedAt: $0.updatedAt) }
+        }
+    }
+
+    public func fetch(id: Note.ID) throws -> Note? {
+        try dbQueue.read { db in
+            try NoteRow.fetchOne(db, key: id)?.asNote
+        }
+    }
+
     @discardableResult
     public func create() throws -> Note {
         try dbQueue.write { db in

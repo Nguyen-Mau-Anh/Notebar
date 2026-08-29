@@ -70,6 +70,28 @@ enum Migrations {
             try db.execute(sql: NoteBodyRTFSchema.dropBodyColumn)
         }
 
+        // Registered last, same reasoning as `NoteBodyRTFSchema` above: a
+        // user upgrading has already applied every migration before this
+        // one, so it must come after all of them. Spec §6.2c: pasting or
+        // dragging an image into a note needs `NSTextAttachment`, which
+        // plain RTF cannot carry, so every existing `body_rtf` blob is
+        // reinterpreted as RTFD here. `body_plain` is untouched — no
+        // existing row can hold an attachment yet, so its visible text is
+        // identical before and after.
+        migrator.registerMigration(NoteBodyRTFDSchema.migrationName) { db in
+            let rows = try Row.fetchAll(db, sql: "SELECT rowid, body_rtf FROM note")
+            for row in rows {
+                let rowid: Int64 = row["rowid"]
+                let legacyRTF: Data = row["body_rtf"]
+                let attributedString = NoteRTF.attributedString(from: legacyRTF)
+                let rtfdData = NoteRTF.rtfdData(from: attributedString)
+                try db.execute(
+                    sql: "UPDATE note SET body_rtf = ? WHERE rowid = ?",
+                    arguments: [rtfdData, rowid]
+                )
+            }
+        }
+
         return migrator
     }
 }

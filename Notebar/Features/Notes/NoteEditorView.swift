@@ -10,9 +10,11 @@ import NotebarStore
 /// `TextEditor` never exposed — exactly what rich text and the formatting
 /// bar (`FormattingBarView`) need.
 ///
-/// Storage moved from `body` as `String` to `Note.bodyRTF` as an RTF blob
-/// (`NoteRTF`), with `Note.bodyPlain` regenerated in the same transaction so
-/// FTS cannot drift (spec §5) — see `Coordinator.textDidChange`.
+/// Storage moved from `body` as `String` to `Note.bodyRTF` as a flat RTFD
+/// blob (`NoteRTF`) — RTFD rather than plain RTF so a pasted or dragged
+/// image (spec §6.2c) survives the round trip — with `Note.bodyPlain`
+/// regenerated in the same transaction so FTS cannot drift (spec §5) — see
+/// `Coordinator.textDidChange`.
 ///
 /// Also the real source for two of `PanelContext`'s collapse-suppression
 /// signals (spec §4.4): `Coordinator.textDidBeginEditing`/`textDidEndEditing`
@@ -43,12 +45,16 @@ struct NoteEditorView: NSViewRepresentable {
         textView.isEditable = true
         textView.drawsBackground = false
         textView.allowsUndo = true
+        // Spec §6.2c: lets a pasted or dragged image land as an
+        // `NSTextAttachment` instead of being ignored or interpreted as a
+        // file-path string — `NSTextView` does the rest of the work itself.
+        textView.importsGraphics = true
         textView.textContainerInset = NSSize(width: Tokens.Space.md, height: Tokens.Space.md)
         textView.textContainer?.widthTracksTextView = true
         textView.typingAttributes = NoteFont.typingAttributes
 
         if let note = model.notes.first(where: { $0.id == noteID }) {
-            let attributedString = NoteRTF.attributedString(from: note.bodyRTF)
+            let attributedString = NoteRTF.attributedString(fromRTFD: note.bodyRTF)
             textView.textStorage?.setAttributedString(attributedString)
         }
 
@@ -88,10 +94,15 @@ struct NoteEditorView: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView, let model else { return }
             model.lastKeystrokeAt = .now
+            // Fires after both a paste and a completed drag (spec §6.2c),
+            // so this is the one place any newly embedded image gets
+            // downscaled and fit to the container's width before the body
+            // below is captured for saving.
+            NoteImageEmbedding.normalizeAttachments(in: textView)
             let attributedString = textView.attributedString()
             model.updateNoteBody(
                 id: noteID,
-                bodyRTF: NoteRTF.data(from: attributedString),
+                bodyRTF: NoteRTF.rtfdData(from: attributedString),
                 bodyPlain: NoteRTF.plainText(from: attributedString)
             )
             editingContext?.refreshActiveStyles()

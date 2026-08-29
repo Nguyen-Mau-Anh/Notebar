@@ -66,3 +66,20 @@ extension NoteRow {
         )
     }
 }
+
+/// The row shape `GRDBNoteRepository.summaries()` actually selects: `id`,
+/// `title`, and `updated_at` only, never `body_rtf` (spec §6.2c deliverable
+/// 4). A separate type from `NoteRow` rather than decoding a partial
+/// `NoteRow` — `NoteRow`'s `Codable` conformance is derived from all six of
+/// its stored properties, so decoding it from a three-column row would fail
+/// outright rather than silently leaving `bodyRTF` empty.
+struct NoteSummaryRow: Codable, FetchableRecord {
+    var id: String
+    var title: String
+    var updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, title
+        case updatedAt = "updated_at"
+    }
+}

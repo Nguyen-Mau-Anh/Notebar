@@ -339,27 +339,34 @@ final class PanelViewModel {
 
     /// Every note in the database, most recently updated first — the
     /// backing list for the All-notes menu's popover (spec §6.2a).
-    /// Deliberately reads `noteRepository` directly rather than `notes` (the
-    /// open-tab strip): closing a tab does not delete its note, so the note
-    /// stays in the store and out of `notes` with no other way back in —
-    /// this is that way back in, and it must include notes never opened
-    /// this session too.
-    func allNotesByRecency() -> [Note] {
-        let all = (try? noteRepository.all()) ?? []
+    /// Deliberately reads `noteRepository.summaries()` rather than `all()`
+    /// (spec §6.2c deliverable 4): this only ever renders a title and a
+    /// timestamp, so it must never read every note's `body_rtf` off disk —
+    /// harmless at a few KB of RTF, ruinous once bodies can hold images.
+    /// Also deliberately not `notes` (the open-tab strip): closing a tab
+    /// does not delete its note, so the note stays in the store and out of
+    /// `notes` with no other way back in — this is that way back in, and it
+    /// must include notes never opened this session too.
+    func allNotesByRecency() -> [NoteSummary] {
+        let all = (try? noteRepository.summaries()) ?? []
         return all.sorted { $0.updatedAt > $1.updatedAt }
     }
 
     /// Opens a note as the active tab, creating the tab if it was closed —
-    /// the All-notes menu's row action (spec §6.2a). Takes the whole `Note`
-    /// rather than just an id since the caller already has it from
-    /// `allNotesByRecency()`; this only appends it to the strip if it isn't
-    /// there already.
-    func openNote(_ note: Note) {
+    /// the All-notes menu's row action (spec §6.2a). Takes only an id, since
+    /// the caller now has just a `NoteSummary` from `allNotesByRecency()`
+    /// (spec §6.2c deliverable 4: the menu never reads a body). Appending to
+    /// the strip needs the full `Note` — `NoteEditorView` reads `bodyRTF`
+    /// off it — so this fetches exactly that one row via `fetch(id:)` rather
+    /// than reading every note the way `allNotesByRecency()` deliberately no
+    /// longer does.
+    func openNote(id: Note.ID) {
         flushAllPendingSaves()
-        if !notes.contains(where: { $0.id == note.id }) {
+        if !notes.contains(where: { $0.id == id }) {
+            guard let note = try? noteRepository.fetch(id: id) else { return }
             notes.append(note)
         }
-        activeNoteID = note.id
+        activeNoteID = id
         persistOpenTabs()
     }
 
