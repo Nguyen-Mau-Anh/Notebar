@@ -274,7 +274,7 @@ handle, so the handle is a target you can aim at but never have to hit precisely
 | Constant | Default | Meaning |
 |---|---|---|
 | `edgeDwell` | 120 ms | Cursor must rest in the trigger zone this long before expanding. Prevents accidental opens when reaching for a scrollbar. |
-| `triggerWidth` | 2 pt | Width of the trigger zone at the screen edge. |
+| `triggerWidth` | 30 pt | Width of the activation strip, equal to `handleWidth` so hovering the visible handle arms the panel. Was 2 pt, which made the app's only visible affordance a non-target. `edgeDwell` is the accident guard, not a narrow strip. |
 | `exitSlop` | 24 pt | Cursor must clear the panel bounds by this margin before the exit timer starts. |
 | `exitDwell` | 350 ms | Cursor must remain outside this long before collapsing. |
 | `expandDuration` | 180 ms | Slide-in. |
