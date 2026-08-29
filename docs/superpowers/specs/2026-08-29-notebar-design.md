@@ -181,6 +181,7 @@ expansion never pays window-creation cost.
 
 | Property | Value | Why |
 |---|---|---|
+| geometry | 340 pt wide, 70% of `visibleFrame.height`, vertically centred, flush to the right edge |
 | `styleMask` | `[.nonactivatingPanel, .borderless, .fullSizeContentView]` | `.nonactivatingPanel` is the key flag: it lets the panel accept keystrokes **without activating the application**, so typing into the overlay does not disturb the frontmost app. |
 | `level` | `.floating` | Above normal windows, below system UI. |
 | `collectionBehavior` | `[.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]` | `.fullScreenAuxiliary` is what allows appearing over fullscreen apps; `.canJoinAllSpaces` follows the user across Spaces. |
@@ -212,6 +213,15 @@ exactly the moments the panel must stay responsive.
 The active screen is the one whose frame contains the cursor, so multi-monitor works by
 construction. Only that screen's right edge triggers in v1; edge and screen selection
 become settings later.
+
+**The trigger band matches the panel, not the screen.** Because the panel is 70% of the
+screen height and vertically centred, the armed strip covers only that same vertical band
+rather than the full edge. Without this, touching the edge near the top of the screen
+would open a panel centred well below the cursor, `CursorMonitor` would immediately report
+`.cursorLeftPanel`, and the panel would collapse 350 ms after appearing — the state machine
+behaving exactly as specified while the result looked like a flicker bug. `EdgeZone.classify`
+already guards on the passed rect's y-bounds, so this needs no change to that type: the
+controller simply passes the panel's band in place of the screen frame.
 
 **Known limits.** Polling cannot observe the cursor while another application holds an
 exclusive pointer grab (some fullscreen games). This degrades to "the panel does not
