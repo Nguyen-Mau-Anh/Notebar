@@ -479,6 +479,31 @@ search across `note_fts` and `task_fts`. Saves are debounced at 400 ms and on bl
 `body_plain` is regenerated in the same transaction that writes `body_rtf`, so the search
 index cannot drift.
 
+### 6.2c Images in notes
+
+Pasting or dragging an image into a note embeds it inline. `NSTextView` produces an
+`NSTextAttachment` for a pasted image without any work; the consequences are all in
+storage.
+
+**Storage moves from RTF to flat RTFD.** Plain RTF cannot carry attachments, so an image
+would be silently dropped on save — no error, just a note that loses its picture. RTFD is
+the attributed-string format that does carry them. A new named migration converts existing
+RTF bodies; the four already-applied migrations are not touched.
+
+**Very large pastes are downscaled.** An image whose longest edge exceeds 2000 px is scaled
+down before embedding. A modern screenshot is 6–8 MB at full size and gains nothing in a
+340 pt panel, and every one of those megabytes lives in the note's row forever.
+
+**List queries must stop reading the body.** `NoteRepository.all()` currently selects every
+column, and the all-notes menu (§6.2a) calls it only to show titles and timestamps. That is
+harmless for a few KB of RTF and ruinous once bodies hold images: twenty notes with one
+screenshot each would read tens of megabytes to render a list of names. The repository
+gains a `summaries()` returning id, title, and `updatedAt` only, and the menu uses it. Body
+blobs are read only for the note actually being opened.
+
+The `body_plain` shadow column is unaffected — an attachment contributes no text, so FTS
+keeps working unchanged.
+
 ### 6.2b Formatting bar
 
 A **32pt row directly beneath the tab toolbar**, visible only while a note is open, with a
