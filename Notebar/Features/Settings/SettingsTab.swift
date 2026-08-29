@@ -1,15 +1,31 @@
+import AppKit
 import SwiftUI
 import NotebarCore
 
-/// Settings' first real control (spec §6.5): a sectioned list, built to grow
-/// — Appearance ships a working Theme picker today; Activation, Data, and
-/// General stay inert placeholder rows (carrying the one-line descriptions
-/// spec §6.5 already gives them) until their own settings land. Deliberately
-/// not a settings framework: one section header plus a column of rows is
-/// enough for four sections, and adding a fifth is copy-paste, not a new
-/// abstraction.
+/// Settings' sectioned list (spec §6.5), built to grow. Appearance, Data,
+/// and General are real; Activation stays an inert placeholder row (spec
+/// §6.5's one-line description) until its own settings land in a later
+/// pass. Deliberately not a settings framework: one section header plus a
+/// column of rows is enough for four sections, and adding a fifth is
+/// copy-paste, not a new abstraction.
 struct SettingsTab: View {
     let model: PanelViewModel
+
+    /// `0.1.0 (1)` — read straight from the bundle rather than
+    /// hand-maintained anywhere, so it can never drift from what
+    /// `project.yml`'s `MARKETING_VERSION`/`CURRENT_PROJECT_VERSION` actually
+    /// produced (spec §6.4b).
+    private var appVersionText: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return "\(version) (\(build))"
+    }
+
+    private var databaseSizeText: String {
+        guard let size = model.databaseDiagnostics()?.sizeOnDisk else { return "—" }
+        return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,10 +62,25 @@ struct SettingsTab: View {
                     }
 
                     SettingsSection(title: "Data") {
-                        SettingsComingSoonRow(detail: "Database location, export.")
+                        DataLocationRow(model: model)
+                        SettingsRow(title: "Size on disk") {
+                            Text(databaseSizeText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        SettingsRow(title: "Diagnostics") {
+                            Button("Export…") {
+                                DiagnosticsExporter.export(model: model)
+                            }
+                        }
                     }
 
                     SettingsSection(title: "General") {
+                        SettingsRow(title: "Version") {
+                            Text(appVersionText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         SettingsComingSoonRow(detail: "Launch at login.")
                     }
                 }
@@ -123,6 +154,46 @@ private struct SettingsRow<Trailing: View>: View {
             .font(.system(size: 13))
             .lineLimit(1)
             .layoutPriority(1)
+    }
+}
+
+/// Data section's first row (spec §6.5): the database's on-disk path, with
+/// a *Reveal in Finder* action. Not a plain `SettingsRow` — the path itself
+/// needs its own line, since a full filesystem path and a button rarely fit
+/// on one line even before `ViewThatFits`'s stacking fallback kicks in, and
+/// stacking would visually separate the button from the path it acts on.
+/// `.truncationMode(.head)` keeps the filename (the end of the path) visible
+/// when it doesn't fit, since that's the part that actually identifies the
+/// file — `notebar.sqlite`, not `/Users/…`.
+private struct DataLocationRow: View {
+    let model: PanelViewModel
+
+    var body: some View {
+        let diagnostics = model.databaseDiagnostics()
+        let path = diagnostics?.path
+
+        VStack(alignment: .leading, spacing: Tokens.Space.xs) {
+            HStack {
+                Text("Location")
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                    .layoutPriority(1)
+                Spacer(minLength: Tokens.Space.sm)
+                Button("Reveal in Finder") {
+                    guard let path else { return }
+                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                }
+                .disabled(path == nil)
+            }
+
+            Text(path ?? "Using a temporary in-memory store — the on-disk database couldn't be opened.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.head)
+        }
+        .controlSize(.small)
+        .padding(Tokens.Space.sm)
     }
 }
 

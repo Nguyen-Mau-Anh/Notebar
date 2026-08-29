@@ -41,6 +41,12 @@ public enum NoteRTF {
     /// here means AppKit itself rejected the conversion, which in practice
     /// means the attributed string is empty or otherwise degenerate —
     /// falling back to an empty blob is preferable to losing a save over it.
+    ///
+    /// Audited `try?`: nothing meaningful to log here. The only failure
+    /// mode AppKit documents is a degenerate input this function already
+    /// falls back to `Data()` for by design, and there is no note id in
+    /// scope to attach to a log line — callers that have one already log
+    /// around their own `try?` sites (see `PanelViewModel`).
     public static func data(from attributedString: NSAttributedString) -> Data {
         (try? attributedString.data(
             from: NSRange(location: 0, length: attributedString.length),
@@ -52,6 +58,14 @@ public enum NoteRTF {
     /// `data(from:)` — legacy, kept only for the pre-`NoteBodyRTFDSchema`
     /// shape of `body_rtf`. Any blob that fails to parse falls back to
     /// `empty` rather than losing the whole note to a crash.
+    ///
+    /// Audited `try?`: this is a pure codec function with no note id in
+    /// scope, so it cannot itself log "which note" failed to parse. Its one
+    /// caller with an id to attach — `NoteBodyRTFDSchema`'s migration loop
+    /// in `Migrations.swift` — would be the right place to log a per-row
+    /// parse failure if this ever needs to be diagnosable; today a bad blob
+    /// silently becomes an empty note body, which is the existing,
+    /// unchanged behaviour rather than a new gap this pass introduces.
     public static func attributedString(from data: Data) -> NSAttributedString {
         guard !data.isEmpty,
               let attributedString = try? NSAttributedString(

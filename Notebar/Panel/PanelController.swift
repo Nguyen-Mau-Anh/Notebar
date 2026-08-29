@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import QuartzCore
 import NotebarCore
+import NotebarStore
 
 /// The only place where `PanelEffect` becomes an AppKit call.
 ///
@@ -110,6 +111,10 @@ final class PanelController {
         // already uses for the identical reason.
         context.isEditorFocused = panel.firstResponder is NSText
         let (next, effects) = PanelMachine.reduce(state, event, context)
+        if next != state {
+            let previous = state
+            NotebarLog.panel.debug("panel \(String(describing: previous), privacy: .public) -> \(String(describing: next), privacy: .public) on \(String(describing: event), privacy: .public)")
+        }
         state = next
         for effect in effects { apply(effect) }
     }
@@ -252,7 +257,7 @@ final class PanelController {
             // `activeScreen()` returns nil), and `assertionFailure` would trap
             // a Debug build over a benign no-op. Becomes a proper test
             // assertion once there is a test target for the app (M1).
-            NSLog("Notebar: hidePanel effect received while the panel is not visible — reducer and window are out of sync")
+            NotebarLog.panel.fault("hidePanel effect received while the panel is not visible — reducer and window are out of sync")
             return
         }
         guard let screen = activeScreen() else { return }

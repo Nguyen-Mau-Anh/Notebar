@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import NotebarStore
 
 /// A system-wide hotkey via Carbon's `RegisterEventHotKey`.
 ///
@@ -43,7 +44,7 @@ final class GlobalHotKey {
         )
 
         guard status == noErr else {
-            NSLog("GlobalHotKey: registration failed with status \(status)")
+            NotebarLog.app.error("GlobalHotKey registration failed with status \(status, privacy: .public)")
             Self.callbacks[id] = nil
             return nil
         }

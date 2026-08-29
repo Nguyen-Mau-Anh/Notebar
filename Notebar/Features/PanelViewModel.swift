@@ -157,6 +157,7 @@ final class PanelViewModel {
     private let openTabRepository: OpenTabRepository
     private let taskRepository: TaskRepository
     private let appStateRepository: AppStateRepository
+    private let diagnosticsRepository: DiagnosticsRepository
 
     /// All repository writes happen off the main thread, so a debounced
     /// save (or the open-tab replace it triggers) never blocks typing or
@@ -203,13 +204,20 @@ final class PanelViewModel {
         noteRepository: NoteRepository,
         openTabRepository: OpenTabRepository,
         taskRepository: TaskRepository,
-        appStateRepository: AppStateRepository
+        appStateRepository: AppStateRepository,
+        diagnosticsRepository: DiagnosticsRepository
     ) {
         self.noteRepository = noteRepository
         self.openTabRepository = openTabRepository
         self.taskRepository = taskRepository
         self.appStateRepository = appStateRepository
-        self.theme = (try? appStateRepository.theme()) ?? .default
+        self.diagnosticsRepository = diagnosticsRepository
+        do {
+            self.theme = try appStateRepository.theme()
+        } catch {
+            NotebarLog.store.error("failed to read saved theme, falling back to default: \(String(describing: error), privacy: .public)")
+            self.theme = .default
+        }
         loadPersistedState()
         loadTasks()
     }
@@ -228,8 +236,23 @@ final class PanelViewModel {
             noteRepository: repositories.notes,
             openTabRepository: repositories.openTabs,
             taskRepository: repositories.tasks,
-            appStateRepository: repositories.appState
+            appStateRepository: repositories.appState,
+            diagnosticsRepository: repositories.diagnostics
         )
+    }
+
+    /// Settings → Data's database path/size row (spec §6.5) and Export
+    /// Diagnostics both read this. Logs and returns `nil` on failure rather
+    /// than crashing Settings over a diagnostics read — the one thing this
+    /// must never do is make the app harder to use while trying to make it
+    /// easier to debug.
+    func databaseDiagnostics() -> DatabaseDiagnostics? {
+        do {
+            return try diagnosticsRepository.snapshot()
+        } catch {
+            NotebarLog.store.error("failed to read database diagnostics: \(String(describing: error), privacy: .public)")
+            return nil
+        }
     }
 
     /// Settings' Theme row calls this. Applies `NSApp.appearance` immediately
@@ -242,8 +265,13 @@ final class PanelViewModel {
         guard theme != self.theme else { return }
         self.theme = theme
         NSApp.appearance = theme.nsAppearance
+        NotebarLog.app.info("theme changed to \(theme.rawValue, privacy: .public)")
         persistenceQueue.async { [appStateRepository] in
-            try? appStateRepository.setTheme(theme)
+            do {
+                try appStateRepository.setTheme(theme)
+            } catch {
+                NotebarLog.store.error("failed to persist theme change: \(String(describing: error), privacy: .public)")
+            }
         }
     }
 
@@ -253,11 +281,25 @@ final class PanelViewModel {
     /// but out of the strip; there is no notes browser yet to reopen it
     /// from, which is a known gap until one exists.
     private func loadPersistedState() {
-        guard let allNotes = try? noteRepository.all() else { return }
+        let allNotes: [Note]
+        do {
+            allNotes = try noteRepository.all()
+        } catch {
+            NotebarLog.notes.error("failed to load notes at launch: \(String(describing: error), privacy: .public)")
+            return
+        }
         let notesByID = Dictionary(uniqueKeysWithValues: allNotes.map { ($0.id, $0) })
-        let tabs = (try? openTabRepository.all()) ?? []
+        let tabs: [OpenTab]
+        do {
+            tabs = try openTabRepository.all()
+        } catch {
+            NotebarLog.notes.error("failed to load open tabs at launch: \(String(describing: error), privacy: .public)")
+            tabs = []
+        }
         notes = tabs.compactMap { notesByID[$0.refID] }
         activeNoteID = tabs.first(where: { $0.isActive })?.refID
+        let openNoteCount = notes.count
+        NotebarLog.notes.debug("loaded \(openNoteCount, privacy: .public) open note(s) at launch")
     }
 
     /// Creates a new untitled note and makes it the active tab — the
@@ -265,7 +307,14 @@ final class PanelViewModel {
     /// immediately: an empty note is cheap to write and should survive a
     /// quit even before the user types anything.
     func createNote() {
-        guard let note = try? noteRepository.create() else { return }
+        let note: Note
+        do {
+            note = try noteRepository.create()
+        } catch {
+            NotebarLog.notes.error("createNote failed: \(String(describing: error), privacy: .public)")
+            return
+        }
+        NotebarLog.notes.info("note created, id=\(note.id, privacy: .public)")
         notes.append(note)
         activeNoteID = note.id
         persistOpenTabs()
@@ -304,7 +353,12 @@ final class PanelViewModel {
         pendingSaves.removeValue(forKey: id)?.cancel()
         removeTab(id: id)
         persistenceQueue.async { [noteRepository] in
-            try? noteRepository.delete(id: id)
+            do {
+                try noteRepository.delete(id: id)
+                NotebarLog.notes.info("note deleted, id=\(id, privacy: .public)")
+            } catch {
+                NotebarLog.notes.error("deleteNote failed, id=\(id, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
         }
     }
 
@@ -320,7 +374,11 @@ final class PanelViewModel {
         notes[index].title = trimmed.isEmpty ? "Untitled" : trimmed
         let note = notes[index]
         persistenceQueue.async { [noteRepository] in
-            try? noteRepository.update(note)
+            do {
+                try noteRepository.update(note)
+            } catch {
+                NotebarLog.notes.error("renameNote failed, id=\(note.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
         }
     }
 
@@ -348,7 +406,13 @@ final class PanelViewModel {
     /// `notes` with no other way back in — this is that way back in, and it
     /// must include notes never opened this session too.
     func allNotesByRecency() -> [NoteSummary] {
-        let all = (try? noteRepository.summaries()) ?? []
+        let all: [NoteSummary]
+        do {
+            all = try noteRepository.summaries()
+        } catch {
+            NotebarLog.notes.error("failed to load note summaries: \(String(describing: error), privacy: .public)")
+            all = []
+        }
         return all.sorted { $0.updatedAt > $1.updatedAt }
     }
 
@@ -363,7 +427,17 @@ final class PanelViewModel {
     func openNote(id: Note.ID) {
         flushAllPendingSaves()
         if !notes.contains(where: { $0.id == id }) {
-            guard let note = try? noteRepository.fetch(id: id) else { return }
+            let note: Note?
+            do {
+                note = try noteRepository.fetch(id: id)
+            } catch {
+                NotebarLog.notes.error("openNote failed, id=\(id, privacy: .public): \(String(describing: error), privacy: .public)")
+                return
+            }
+            guard let note else {
+                NotebarLog.notes.error("openNote found no note for id=\(id, privacy: .public)")
+                return
+            }
             notes.append(note)
         }
         activeNoteID = id
@@ -427,7 +501,11 @@ final class PanelViewModel {
         pendingSaves[id] = nil
         guard let note = notes.first(where: { $0.id == id }) else { return }
         persistenceQueue.async { [noteRepository] in
-            try? noteRepository.update(note)
+            do {
+                try noteRepository.update(note)
+            } catch {
+                NotebarLog.notes.error("persistNote failed, id=\(note.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
         }
     }
 
@@ -444,7 +522,11 @@ final class PanelViewModel {
             )
         }
         persistenceQueue.async { [openTabRepository] in
-            try? openTabRepository.replaceAll(tabs)
+            do {
+                try openTabRepository.replaceAll(tabs)
+            } catch {
+                NotebarLog.notes.error("persistOpenTabs failed: \(String(describing: error), privacy: .public)")
+            }
         }
     }
 
@@ -478,7 +560,15 @@ final class PanelViewModel {
     /// after any write below, so `taskColumnGroups` always reflects what was
     /// actually persisted rather than an optimistic local guess.
     private func loadTasks() {
-        guard let columns = try? taskRepository.columns(), let tasks = try? taskRepository.all() else { return }
+        let columns: [BoardColumn]
+        let tasks: [TaskItem]
+        do {
+            columns = try taskRepository.columns()
+            tasks = try taskRepository.all()
+        } catch {
+            NotebarLog.tasks.error("failed to load tasks: \(String(describing: error), privacy: .public)")
+            return
+        }
         let tasksByColumn = Dictionary(grouping: tasks, by: \.columnID)
         taskColumnGroups = columns.map { column in
             TaskColumnGroup(column: column, tasks: tasksByColumn[column.id] ?? [])
@@ -490,7 +580,14 @@ final class PanelViewModel {
     /// this one).
     func addTask() {
         guard let firstColumn = taskColumnGroups.first?.column else { return }
-        guard (try? taskRepository.create(title: "New task", columnID: firstColumn.id)) != nil else { return }
+        let task: TaskItem
+        do {
+            task = try taskRepository.create(title: "New task", columnID: firstColumn.id)
+        } catch {
+            NotebarLog.tasks.error("addTask failed: \(String(describing: error), privacy: .public)")
+            return
+        }
+        NotebarLog.tasks.info("task created, id=\(task.id, privacy: .public)")
         loadTasks()
     }
 
@@ -531,7 +628,11 @@ final class PanelViewModel {
         taskColumnGroups[groupIndex].tasks[taskIndex].title = trimmed
         let task = taskColumnGroups[groupIndex].tasks[taskIndex]
         persistenceQueue.async { [taskRepository] in
-            try? taskRepository.update(task)
+            do {
+                try taskRepository.update(task)
+            } catch {
+                NotebarLog.tasks.error("renameTask failed, id=\(task.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
         }
     }
 
@@ -546,7 +647,12 @@ final class PanelViewModel {
             taskColumnGroups[index].tasks.removeAll { $0.id == id }
         }
         persistenceQueue.async { [taskRepository] in
-            try? taskRepository.delete(id: id)
+            do {
+                try taskRepository.delete(id: id)
+                NotebarLog.tasks.info("task deleted, id=\(id, privacy: .public)")
+            } catch {
+                NotebarLog.tasks.error("deleteTask failed, id=\(id, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
         }
     }
 
@@ -580,7 +686,11 @@ final class PanelViewModel {
         pendingTaskSaves[id] = nil
         guard let task = task(withID: id) else { return }
         persistenceQueue.async { [taskRepository] in
-            try? taskRepository.update(task)
+            do {
+                try taskRepository.update(task)
+            } catch {
+                NotebarLog.tasks.error("persistTask failed, id=\(task.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
         }
     }
 
@@ -595,7 +705,12 @@ final class PanelViewModel {
     func moveTask(id: TaskItem.ID, toColumnID columnID: BoardColumn.ID) {
         guard let destination = taskColumnGroups.first(where: { $0.column.id == columnID }) else { return }
         let lastTaskID = destination.tasks.last?.id
-        guard (try? taskRepository.move(id: id, columnID: columnID, before: nil, after: lastTaskID)) != nil else { return }
+        do {
+            try taskRepository.move(id: id, columnID: columnID, before: nil, after: lastTaskID)
+        } catch {
+            NotebarLog.tasks.error("moveTask failed, id=\(id, privacy: .public): \(String(describing: error), privacy: .public)")
+            return
+        }
         loadTasks()
     }
 }

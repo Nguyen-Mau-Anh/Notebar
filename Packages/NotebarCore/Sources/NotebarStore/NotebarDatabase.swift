@@ -13,27 +13,51 @@ public enum NotebarDatabase {
         public let openTabs: OpenTabRepository
         public let tasks: TaskRepository
         public let appState: AppStateRepository
+        public let diagnostics: DiagnosticsRepository
     }
 
     /// Opens (creating if needed) the on-disk database in this app's
     /// Application Support directory and runs any pending migrations.
     public static func openDefault() throws -> Repositories {
-        try makeRepositories(dbQueue: DatabaseQueue(path: defaultDatabaseURL().path))
+        let url = try defaultDatabaseURL()
+        return try makeRepositories(dbQueue: DatabaseQueue(path: url.path), databasePath: url)
     }
 
     /// An in-memory database, migrated the same way. Used by tests and as a
-    /// fallback if the on-disk store can't be opened.
+    /// fallback if the on-disk store can't be opened. `databasePath` is nil
+    /// here — there is no on-disk file for `DiagnosticsRepository` to report
+    /// a size for, and Settings → Data shows that honestly rather than
+    /// inventing a path nothing backs.
     public static func openInMemory() throws -> Repositories {
-        try makeRepositories(dbQueue: DatabaseQueue())
+        try makeRepositories(dbQueue: DatabaseQueue(), databasePath: nil)
     }
 
-    private static func makeRepositories(dbQueue: DatabaseQueue) throws -> Repositories {
-        try Migrations.migrator.migrate(dbQueue)
+    private static func makeRepositories(dbQueue: DatabaseQueue, databasePath: URL?) throws -> Repositories {
+        // Diffed before/after rather than just logging "migrated" — a
+        // second launch against an already-current database should say so
+        // was a no-op, not repeat the same "ran N migrations" line every
+        // time the app opens (spec §6.4b: "migration runs" worth a log
+        // entry, not log noise).
+        let alreadyApplied = try dbQueue.read { db in try Migrations.migrator.appliedIdentifiers(db) }
+        do {
+            try Migrations.migrator.migrate(dbQueue)
+        } catch {
+            NotebarLog.store.error("database migration failed: \(String(describing: error), privacy: .public)")
+            throw error
+        }
+        let nowApplied = try dbQueue.read { db in try Migrations.migrator.appliedMigrations(db) }
+        let newlyApplied = nowApplied.filter { !alreadyApplied.contains($0) }
+        if newlyApplied.isEmpty {
+            NotebarLog.store.debug("database opened, no pending migrations")
+        } else {
+            NotebarLog.store.info("ran \(newlyApplied.count, privacy: .public) migration(s): \(newlyApplied.joined(separator: ", "), privacy: .public)")
+        }
         return Repositories(
             notes: GRDBNoteRepository(dbQueue: dbQueue),
             openTabs: GRDBOpenTabRepository(dbQueue: dbQueue),
             tasks: GRDBTaskRepository(dbQueue: dbQueue),
-            appState: GRDBAppStateRepository(dbQueue: dbQueue)
+            appState: GRDBAppStateRepository(dbQueue: dbQueue),
+            diagnostics: GRDBDiagnosticsRepository(dbQueue: dbQueue, path: databasePath)
         )
     }
 
