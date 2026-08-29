@@ -169,10 +169,16 @@ none` equivalents. See §9 for the WCAG citation.
 **Structure, left to right:** Rail (56pt, 44pt compact) → Divider (1px `border.separator`,
 full height) → Content area (fills the remainder: 420 − 56 − 1 = 363pt at default width).
 
-**Overall size:** 420pt wide (default) × the active screen's `visibleFrame.height` (full
-usable height, menu bar excluded, matching the state machine's own screen-selection logic
-in product spec §4.2). The panel is a single edge-docked column, not a floating card — it
-has no top/bottom margin from the screen edges.
+**Overall size:** 340pt wide (default) × **70% of the active screen's
+`visibleFrame.height`**, **vertically centred**, and **flush to the right edge** (no
+horizontal margin). The panel is an edge-attached card, not a full-height column: at 340pt
+it occupies ~22% of a 1512pt-wide display instead of 28%, and the vertical inset above and
+below keeps it from reading as a permanent sidebar when it is in fact transient.
+
+**Trigger band.** Because the panel covers only the middle 70% of the edge, the armed strip
+covers that same band — not the full edge. See product spec §4.2 for why: a full-edge
+trigger would open a panel centred below a cursor that touched near the top, and the panel
+would collapse 350ms later.
 
 **Safe margins:** content padding `space.md` (16pt) left/right inside the content area;
 `space.xs` (8pt) top clearance below the physical screen edge before the first row of

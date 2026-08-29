@@ -1153,13 +1153,14 @@ git push origin main
   final class CursorMonitor {
       var onEvent: ((PanelEvent) -> Void)?
       var panelFrame: (() -> CGRect?)?
+      var triggerBand: ((NSScreen) -> CGRect?)?
       func start()
       func stop()
       func setRate(_ rate: PollRate)
   }
   ```
 
-Task 7 (`PanelController`) owns the instance and supplies both closures.
+Task 7 (`PanelController`) owns the instance and supplies all three closures.
 
 - [ ] **Step 1: Write CursorMonitor**
 
@@ -1186,6 +1187,11 @@ final class CursorMonitor {
 
     /// Supplies the panel's current frame, or nil when it is not on screen.
     var panelFrame: (() -> CGRect?)?
+
+    /// Supplies the vertical band of the screen edge that arms the panel.
+    /// Must match where the panel will appear — see spec section 4.2. Falls
+    /// back to the whole screen if unset.
+    var triggerBand: ((NSScreen) -> CGRect?)?
 
     private var timer: Timer?
     private var rate: PollRate = .idle
@@ -1234,7 +1240,7 @@ final class CursorMonitor {
                 ?? NSScreen.main else { return }
 
         emitPanelEvents(cursor: cursor)
-        emitEdgeEvents(cursor: cursor, screen: screen.frame)
+        emitEdgeEvents(cursor: cursor, screen: triggerBand?(screen) ?? screen.frame)
     }
 
     private func emitEdgeEvents(cursor: CGPoint, screen: CGRect) {
@@ -1359,7 +1365,9 @@ final class PanelController {
     private var timers: [PanelTimer: Timer] = [:]
     private var escapeMonitor: Any?
 
-    private static let panelWidth: CGFloat = 420
+    private static let panelWidth: CGFloat = 340
+    /// The panel is a vertically centred card, not a full-height column.
+    private static let panelHeightFraction: CGFloat = 0.70
 
     var isPinned: Bool {
         get { context.isPinned }
@@ -1377,6 +1385,9 @@ final class PanelController {
         monitor.panelFrame = { [weak self] in
             guard let self, self.panel.isVisible else { return nil }
             return self.panel.frame
+        }
+        monitor.triggerBand = { [weak self] screen in
+            self?.triggerBand(on: screen)
         }
         monitor.start()
         observeKeyWindow()
@@ -1438,15 +1449,31 @@ final class PanelController {
     /// Onscreen and offscreen frames for the panel on a given screen.
     /// `visibleFrame` rather than `frame` so the panel does not sit under the
     /// menu bar or over the Dock.
+    ///
+    /// The panel is flush to the right edge (x pinned to `area.maxX`) but
+    /// vertically centred at 70% height, so it reads as a card rather than a
+    /// permanent sidebar.
     private func frames(on screen: NSScreen) -> (onscreen: NSRect, offscreen: NSRect) {
         let area = screen.visibleFrame
+        let height = (area.height * Self.panelHeightFraction).rounded()
         let onscreen = NSRect(
             x: area.maxX - Self.panelWidth,
-            y: area.minY,
+            y: (area.minY + (area.height - height) / 2).rounded(),
             width: Self.panelWidth,
-            height: area.height
+            height: height
         )
         return (onscreen, onscreen.offsetBy(dx: Self.panelWidth, dy: 0))
+    }
+
+    /// The vertical band of the screen edge that arms the panel.
+    ///
+    /// It must match where the panel will actually appear. If the whole edge
+    /// armed it, touching near the top of the screen would open a panel centred
+    /// far below the cursor, `CursorMonitor` would immediately report
+    /// `.cursorLeftPanel`, and the panel would collapse 350 ms after opening —
+    /// a flicker bug produced by a state machine behaving exactly as specified.
+    private func triggerBand(on screen: NSScreen) -> NSRect {
+        frames(on: screen).onscreen
     }
 
     private func showPanel() {
