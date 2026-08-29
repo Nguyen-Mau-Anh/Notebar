@@ -99,6 +99,33 @@ struct GRDBNoteRepositoryCRUDTests {
     }
 }
 
+@Suite("closing a tab is not deleting a note")
+struct GRDBNoteRepositoryOpenTabTests {
+    /// The invariant the All-notes menu (spec §6.2a) rests on: removing a
+    /// note's `open_tab` row — what closing a tab actually does — must not
+    /// touch the `note` row. If it did, there would be nothing left for the
+    /// menu to list back into the strip.
+    @Test("a note whose tab has been closed still appears in all()")
+    func noteSurvivesTabClose() throws {
+        let dbQueue = try DatabaseQueue()
+        try Migrations.migrator.migrate(dbQueue)
+        let notes = GRDBNoteRepository(dbQueue: dbQueue)
+        let openTabs = GRDBOpenTabRepository(dbQueue: dbQueue)
+
+        let note = try notes.create()
+        try openTabs.replaceAll([
+            OpenTab(kind: OpenTab.noteKind, refID: note.id, sortOrder: 0, isActive: true)
+        ])
+
+        // "Closing the tab": the open-tab set is replaced without this
+        // note's entry, exactly what `PanelViewModel.removeTab` triggers.
+        try openTabs.replaceAll([])
+
+        #expect(try openTabs.all().isEmpty)
+        #expect(try notes.all().contains { $0.id == note.id })
+    }
+}
+
 @Suite("body_plain stays in sync with body")
 struct GRDBNoteRepositoryBodyPlainTests {
     @Test("body_plain matches body immediately after create")

@@ -33,6 +33,14 @@ enum Tokens {
         /// Note tab strip: min/max width per tab before tail truncation.
         static let noteTabMinWidth: CGFloat = 96
         static let noteTabMaxWidth: CGFloat = 160
+
+        /// The All-notes menu popover (spec §6.2a). `allNotesPopoverMaxHeight`
+        /// caps its height and lets it scroll instead — a user with 200
+        /// notes must not get a popover taller than the screen.
+        static let allNotesPopoverWidth: CGFloat = 260
+        static let allNotesPopoverMaxHeight: CGFloat = 360
+        /// The dot marking a row whose note is already open as a tab.
+        static let allNotesOpenDotSize: CGFloat = 6
     }
 
     enum Space {

@@ -16,8 +16,11 @@ struct NotesTab: View {
                     onDelete: { model.deleteNote(id: $0) }
                 )
             } right: {
-                ToolbarActionButton(symbol: "plus", accessibilityLabel: "New note") {
-                    model.createNote()
+                HStack(spacing: Tokens.Space.xs) {
+                    AllNotesMenuButton(model: model)
+                    ToolbarActionButton(symbol: "plus", accessibilityLabel: "New note") {
+                        model.createNote()
+                    }
                 }
             }
 

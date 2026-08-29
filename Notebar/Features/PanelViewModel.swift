@@ -197,6 +197,32 @@ final class PanelViewModel {
         persistOpenTabs()
     }
 
+    /// Every note in the database, most recently updated first — the
+    /// backing list for the All-notes menu's popover (spec §6.2a).
+    /// Deliberately reads `noteRepository` directly rather than `notes` (the
+    /// open-tab strip): closing a tab does not delete its note, so the note
+    /// stays in the store and out of `notes` with no other way back in —
+    /// this is that way back in, and it must include notes never opened
+    /// this session too.
+    func allNotesByRecency() -> [Note] {
+        let all = (try? noteRepository.all()) ?? []
+        return all.sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    /// Opens a note as the active tab, creating the tab if it was closed —
+    /// the All-notes menu's row action (spec §6.2a). Takes the whole `Note`
+    /// rather than just an id since the caller already has it from
+    /// `allNotesByRecency()`; this only appends it to the strip if it isn't
+    /// there already.
+    func openNote(_ note: Note) {
+        flushAllPendingSaves()
+        if !notes.contains(where: { $0.id == note.id }) {
+            notes.append(note)
+        }
+        activeNoteID = note.id
+        persistOpenTabs()
+    }
+
     /// Selects a note tab. A dedicated method rather than a plain settable
     /// property (unlike `isPinned`/`isMaximized`) because selecting a tab
     /// also changes which tab is `isActive` in the persisted open-tab set.
