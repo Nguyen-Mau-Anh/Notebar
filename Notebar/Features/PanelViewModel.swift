@@ -156,6 +156,7 @@ final class PanelViewModel {
     private let noteRepository: NoteRepository
     private let openTabRepository: OpenTabRepository
     private let taskRepository: TaskRepository
+    private let linkRepository: LinkRepository
     private let appStateRepository: AppStateRepository
     private let diagnosticsRepository: DiagnosticsRepository
 
@@ -204,12 +205,14 @@ final class PanelViewModel {
         noteRepository: NoteRepository,
         openTabRepository: OpenTabRepository,
         taskRepository: TaskRepository,
+        linkRepository: LinkRepository,
         appStateRepository: AppStateRepository,
         diagnosticsRepository: DiagnosticsRepository
     ) {
         self.noteRepository = noteRepository
         self.openTabRepository = openTabRepository
         self.taskRepository = taskRepository
+        self.linkRepository = linkRepository
         self.appStateRepository = appStateRepository
         self.diagnosticsRepository = diagnosticsRepository
         do {
@@ -236,6 +239,7 @@ final class PanelViewModel {
             noteRepository: repositories.notes,
             openTabRepository: repositories.openTabs,
             taskRepository: repositories.tasks,
+            linkRepository: repositories.links,
             appStateRepository: repositories.appState,
             diagnosticsRepository: repositories.diagnostics
         )
@@ -712,5 +716,82 @@ final class PanelViewModel {
             return
         }
         loadTasks()
+    }
+
+    // MARK: - Linking (spec §6.4)
+
+    /// Notes and tasks together, most-recently-updated first and filtered by
+    /// `query` (case-insensitive substring match against the title) — the
+    /// backing list for the `@` autocomplete popover (deliverable 3). Reads
+    /// `noteRepository.summaries()`, not `all()`, for the same reason
+    /// `allNotesByRecency()` does — this only ever renders a title and a
+    /// timestamp, never a body — and reads tasks from the already-loaded
+    /// `taskColumnGroups` rather than the repository again, since nothing
+    /// here needs a fresher copy than what's already resident.
+    func mentionCandidates(matching query: String) -> [MentionCandidate] {
+        let noteSummaries: [NoteSummary]
+        do {
+            noteSummaries = try noteRepository.summaries()
+        } catch {
+            NotebarLog.notes.error("mentionCandidates failed to load notes: \(String(describing: error), privacy: .public)")
+            noteSummaries = []
+        }
+        var candidates = noteSummaries.map {
+            MentionCandidate(id: $0.id, type: .note, title: $0.displayTitle, updatedAt: $0.updatedAt)
+        }
+        candidates += taskColumnGroups.flatMap(\.tasks).map {
+            MentionCandidate(id: $0.id, type: .task, title: $0.title, updatedAt: $0.updatedAt)
+        }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            candidates = candidates.filter { $0.title.localizedCaseInsensitiveContains(trimmed) }
+        }
+        return candidates.sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    /// Inserts a link chip into a note's body and its `link` row atomically
+    /// (spec §6.4 deliverable 3). The `@` autocomplete's row action calls
+    /// this instead of `updateNoteBody`/`scheduleSave`: a debounced save
+    /// running independently of the link write could commit one without the
+    /// other, exactly what "a chip can never exist without its row" rules
+    /// out, so this bypasses the debounce and writes both through
+    /// `LinkRepository.create(_:savingNoteBody:bodyRTF:bodyPlain:)` in one
+    /// SQLite transaction instead.
+    func insertLinkChip(noteID: Note.ID, bodyRTF: Data, bodyPlain: String, destination: LinkTarget) {
+        guard let index = notes.firstIndex(where: { $0.id == noteID }) else { return }
+        notes[index].bodyRTF = bodyRTF
+        notes[index].bodyPlain = bodyPlain
+        pendingSaves.removeValue(forKey: noteID)?.cancel()
+        let link = Link(srcType: .note, srcId: noteID, dstType: destination.type, dstId: destination.id)
+        persistenceQueue.async { [linkRepository] in
+            do {
+                try linkRepository.create(link, savingNoteBody: noteID, bodyRTF: bodyRTF, bodyPlain: bodyPlain)
+                NotebarLog.notes.info("link chip inserted, note=\(noteID, privacy: .public)")
+            } catch {
+                NotebarLog.notes.error("insertLinkChip failed, note=\(noteID, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    /// Clicking a chip (spec §6.4 deliverable 4): a note target opens as a
+    /// tab, creating it if closed — the exact path the all-notes menu's row
+    /// action already uses (`openNote(id:)`) — and a task target switches to
+    /// the Tasks tab and expands that card in place. A target that no
+    /// longer exists — deleted since the chip was written — does nothing
+    /// visible rather than crashing; rendering that state as a tombstone is
+    /// the next task, not this one.
+    func openLinkTarget(_ target: LinkTarget) {
+        switch target.type {
+        case .note:
+            selection = .notes
+            openNote(id: target.id)
+        case .task:
+            guard task(withID: target.id) != nil else {
+                NotebarLog.tasks.debug("chip click ignored: target task no longer exists")
+                return
+            }
+            selection = .tasks
+            expandedTaskID = target.id
+        }
     }
 }

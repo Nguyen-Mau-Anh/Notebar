@@ -58,6 +58,13 @@ enum Tokens {
         /// 28x28pt hit targets directly beneath the tab toolbar.
         static let formattingBarHeight: CGFloat = 32
         static let formattingBarButtonSize: CGFloat = 28
+
+        /// The `@` autocomplete popover (spec §6.4 deliverable 3), sized the
+        /// same way `allNotesPopoverWidth`/`allNotesPopoverMaxHeight` are —
+        /// a fixed width and a capped, scrollable height so a large note+task
+        /// count never produces a popover taller than the editor itself.
+        static let mentionPopoverWidth: CGFloat = 260
+        static let mentionPopoverMaxHeight: CGFloat = 220
     }
 
     /// The note editor's type scale (spec §6.2/§6.2b): a fixed set of four

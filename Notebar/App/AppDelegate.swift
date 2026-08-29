@@ -57,6 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             noteRepository: repositories.notes,
             openTabRepository: repositories.openTabs,
             taskRepository: repositories.tasks,
+            linkRepository: repositories.links,
             appStateRepository: repositories.appState,
             diagnosticsRepository: repositories.diagnostics
         )

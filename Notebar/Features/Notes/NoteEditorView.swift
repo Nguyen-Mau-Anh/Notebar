@@ -51,6 +51,7 @@ struct NoteEditorView: NSViewRepresentable {
     let model: PanelViewModel
     let noteID: Note.ID
     let editingContext: NoteEditingContext
+    let mentionContext: NoteMentionContext
 
     func makeNSView(context: Context) -> NSScrollView {
         // Apple's own convenience for pairing a text view with a correctly
@@ -85,15 +86,25 @@ struct NoteEditorView: NSViewRepresentable {
         textView.typingAttributes = NoteFont.typingAttributes
 
         if let note = model.notes.first(where: { $0.id == noteID }) {
-            let attributedString = NoteRTF.attributedString(fromRTFD: note.bodyRTF)
+            // `.link` survives the RTFD round trip but `.foregroundColor`
+            // does not (`NoteRTF` strips it so ordinary text always tracks
+            // `textColor`) — `NoteChipStyling.restyled` is what puts a
+            // chip's accent colour back before anything is ever drawn. See
+            // that type's doc comment for why this is done here, on load,
+            // rather than exempting chip runs from the strip.
+            let attributedString = NoteChipStyling.restyled(NoteRTF.attributedString(fromRTFD: note.bodyRTF))
             textView.textStorage?.setAttributedString(attributedString)
         }
 
         context.coordinator.model = model
         context.coordinator.noteID = noteID
         context.coordinator.editingContext = editingContext
+        context.coordinator.mentionContext = mentionContext
         editingContext.textView = textView
         editingContext.refreshActiveStyles()
+        mentionContext.textView = textView
+        mentionContext.model = model
+        mentionContext.noteID = noteID
 
         return scrollView
     }
@@ -116,6 +127,7 @@ struct NoteEditorView: NSViewRepresentable {
         var model: PanelViewModel?
         var noteID: Note.ID = ""
         weak var editingContext: NoteEditingContext?
+        weak var mentionContext: NoteMentionContext?
 
         /// Fires for every edit — typed, pasted, or a direct `textStorage`
         /// mutation followed by an explicit `didChangeText()` (formatting
@@ -144,10 +156,20 @@ struct NoteEditorView: NSViewRepresentable {
                 bodyPlain: NoteRTF.plainText(from: attributedString)
             )
             editingContext?.refreshActiveStyles()
+            // Spec §6.4 deliverable 3: detects an `@` just typed, or keeps
+            // an already-open mention session filtered by what's been typed
+            // since. Every edit runs through here, `NoteMentionContext`
+            // itself decides whether any of it is mention-relevant.
+            mentionContext?.refresh()
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
             editingContext?.refreshActiveStyles()
+            // The caret can move with no text change at all (a click, an
+            // arrow key) — a mention session must end just as surely on
+            // that as on typing past a word boundary, spec §6.4's "clicking
+            // away dismisses."
+            mentionContext?.refresh()
         }
 
         /// `NSTextView.becomeFirstResponder()` posts this when the view is
@@ -182,6 +204,35 @@ struct NoteEditorView: NSViewRepresentable {
                 return false
             }
             return NoteMarkdownShortcuts.handle(textView, range: affectedCharRange, replacement: replacementString)
+        }
+
+        /// Spec §6.4 deliverable 3: "Escape ... dismisses without
+        /// inserting." `PanelController.installEscapeMonitor` already lets
+        /// Escape reach the editor whenever it holds first responder — see
+        /// that method's doc comment — so this is where it actually lands.
+        /// Consumed (returns `true`) only while a mention session is open;
+        /// otherwise falls through to `NSTextView`'s own default handling
+        /// (`false`), unchanged from before this feature existed.
+        func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            guard commandSelector == #selector(NSResponder.cancelOperation(_:)), mentionContext?.isActive == true else {
+                return false
+            }
+            mentionContext?.cancel()
+            return true
+        }
+
+        /// Spec §6.4 deliverable 4: clicking a chip opens its target.
+        /// `NSTextView` already routes a click on a `.link` run here — no
+        /// custom hit-testing needed, exactly the payoff spec §6.4 calls out
+        /// for building chips as a `.link` attribute rather than an
+        /// `NSTextAttachment`. A `link` this doesn't recognize (a foreign
+        /// scheme, or a malformed `notebar://` URL) is left for `NSTextView`
+        /// to handle its own way (`false`) — in practice, none exist, since
+        /// every chip this editor ever inserts comes from `LinkURL.url(for:id:)`.
+        func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+            guard let url = link as? URL, let target = LinkURL.parse(url) else { return false }
+            model?.openLinkTarget(target)
+            return true
         }
     }
 }

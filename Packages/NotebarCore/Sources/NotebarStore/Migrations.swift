@@ -92,6 +92,20 @@ enum Migrations {
             }
         }
 
+        // Registered last, same reasoning as `NoteBodyRTFSchema` and
+        // `NoteBodyRTFDSchema` above: a user upgrading has already applied
+        // every migration before this one. Spec §5/§6.4: the `link` table,
+        // specced since day one and never built — see `LinkSchema`'s doc
+        // comment. Pure schema, no data to backfill: no row anywhere in this
+        // database has ever referenced a link that doesn't exist yet.
+        migrator.registerMigration(LinkSchema.migrationName) { db in
+            try db.execute(sql: LinkSchema.createLinkTable)
+            try db.execute(sql: LinkSchema.createSrcIndex)
+            try db.execute(sql: LinkSchema.createDstIndex)
+            try db.execute(sql: LinkSchema.cascadeOnNoteDelete)
+            try db.execute(sql: LinkSchema.cascadeOnTaskDelete)
+        }
+
         return migrator
     }
 }

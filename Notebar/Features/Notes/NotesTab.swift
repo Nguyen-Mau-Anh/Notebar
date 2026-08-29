@@ -49,11 +49,28 @@ private struct NoteEditorContainer: View {
     let noteID: Note.ID
 
     @State private var editingContext = NoteEditingContext()
+    @State private var mentionContext = NoteMentionContext()
 
     var body: some View {
-        VStack(spacing: 0) {
-            FormattingBarView(context: editingContext)
-            NoteEditorView(model: model, noteID: noteID, editingContext: editingContext)
+        ZStack(alignment: .top) {
+            VStack(spacing: 0) {
+                FormattingBarView(context: editingContext)
+                NoteEditorView(model: model, noteID: noteID, editingContext: editingContext, mentionContext: mentionContext)
+            }
+
+            // Anchored just below the formatting bar rather than tracking
+            // the caret's exact pixel position: `NSTextView`'s caret rect is
+            // in AppKit's own (non-flipped) view coordinates, and converting
+            // that precisely into this SwiftUI overlay's space needs the
+            // scroll view's live scroll offset too — a fixed, always-visible
+            // position is simpler and, since at most one session is ever
+            // open at a time, unambiguous about what it's offering.
+            if mentionContext.isActive {
+                MentionPopoverView(context: mentionContext)
+                    .padding(.top, Tokens.Size.formattingBarHeight + Tokens.Space.xs)
+                    .padding(.leading, Tokens.Space.md)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         // Belt-and-suspenders: this container being torn down — switching
         // notes, closing the active tab, or switching away from Notes
@@ -65,8 +82,11 @@ private struct NoteEditorContainer: View {
         // (`PanelViewModel.selection`/`activeNoteID`'s `didSet`s cover the
         // same ground for the model-level flag); this just keeps
         // `isEditorFocused` itself honest for whatever none of those catch.
+        // `mentionContext.cancel()` is the same mitigation for
+        // `hasOpenOverlay`, mirroring `AllNotesMenuButton`'s `.onDisappear`.
         .onDisappear {
             model.isEditorFocused = false
+            mentionContext.cancel()
         }
     }
 }

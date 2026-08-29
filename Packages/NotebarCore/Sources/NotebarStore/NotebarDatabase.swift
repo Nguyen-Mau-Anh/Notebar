@@ -12,6 +12,7 @@ public enum NotebarDatabase {
         public let notes: NoteRepository
         public let openTabs: OpenTabRepository
         public let tasks: TaskRepository
+        public let links: LinkRepository
         public let appState: AppStateRepository
         public let diagnostics: DiagnosticsRepository
     }
@@ -56,6 +57,7 @@ public enum NotebarDatabase {
             notes: GRDBNoteRepository(dbQueue: dbQueue),
             openTabs: GRDBOpenTabRepository(dbQueue: dbQueue),
             tasks: GRDBTaskRepository(dbQueue: dbQueue),
+            links: GRDBLinkRepository(dbQueue: dbQueue),
             appState: GRDBAppStateRepository(dbQueue: dbQueue),
             diagnostics: GRDBDiagnosticsRepository(dbQueue: dbQueue, path: databasePath)
         )
