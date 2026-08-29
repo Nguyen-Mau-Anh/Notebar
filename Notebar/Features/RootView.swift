@@ -86,7 +86,7 @@ private struct CollapsedHandle: View {
 #Preview("Expanded") {
     let model = PanelViewModel()
     model.isExpanded = true
-    return RootView(model: model).frame(width: 420, height: 700)
+    return RootView(model: model).frame(width: 340, height: 745)
 }
 
 #Preview("Collapsed handle") {
