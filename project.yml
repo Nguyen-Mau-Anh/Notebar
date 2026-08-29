@@ -1,0 +1,48 @@
+name: Notebar
+options:
+  bundleIdPrefix: com.anhnm
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    DEAD_CODE_STRIPPING: YES
+
+packages:
+  NotebarCore:
+    path: Packages/NotebarCore
+
+targets:
+  Notebar:
+    type: application
+    platform: macOS
+    sources:
+      - path: Notebar
+    dependencies:
+      - package: NotebarCore
+        product: NotebarCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.anhnm.notebar
+        PRODUCT_NAME: Notebar
+        ENABLE_HARDENED_RUNTIME: YES
+        COMBINE_HIDPI_IMAGES: YES
+    info:
+      path: Notebar/Info.plist
+      properties:
+        CFBundleName: Notebar
+        CFBundleDisplayName: Notebar
+        CFBundlePackageType: APPL
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
+        # Menu-bar-only app: no Dock icon, no app menu.
+        LSUIElement: true
+        NSHumanReadableCopyright: ""
