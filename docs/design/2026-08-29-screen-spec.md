@@ -175,6 +175,21 @@ horizontal margin). The panel is an edge-attached card, not a full-height column
 it occupies ~22% of a 1512pt-wide display instead of 28%, and the vertical inset above and
 below keeps it from reading as a permanent sidebar when it is in fact transient.
 
+**Collapsed handle.** The panel is never fully hidden. Collapsed, it is a **30 x 56pt
+handle** flush to the right edge, vertically centred, carrying `radius.md` (10pt) on its
+left corners and square right corners, filled `surface.elevated.bg` with `elevation.card`.
+Centred inside it is the **18pt SF Symbol of the currently selected tab** in
+`text.secondary`, stepping to `accent` on hover. The handle is what the expand animation
+grows from and the collapse animation returns to.
+
+**New-item affordances.** Both content tabs need an explicit create control, in a
+consistent position:
+- **Notes** — a `+` button at the right end of the tab strip, 28x28pt hit target,
+  `text.secondary`, `accent` on hover. Creates a new note and opens it as the active tab.
+- **Tasks** — a `+` button in each group header, right-aligned beside the count, same
+  28x28pt target and colours. Creating from a group header places the new task in that
+  status, which is why it lives per-group rather than as one global button.
+
 **Trigger band.** Because the panel covers only the middle 70% of the edge, the armed strip
 covers that same band — not the full edge. See product spec §4.2 for why: a full-edge
 trigger would open a panel centred below a cursor that touched near the top, and the panel

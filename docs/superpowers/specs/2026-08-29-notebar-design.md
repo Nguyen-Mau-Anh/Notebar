@@ -27,6 +27,9 @@ is a defect.
    All three numbers become user settings in M4, so this is a tuned default rather than a
    fixed constraint.
 2. Capturing a note from any app requires no click on any window but Notebar's.
+2a. When collapsed, a small handle remains visible at the right edge showing the icon of
+   the currently selected tab, so the panel's location and current context are always
+   discoverable without hovering.
 3. The panel never collapses while the user is mid-thought — typing, dragging, or with a
    menu open.
 4. **Idle cost under 1% CPU and under 100 MB resident.** This is a hard requirement, not
@@ -181,7 +184,8 @@ expansion never pays window-creation cost.
 
 | Property | Value | Why |
 |---|---|---|
-| geometry | 340 pt wide, 70% of `visibleFrame.height`, vertically centred, flush to the right edge |
+| geometry (expanded) | 340 pt wide, 70% of `visibleFrame.height`, vertically centred, flush to the right edge |
+| geometry (collapsed) | 30 pt wide, 56 pt tall, vertically centred, flush right — a handle showing the active tab's icon |
 | `styleMask` | `[.nonactivatingPanel, .borderless, .fullSizeContentView]` | `.nonactivatingPanel` is the key flag: it lets the panel accept keystrokes **without activating the application**, so typing into the overlay does not disturb the frontmost app. |
 | `level` | `.floating` | Above normal windows, below system UI. |
 | `collectionBehavior` | `[.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]` | `.fullScreenAuxiliary` is what allows appearing over fullscreen apps; `.canJoinAllSpaces` follows the user across Spaces. |
@@ -250,6 +254,20 @@ open," which is acceptable; the global hotkey remains available in every case.
 
 `pinned` is a flag on `expanded`, not a separate state; it suppresses every collapse
 trigger except explicit unpin or `Esc`.
+
+**`hidden` means collapsed-to-handle, not gone.** The window is never ordered out. In the
+`hidden` state the panel animates down to a 30x56 handle at the right edge showing the
+active tab's icon; expanding animates it back up to full size. The state machine is
+unchanged — the same four states and the same events — only the frame that `hidePanel`
+animates toward differs.
+
+This removes a whole class of defect rather than adding one. With `orderOut` gone, a stale
+animation completion can no longer yank a reopened panel off screen, and the panel can no
+longer end up logically expanded while invisible. It also makes the app discoverable: the
+handle is a visible affordance, so a new user does not have to be told where to hover.
+
+The armed trigger band still spans the panel's full expanded height rather than just the
+handle, so the handle is a target you can aim at but never have to hit precisely.
 
 **Timings** — all surfaced in Settings later:
 
