@@ -368,9 +368,12 @@ final class PanelController {
 
     // MARK: - Context signals
 
-    /// In M0 only `isWindowKey` has a real source; there are no editors or
-    /// drags yet. M1 and M2 wire `isEditorFocused`, `msSinceLastKeystroke`,
-    /// `isDragging`, and `hasOpenOverlay` from the SwiftUI layer.
+    /// `isWindowKey`'s only real source. `isEditorFocused` and
+    /// `msSinceLastKeystroke` now have real sources too (`NoteEditorView` via
+    /// `observeEditorFocused()`/`observeLastKeystroke()`). `isDragging` and
+    /// `hasOpenOverlay` are wired (`observeDragging()`/`observeOpenOverlay()`)
+    /// but still have no real source — there is no drag and no popover yet
+    /// (M2).
     private func observeKeyWindow() {
         let center = NotificationCenter.default
         center.addObserver(
@@ -387,11 +390,30 @@ final class PanelController {
 
     /// A *local* monitor, which needs no permission — it only sees events
     /// already routed to this app.
+    ///
+    /// Previously this consumed every Escape key-down unconditionally,
+    /// including while the panel was hidden. With a text editor in the panel
+    /// that is actively harmful: Escape inside an `NSTextView` dismisses
+    /// completions and exits find bars, and swallowing it means none of that
+    /// ever reaches the editor. So the monitor now only consumes Escape when
+    /// it is actually this panel's business to collapse on it:
+    ///   - panel not expanded → nothing to collapse, pass the event through.
+    ///   - a text view holds first responder → the editor's business, not
+    ///     ours; pass it through so completions/find-bars get it.
+    ///   - otherwise → consume it and collapse, as before.
     private func installEscapeMonitor() {
         escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard event.keyCode == 53 else { return event }   // 53 = Escape
-            MainActor.assumeIsolated { self?.send(.escapePressed) }
-            return nil
+            return MainActor.assumeIsolated {
+                guard let self, self.model.isExpanded else { return event }
+                // A SwiftUI `TextEditor` is backed by an `NSTextView`, which
+                // conforms to the `NSText` protocol — as does the field
+                // editor any `NSTextField` borrows — so this check catches
+                // any field editor, not just the note body.
+                if self.panel.firstResponder is NSText { return event }
+                self.send(.escapePressed)
+                return nil
+            }
         }
     }
 }

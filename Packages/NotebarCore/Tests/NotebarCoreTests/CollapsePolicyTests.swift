@@ -38,4 +38,42 @@ struct CollapsePolicyInvariantTests {
         let (state, _) = PanelMachine.reduce(.expanded, .cursorLeftPanel, dragging)
         #expect(state == .expanded)
     }
+
+    @Test("a focused editor does not collapse, even with no keystrokes recorded")
+    func focusedEditorNeverCollapsesWithNoKeystrokes() {
+        let context = PanelContext(isEditorFocused: true, msSinceLastKeystroke: nil)
+        #expect(PanelMachine.shouldCollapse(context) == false)
+    }
+
+    @Test("a focused editor does not collapse even when the last keystroke is far older than the grace period")
+    func focusedEditorNeverCollapsesRegardlessOfKeystrokeAge() {
+        let context = PanelContext(isEditorFocused: true, msSinceLastKeystroke: 60_000)
+        #expect(PanelMachine.shouldCollapse(context) == false)
+    }
+
+    @Test("an unfocused editor typed in 500ms ago does not collapse")
+    func unfocusedRecentKeystrokeDoesNotCollapse() {
+        let context = PanelContext(isEditorFocused: false, msSinceLastKeystroke: 500)
+        #expect(PanelMachine.shouldCollapse(context) == false)
+    }
+
+    @Test("an unfocused editor last typed in 5s ago does collapse")
+    func unfocusedStaleKeystrokeCollapses() {
+        let context = PanelContext(isEditorFocused: false, msSinceLastKeystroke: 5_000)
+        #expect(PanelMachine.shouldCollapse(context) == true)
+    }
+
+    @Test("isWindowKey alone does not suppress collapse")
+    func windowKeyAloneDoesNotSuppress() {
+        let context = PanelContext(isWindowKey: true)
+        #expect(PanelMachine.shouldCollapse(context) == true)
+    }
+
+    @Test("a focused editor survives a full exit-dwell cycle")
+    func focusedEditorSurvivesExitDwell() {
+        let context = PanelContext(isEditorFocused: true)
+        let (state, effects) = PanelMachine.reduce(.expanded, .exitDwellElapsed, context)
+        #expect(state == .expanded)
+        #expect(!effects.contains(.hidePanel))
+    }
 }

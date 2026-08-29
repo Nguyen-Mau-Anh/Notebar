@@ -19,7 +19,7 @@ struct NotesTab: View {
             }
 
             if let activeID = model.activeNoteID, model.notes.contains(where: { $0.id == activeID }) {
-                NoteEditorView(text: bodyBinding(for: activeID))
+                NoteEditorView(text: bodyBinding(for: activeID), model: model)
                     .id(activeID)
             } else {
                 PlaceholderTab(
@@ -114,13 +114,29 @@ private struct NoteTabButton: View {
 /// `String` for this slice; the spec's rich-text `NSTextView` wrapper (spec
 /// §6.2) is a later task, and this is the only view that will need to change
 /// when it lands.
+///
+/// Also the real source for two of `PanelContext`'s collapse-suppression
+/// signals (spec §4.4): focus mirrors into `model.isEditorFocused` via
+/// `@FocusState`, and every text change stamps `model.lastKeystrokeAt`.
+/// `PanelController` picks both up the same way it already picks up
+/// `isPinned` — see `observeEditorFocused()`/`observeLastKeystroke()`.
 struct NoteEditorView: View {
     @Binding var text: String
+    let model: PanelViewModel
+
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         TextEditor(text: $text)
             .font(.system(size: 14))
             .scrollContentBackground(.hidden)
             .padding(Tokens.Space.md)
+            .focused($isFocused)
+            .onChange(of: isFocused) { _, newValue in
+                model.isEditorFocused = newValue
+            }
+            .onChange(of: text) { _, _ in
+                model.lastKeystrokeAt = .now
+            }
     }
 }
