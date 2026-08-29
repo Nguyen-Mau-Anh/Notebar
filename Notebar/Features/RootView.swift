@@ -68,6 +68,8 @@ private struct CollapsedHandle: View {
                 .foregroundStyle(.secondary)
         }
         .frame(width: Tokens.Size.handleWidth, height: Tokens.Size.handleHeight)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(tab.title)
     }
 }
 
