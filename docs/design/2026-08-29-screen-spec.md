@@ -258,7 +258,9 @@ the panel, 1px, no inset.
 ## 3. Tab rail
 
 Three items, fixed order, top-anchored: **Notes, Tasks, Settings**. No fourth item, no
-bottom-anchored account/profile row — the rail's only job is switching tabs; quit and
+bottom-anchored account or profile row — the rail switches tabs, changes the panel's
+behaviour and size via the top control row, and dismisses it via the bottom collapse
+button; quit and
 manual toggle live on the `NSStatusItem` menu per product spec §4.1, not in-panel.
 
 | Tab | SF Symbol | Notes |

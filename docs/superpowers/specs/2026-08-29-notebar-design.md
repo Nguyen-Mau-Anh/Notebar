@@ -438,6 +438,21 @@ rule, because it changes the panel's *behaviour* rather than its content.
 The state machine has supported this since M0 — `isPinned` is one of the six suppression
 signals in section 4.4 and is already honoured by the reducer. Only the control was missing.
 
+**Collapse button, bottom-anchored.** A 56x32pt control pinned to the bottom of the rail,
+separated by a hairline: a 15pt `chevron.right.2` glyph in `text.secondary`, `accent` on
+hover. It collapses the panel immediately, without the user having to move the cursor off it.
+
+The case it exists for: the panel is **pinned** and the user is working in it, then wants it
+gone *now*. Pinning deliberately defeats every cursor-driven collapse, so before this
+control the only ways out were Escape, the menu bar item, or the global hotkey — all of
+which require leaving the mouse. A pinned panel should not be harder to dismiss than an
+unpinned one.
+
+It reuses the existing `.toggleRequested` event, which the reducer already handles
+independently of `shouldCollapse` — so like Escape it overrides pin, and needs no state
+machine change. **Pin state is preserved**: collapsing does not unpin, so the next expand is
+still pinned. Pin is a preference about behaviour, not a lock on the current appearance.
+
 A ~56 pt vertical rail: Notes, Tasks, Settings. Icon with label beneath at default width;
 icon-only below 340 pt. The selected tab persists in `app_state` and is what the panel
 shows on its next expand, so the panel resumes where the user left it.
