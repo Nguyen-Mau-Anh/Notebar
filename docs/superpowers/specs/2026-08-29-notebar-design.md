@@ -511,7 +511,19 @@ outside the panel is cancelled, not dropped.
 
 **Click a card to expand it in place.** The card grows to reveal an editable `detail`
 field plus its metadata; clicking its header again collapses it, and expanding another
-card collapses the first. Only one card is expanded at a time.
+card collapses the first. **Only one card is expanded at a time** — this is what keeps
+switching cheap: every other card stays visible and one click away, so the user never
+navigates away from the board to read a task.
+
+**The expanded detail is capped at 200pt and scrolls internally.** Without a cap, a long
+detail would push the remaining groups far down the list and the board would stop being a
+board. With it, expanding a card in Queue shifts what follows by a bounded amount.
+
+**The detail is always editable** — click into it and type, saved on a 400 ms pause and on
+blur, exactly as note bodies already behave. No edit mode and no save button: a second
+interaction model for the same act of typing would be a worse cost than the occasional
+stray keystroke, and `shouldCollapse` already refuses to collapse a panel with a focused
+editor.
 
 Inline expansion rather than the detail sheet §9 frame 18 describes: that sheet is 380pt
 wide and the panel's default width is 340pt, so a sheet cannot fit without either
