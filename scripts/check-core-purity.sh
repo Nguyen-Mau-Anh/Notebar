@@ -34,4 +34,92 @@ for module in CoreGraphics QuartzCore; do
   done
 done
 
+# The two checks above only see source `import` lines. Neither one would
+# notice a dependency declared in Package.swift itself — e.g. adding GRDB
+# straight to the NotebarCore target — because nothing in that target's
+# *source* would ever say `import AppKit`. That is exactly the mistake M1
+# risked (see docs/superpowers/notes/2026-08-29-m1-risks.md item 4): GRDB
+# targets Apple platforms and Linux, not Windows, so it must live in
+# NotebarStore instead, behind the repository protocols NotebarCore defines.
+# Parse Package.swift itself to catch that class of mistake mechanically,
+# rather than trusting every future PR to remember the rule by hand.
+PACKAGE_SWIFT="Packages/NotebarCore/Package.swift"
+if [[ ! -f "$PACKAGE_SWIFT" ]]; then
+  echo "ERROR: $PACKAGE_SWIFT not found — cannot check target dependencies." >&2
+  exit 1
+fi
+
+python3 - "$PACKAGE_SWIFT" <<'PY'
+import re
+import sys
+
+path = sys.argv[1]
+with open(path) as f:
+    text = f.read()
+
+
+def target_blocks(text):
+    """Yield the full text of every `.target(...)` call (not `.testTarget(`),
+    tracking paren depth so nested calls (e.g. swiftSettings) don't confuse
+    where the target's own argument list ends."""
+    blocks = []
+    i = 0
+    while True:
+        idx = text.find(".target(", i)
+        if idx == -1:
+            break
+        start = idx + len(".target")
+        depth = 0
+        j = start
+        while j < len(text):
+            c = text[j]
+            if c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+                if depth == 0:
+                    j += 1
+                    break
+            j += 1
+        blocks.append(text[idx:j])
+        i = j
+    return blocks
+
+
+blocks = target_blocks(text)
+core_block = next(
+    (b for b in blocks if re.search(r'name:\s*"NotebarCore"', b)), None
+)
+
+if core_block is None:
+    print(f"ERROR: could not find a `.target(name: \"NotebarCore\", ...)` "
+          f"block in {path}.", file=sys.stderr)
+    print("This check parses Package.swift textually and may need updating "
+          "if the target was renamed or restructured.", file=sys.stderr)
+    sys.exit(1)
+
+deps_match = re.search(r'dependencies:\s*\[(.*?)\]', core_block, re.S)
+if deps_match and deps_match.group(1).strip():
+    print("ERROR: the NotebarCore target in Package.swift declares a "
+          "dependency:", file=sys.stderr)
+    print(file=sys.stderr)
+    print(core_block.strip(), file=sys.stderr)
+    print(file=sys.stderr)
+    print("NotebarCore must have ZERO dependencies (spec section 3, rule 1). "
+          "It exists so a Windows port (M5) can recompile it as-is; any "
+          "dependency — even one that only targets Apple platforms and "
+          "Linux, like GRDB — would need to resolve and build on Windows "
+          "too, which breaks that plan even though this guard's source-"
+          "import checks above would still print \"core purity: OK\".",
+          file=sys.stderr)
+    print("Put the dependency on NotebarStore (or another new target) "
+          "instead, behind the repository protocols NotebarCore already "
+          "defines. The NotebarCoreTests test target may depend on "
+          "NotebarCore itself — that's a different rule and is fine.",
+          file=sys.stderr)
+    sys.exit(1)
+
+print("Package.swift dependency check: OK")
+PY
+
 echo "core purity: OK"

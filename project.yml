@@ -28,6 +28,8 @@ targets:
     dependencies:
       - package: NotebarCore
         product: NotebarCore
+      - package: NotebarCore
+        product: NotebarStore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.anhnm.notebar

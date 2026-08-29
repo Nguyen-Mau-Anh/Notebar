@@ -1,4 +1,5 @@
 import SwiftUI
+import NotebarCore
 
 struct NotesTab: View {
     let model: PanelViewModel
@@ -9,7 +10,7 @@ struct NotesTab: View {
                 NoteTabStrip(
                     notes: model.notes,
                     activeID: model.activeNoteID,
-                    onSelect: { model.activeNoteID = $0 },
+                    onSelect: { model.selectNote(id: $0) },
                     onClose: { model.closeNote(id: $0) }
                 )
             } right: {
@@ -19,7 +20,7 @@ struct NotesTab: View {
             }
 
             if let activeID = model.activeNoteID, model.notes.contains(where: { $0.id == activeID }) {
-                NoteEditorView(text: bodyBinding(for: activeID), model: model)
+                NoteEditorView(text: bodyBinding(for: activeID), model: model, noteID: activeID)
                     .id(activeID)
             } else {
                 PlaceholderTab(
@@ -32,14 +33,13 @@ struct NotesTab: View {
     }
 
     /// Keyed by id rather than array index: closing an earlier tab shifts
-    /// every later index, but the id stays stable.
+    /// every later index, but the id stays stable. The setter routes through
+    /// `updateNoteBody` rather than mutating `model.notes` directly so every
+    /// keystroke also schedules the debounced save (spec deliverable 4).
     private func bodyBinding(for id: Note.ID) -> Binding<String> {
         Binding(
             get: { model.notes.first(where: { $0.id == id })?.body ?? "" },
-            set: { newValue in
-                guard let index = model.notes.firstIndex(where: { $0.id == id }) else { return }
-                model.notes[index].body = newValue
-            }
+            set: { newValue in model.updateNoteBody(id: id, body: newValue) }
         )
     }
 }
@@ -58,7 +58,7 @@ private struct NoteTabStrip: View {
             HStack(spacing: 2) {
                 ForEach(notes) { note in
                     NoteTabButton(
-                        title: note.title,
+                        title: note.derivedTitle,
                         isActive: note.id == activeID,
                         onSelect: { onSelect(note.id) },
                         onClose: { onClose(note.id) }
@@ -123,6 +123,7 @@ private struct NoteTabButton: View {
 struct NoteEditorView: View {
     @Binding var text: String
     let model: PanelViewModel
+    let noteID: Note.ID
 
     @FocusState private var isFocused: Bool
 
@@ -134,6 +135,13 @@ struct NoteEditorView: View {
             .focused($isFocused)
             .onChange(of: isFocused) { _, newValue in
                 model.isEditorFocused = newValue
+                // Blur flushes any debounced save immediately (spec
+                // deliverable 4: "save on a 400ms pause and on blur") —
+                // losing focus is exactly the moment the user might switch
+                // away or quit, so a pending write can't be left dangling.
+                if !newValue {
+                    model.flushPendingSave(id: noteID)
+                }
             }
             .onChange(of: text) { _, _ in
                 model.lastKeystrokeAt = .now

@@ -1,5 +1,7 @@
 import Foundation
 import Observation
+import NotebarCore
+import NotebarStore
 
 /// State shared between `PanelController` (owns the window's geometry and
 /// drives it through AppKit) and `RootView` (owns what is drawn inside it).
@@ -14,8 +16,10 @@ import Observation
 /// same reason: they are UI state, not AppKit state, but `PanelController`
 /// still needs `isPinned` to forward into `PanelContext`.
 ///
-/// Everything below is in-memory only — no database yet. SQLite lands behind
-/// repository protocols in a later task without needing this UI to change.
+/// Notes and the open-tab strip now persist through `NoteRepository` /
+/// `OpenTabRepository` (`NotebarStore`'s GRDB implementations by default).
+/// Task state remains in-memory only — SQLite lands behind repository
+/// protocols for tasks in a later task without needing this UI to change.
 @Observable
 final class PanelViewModel {
     var isExpanded = false
@@ -65,25 +69,149 @@ final class PanelViewModel {
 
     // MARK: - Notes
 
+    /// Notes save 400ms after the last keystroke, or immediately on blur
+    /// (`flushPendingSave`) — not on every keystroke, which would mean a
+    /// disk write per character typed.
+    private static let noteSaveDebounceInterval: TimeInterval = 0.4
+
+    private let noteRepository: NoteRepository
+    private let openTabRepository: OpenTabRepository
+
+    /// All repository writes happen off the main thread, so a debounced
+    /// save (or the open-tab replace it triggers) never blocks typing or
+    /// panel animation. `.utility`: these are small local writes, not
+    /// user-interactive work, but should still complete promptly.
+    private let persistenceQueue = DispatchQueue(label: "com.anhnm.notebar.persistence", qos: .utility)
+
+    private var pendingSaves: [Note.ID: DispatchWorkItem] = [:]
+
     var notes: [Note] = []
     var activeNoteID: Note.ID?
 
+    init(noteRepository: NoteRepository, openTabRepository: OpenTabRepository) {
+        self.noteRepository = noteRepository
+        self.openTabRepository = openTabRepository
+        loadPersistedState()
+    }
+
+    /// Convenience for SwiftUI previews and any caller that doesn't need a
+    /// specific store: an in-memory database, migrated the same way the
+    /// real one is. The app target wires up the on-disk store explicitly in
+    /// `AppDelegate` instead of relying on this.
+    convenience init() {
+        // In-memory database creation only fails on a GRDB/SQLite
+        // programming error (a bad migration), not an environment problem —
+        // there's no disk I/O to fail here, so surfacing that as a crash
+        // during preview/test setup is preferable to swallowing it.
+        let repositories = try! NotebarDatabase.openInMemory()
+        self.init(noteRepository: repositories.notes, openTabRepository: repositories.openTabs)
+    }
+
+    /// Restores `notes` and `activeNoteID` from whatever was open when the
+    /// app last quit (spec §2 decision 3). A note with no corresponding
+    /// open-tab row — because its tab was closed — stays in the database
+    /// but out of the strip; there is no notes browser yet to reopen it
+    /// from, which is a known gap until one exists.
+    private func loadPersistedState() {
+        guard let allNotes = try? noteRepository.all() else { return }
+        let notesByID = Dictionary(uniqueKeysWithValues: allNotes.map { ($0.id, $0) })
+        let tabs = (try? openTabRepository.all()) ?? []
+        notes = tabs.compactMap { notesByID[$0.refID] }
+        activeNoteID = tabs.first(where: { $0.isActive })?.refID
+    }
+
     /// Creates a new untitled note and makes it the active tab — the
-    /// zero-friction-capture path the toolbar's `+` exists for.
+    /// zero-friction-capture path the toolbar's `+` exists for. Persisted
+    /// immediately: an empty note is cheap to write and should survive a
+    /// quit even before the user types anything.
     func createNote() {
-        let note = Note()
+        guard let note = try? noteRepository.create() else { return }
         notes.append(note)
         activeNoteID = note.id
+        persistOpenTabs()
     }
 
     /// Closes a note tab. If it was active, falls back to the note that took
     /// its place in the strip, or the new last tab, or nil once the last
-    /// note is gone — `NotesTab` shows the empty state in that case.
+    /// note is gone — `NotesTab` shows the empty state in that case. Closing
+    /// removes the tab, not the note itself — the note stays in the store.
     func closeNote(id: Note.ID) {
         guard let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        flushAllPendingSaves()
         notes.remove(at: index)
-        guard activeNoteID == id else { return }
-        activeNoteID = notes.indices.contains(index) ? notes[index].id : notes.last?.id
+        if activeNoteID == id {
+            activeNoteID = notes.indices.contains(index) ? notes[index].id : notes.last?.id
+        }
+        persistOpenTabs()
+    }
+
+    /// Selects a note tab. A dedicated method rather than a plain settable
+    /// property (unlike `isPinned`/`isMaximized`) because selecting a tab
+    /// also changes which tab is `isActive` in the persisted open-tab set.
+    func selectNote(id: Note.ID) {
+        flushAllPendingSaves()
+        activeNoteID = id
+        persistOpenTabs()
+    }
+
+    /// The single path every edit to a note's body goes through: updates the
+    /// in-memory copy immediately (so the UI never lags) and schedules a
+    /// debounced save of the persisted copy.
+    func updateNoteBody(id: Note.ID, body: String) {
+        guard let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        notes[index].body = body
+        scheduleSave(id: id)
+    }
+
+    private func scheduleSave(id: Note.ID) {
+        pendingSaves[id]?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.persistNote(id: id) }
+        pendingSaves[id] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.noteSaveDebounceInterval, execute: work)
+    }
+
+    /// Saves a note immediately, bypassing the debounce, and cancels any
+    /// timer that was still pending for it. Called on editor blur and tab
+    /// switch/close, so a pause shorter than the debounce interval never
+    /// loses a keystroke.
+    func flushPendingSave(id: Note.ID) {
+        guard let work = pendingSaves.removeValue(forKey: id) else { return }
+        work.cancel()
+        persistNote(id: id)
+    }
+
+    /// Called on quit (`AppDelegate.applicationWillTerminate`) and whenever
+    /// the active tab changes, since only one note is ever being edited at
+    /// a time but this makes no assumption about that.
+    func flushAllPendingSaves() {
+        for id in pendingSaves.keys {
+            flushPendingSave(id: id)
+        }
+    }
+
+    private func persistNote(id: Note.ID) {
+        pendingSaves[id] = nil
+        guard let note = notes.first(where: { $0.id == id }) else { return }
+        persistenceQueue.async { [noteRepository] in
+            try? noteRepository.update(note)
+        }
+    }
+
+    /// Replaces the entire persisted open-tab set with the current strip.
+    /// Called on structural changes only (create/close/select) — never per
+    /// keystroke — so a full replace is cheap enough not to matter.
+    private func persistOpenTabs() {
+        let tabs = notes.enumerated().map { index, note in
+            OpenTab(
+                kind: OpenTab.noteKind,
+                refID: note.id,
+                sortOrder: Double(index),
+                isActive: note.id == activeNoteID
+            )
+        }
+        persistenceQueue.async { [openTabRepository] in
+            try? openTabRepository.replaceAll(tabs)
+        }
     }
 
     // MARK: - Tasks
