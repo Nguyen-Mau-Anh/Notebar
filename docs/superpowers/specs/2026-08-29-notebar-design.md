@@ -21,7 +21,11 @@ is a defect.
 
 ### Success criteria
 
-1. Cursor reaches the edge, panel fully expanded, in under 250 ms.
+1. Cursor reaches the edge, panel fully expanded and usable, in under 300 ms — of which
+   at most 180 ms is animation. The remainder is `edgeDwell` (section 4.3), the deliberate
+   pause that stops the panel firing when the cursor is merely crossing to a scrollbar.
+   All three numbers become user settings in M4, so this is a tuned default rather than a
+   fixed constraint.
 2. Capturing a note from any app requires no click on any window but Notebar's.
 3. The panel never collapses while the user is mid-thought — typing, dragging, or with a
    menu open.

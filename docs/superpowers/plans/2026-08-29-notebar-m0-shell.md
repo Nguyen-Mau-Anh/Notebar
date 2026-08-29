@@ -2130,7 +2130,8 @@ git push origin main --tags
 
 ## M0 Definition of Done
 
-- [ ] Cursor resting at the right screen edge expands the panel in under 250 ms.
+- [ ] Cursor resting at the right screen edge expands the panel in under 300 ms total
+      (120 ms `edgeDwell` + 180 ms `expandDuration`).
 - [ ] Moving away collapses it after the exit dwell, not instantly.
 - [ ] Brushing the edge without resting does not open it.
 - [ ] Drifting a few points off the panel does not collapse it.
