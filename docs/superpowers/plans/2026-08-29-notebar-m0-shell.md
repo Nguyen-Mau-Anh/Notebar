@@ -352,7 +352,7 @@ git push origin main
   - `enum PanelEffect { case startTimer(PanelTimer), cancelTimer(PanelTimer), showPanel, hidePanel, setPollRate(PollRate) }`
   - `enum PanelTimer { case edgeDwell, exitDwell }`
   - `enum PollRate { case idle, active }`
-  - `struct PanelContext` — six suppression signals plus `isPinned`
+  - `struct PanelContext` — the six suppression signals of spec section 4.4 (`isPinned` is one of the six, not additional)
   - `enum PanelMachine { static func reduce(_ state: PanelState, _ event: PanelEvent, _ context: PanelContext) -> (PanelState, [PanelEffect]) }`
 
 Task 3 fills in `PanelMachine.shouldCollapse`. Task 6 consumes `reduce` and interprets `[PanelEffect]`.
