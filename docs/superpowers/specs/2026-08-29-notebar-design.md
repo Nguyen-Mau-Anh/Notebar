@@ -520,6 +520,26 @@ outside the panel is cancelled, not dropped.
 - Deleting an entity soft-deletes it; existing chips render as tombstones rather than
   silently deleting text the user wrote.
 
+### 6.2a All-notes menu
+
+Immediately **left of the `+`** in the Notes toolbar sits a 28x28pt button with a 15pt
+`chevron.down` glyph. Clicking it opens a popover listing **every note**, not just the ones
+whose tabs are hidden by overflow — ordered by most recently updated, showing each note's
+title and a relative timestamp, with the currently open ones marked.
+
+Selecting a row opens that note as the active tab, creating the tab if it was closed.
+
+**Why all notes rather than an overflow list.** Closing a tab does not delete its note, so
+without this there is no route back to a closed note at all — the note still exists in the
+database and is unreachable. An overflow-only chevron would leave that gap open. This also
+removes the need to scroll a long tab strip hunting for something.
+
+**This is the first real producer of `hasOpenOverlay`.** That signal has been wired through
+`PanelViewModel` into `PanelContext` since the collapse-policy work but nothing has ever set
+it. While the popover is open the panel must not collapse, or the list would vanish as the
+user reaches for it — `PanelMachine.shouldCollapse` already treats `hasOpenOverlay` as a
+hard invariant, so this needs no reducer change, only a producer.
+
 ### 6.4a Tab toolbar
 
 Every content tab opens with the same 36pt toolbar: context on the left, primary action on
