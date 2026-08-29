@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 import QuartzCore
 import NotebarCore
 
@@ -13,6 +14,7 @@ final class PanelController {
 
     private let panel: EdgePanel
     private let monitor = CursorMonitor()
+    private let model: PanelViewModel
 
     private var state: PanelState = .hidden
     private var context = PanelContext()
@@ -30,15 +32,21 @@ final class PanelController {
     /// The panel is a vertically centred card, not a full-height column.
     private static let panelHeightFraction: CGFloat = 0.70
 
+    /// Footprint of the collapsed handle the panel retreats to instead of
+    /// vanishing (see `hidePanel`).
+    private static let handleWidth: CGFloat = 30
+    private static let handleHeight: CGFloat = 56
+
     var isPinned: Bool {
         get { context.isPinned }
         set { context.isPinned = newValue }
     }
 
-    init(content: NSView) {
+    init(content: NSView, model: PanelViewModel) {
         let initial = NSRect(x: 0, y: 0, width: Self.panelWidth, height: 600)
         panel = EdgePanel(contentRect: initial)
         panel.contentView = content
+        self.model = model
     }
 
     func start() {
@@ -137,6 +145,20 @@ final class PanelController {
         frames(on: screen).onscreen
     }
 
+    /// Where the panel rests when collapsed: a small handle flush to the
+    /// right edge, vertically centred, rather than fully offscreen. The
+    /// window is never ordered out (see `hidePanel`), so this is also the
+    /// window's resting frame between launch and the first expand.
+    private func collapsedFrame(on screen: NSScreen) -> NSRect {
+        let area = screen.visibleFrame
+        return NSRect(
+            x: area.maxX - Self.handleWidth,
+            y: (area.minY + (area.height - Self.handleHeight) / 2).rounded(),
+            width: Self.handleWidth,
+            height: Self.handleHeight
+        )
+    }
+
     private func showPanel() {
         guard let screen = activeScreen() else { return }
         let (onscreen, offscreen) = frames(on: screen)
@@ -148,6 +170,7 @@ final class PanelController {
             panel.orderFrontRegardless()
         }
 
+        model.isExpanded = true
         animate(to: onscreen, duration: PanelTiming.expandDuration)
     }
 
@@ -166,11 +189,15 @@ final class PanelController {
             return
         }
         guard let screen = activeScreen() else { return }
-        let (_, offscreen) = frames(on: screen)
 
-        animate(to: offscreen, duration: PanelTiming.collapseDuration) { [weak self] in
-            self?.panel.orderOut(nil)
-        }
+        // The panel retreats to a visible handle rather than being ordered
+        // out. Previously a stale animation completion could order the
+        // window out after it had already been reopened, leaving the reducer
+        // in `.expanded` while `panel.isVisible == false`. With the window
+        // always visible, the worst a stale completion can do is set a frame
+        // the next event corrects.
+        model.isExpanded = false
+        animate(to: collapsedFrame(on: screen), duration: PanelTiming.collapseDuration)
     }
 
     private func animate(
