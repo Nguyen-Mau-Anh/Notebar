@@ -23,6 +23,26 @@ private final class NoteTextView: NSTextView {
         insertionPointColor = .labelColor
         needsDisplay = true
     }
+
+    /// Spec §6.2b deliverable 2: "clicking the box toggles it; clicking the
+    /// text does not." Checked ahead of `NSTextView`'s own click handling —
+    /// which otherwise just places the caret — so a hit on a checkbox
+    /// glyph toggles it instead. `NoteListEditing.handleChecklistClick` does
+    /// the actual geometry/mutation work; this only converts the click to
+    /// the text-container coordinates it expects (the same adjustment
+    /// `textContainerInset` requires for any other point-based text-view
+    /// query) and decides whether to fall through to the default behaviour.
+    override func mouseDown(with event: NSEvent) {
+        let pointInView = convert(event.locationInWindow, from: nil)
+        let pointInContainer = NSPoint(
+            x: pointInView.x - textContainerInset.width,
+            y: pointInView.y - textContainerInset.height
+        )
+        if NoteListEditing.handleChecklistClick(at: pointInContainer, in: self) {
+            return
+        }
+        super.mouseDown(with: event)
+    }
 }
 
 /// The seam `NotesTab`'s plain-text placeholder was built behind precisely
@@ -92,9 +112,11 @@ struct NoteEditorView: NSViewRepresentable {
             // chip's accent colour back before anything is ever drawn. See
             // that type's doc comment for why this is done here, on load,
             // rather than exempting chip runs from the strip.
-            let attributedString = NoteChipStyling.restyled(
-                NoteRTF.attributedString(fromRTFD: note.bodyRTF),
-                existingTargets: model.existingLinkTargets()
+            let attributedString = NoteChecklistStyling.restyled(
+                NoteChipStyling.restyled(
+                    NoteRTF.attributedString(fromRTFD: note.bodyRTF),
+                    existingTargets: model.existingLinkTargets()
+                )
             )
             textView.textStorage?.setAttributedString(attributedString)
         }

@@ -268,4 +268,83 @@ struct NoteListMarkersTests {
         let text = NSAttributedString(string: "Buy milk", attributes: [.paragraphStyle: orderedStyle()])
         #expect(NoteListMarkers.strippingMarkers(from: text) == "Buy milk")
     }
+
+    // MARK: - Checklist
+
+    private var checklistList: NSTextList { NSTextList(markerFormat: .check, options: 0) }
+
+    private func checklistStyle() -> NSParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        style.textLists = [checklistList]
+        return style
+    }
+
+    @Test("a checklist item's marker text is always the unchecked glyph, regardless of item number")
+    func checklistMarkerTextIsAlwaysUnchecked() {
+        #expect(NoteListMarkers.markerText(for: 1, list: checklistList) == "\u{25A1}\t")
+        #expect(NoteListMarkers.markerText(for: 5, list: checklistList) == "\u{25A1}\t")
+    }
+
+    @Test("a paragraph style with a checklist text list is a list paragraph")
+    func checklistStyleIsListParagraph() {
+        #expect(NoteListMarkers.isListParagraph(checklistStyle()))
+    }
+
+    @Test("a checklist paragraph is never part of an ordered run — checklists never renumber")
+    func checklistNeverJoinsOrderedRun() {
+        let text = NSAttributedString(string: "\u{25A1}\tBuy milk", attributes: [.paragraphStyle: checklistStyle()])
+        #expect(NoteListMarkers.orderedListRun(containing: 0, in: text) == nil)
+    }
+
+    @Test("an unchecked checklist item's marker is excluded from the plain-text projection")
+    func stripsUncheckedChecklistMarker() {
+        let text = NSAttributedString(string: "\u{25A1}\tBuy milk", attributes: [.paragraphStyle: checklistStyle()])
+        #expect(NoteListMarkers.strippingMarkers(from: text) == "Buy milk")
+    }
+
+    @Test("a checked checklist item's marker is excluded from the plain-text projection")
+    func stripsCheckedChecklistMarker() {
+        let text = NSAttributedString(string: "\u{2611}\tBuy milk", attributes: [.paragraphStyle: checklistStyle()])
+        #expect(NoteListMarkers.strippingMarkers(from: text) == "Buy milk")
+    }
+
+    @Test("toggling the unchecked glyph produces the checked glyph, and back again")
+    func toggledChecklistGlyphFlipsBothWays() {
+        #expect(NoteListMarkers.toggledChecklistGlyph("\u{25A1}") == "\u{2611}")
+        #expect(NoteListMarkers.toggledChecklistGlyph("\u{2611}") == "\u{25A1}")
+    }
+
+    @Test("a character that isn't a checklist glyph has no toggle")
+    func toggledChecklistGlyphIsNilForNonChecklistCharacters() {
+        #expect(NoteListMarkers.toggledChecklistGlyph("x") == nil)
+        #expect(NoteListMarkers.toggledChecklistGlyph("1") == nil)
+    }
+
+    @Test("toggling a checklist item's glyph flips only that character")
+    func toggleChecklistGlyphFlipsOnlyThatCharacter() {
+        let text = NSMutableAttributedString(string: "\u{25A1}\tFirst")
+        let changed = NoteListMarkers.toggleChecklistGlyph(at: 0, in: text)
+        #expect(changed)
+        #expect(text.string == "\u{2611}\tFirst")
+    }
+
+    @Test("toggling one checklist item changes only its own marker, not a neighbouring item's")
+    func togglingOneItemLeavesNeighboursUntouched() {
+        let text = NSMutableAttributedString(string: "\u{25A1}\tFirst\n\u{25A1}\tSecond\n\u{25A1}\tThird")
+        // "Second"'s marker starts right after "First\n" — location 8.
+        let secondMarkerLocation = 8
+        #expect((text.string as NSString).substring(with: NSRange(location: secondMarkerLocation, length: 1)) == "\u{25A1}")
+
+        let changed = NoteListMarkers.toggleChecklistGlyph(at: secondMarkerLocation, in: text)
+        #expect(changed)
+        #expect(text.string == "\u{25A1}\tFirst\n\u{2611}\tSecond\n\u{25A1}\tThird")
+    }
+
+    @Test("toggling at a location with no checklist glyph does nothing")
+    func toggleAtNonGlyphLocationIsNoOp() {
+        let text = NSMutableAttributedString(string: "\u{25A1}\tFirst")
+        let changed = NoteListMarkers.toggleChecklistGlyph(at: 3, in: text) // inside "First"
+        #expect(!changed)
+        #expect(text.string == "\u{25A1}\tFirst")
+    }
 }

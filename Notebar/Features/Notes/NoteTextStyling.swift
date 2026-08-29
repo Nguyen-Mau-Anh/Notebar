@@ -34,7 +34,11 @@ enum NoteTextStyling {
         if isHeadingFont(font, level: 1) { styles.insert(.heading1) }
         if isHeadingFont(font, level: 2) { styles.insert(.heading2) }
         if let markerFormat = paragraphStyle?.textLists.first?.markerFormat {
-            styles.insert(markerFormat == .decimal ? .numberedList : .bulletedList)
+            switch markerFormat {
+            case .decimal: styles.insert(.numberedList)
+            case .check: styles.insert(.checklist)
+            default: styles.insert(.bulletedList)
+            }
         }
         return styles
     }
@@ -73,7 +77,38 @@ enum NoteTextStyling {
     }
 
     static func toggleList(ordered: Bool, in textView: NSTextView) {
-        let style: NoteTextStyle = ordered ? .numberedList : .bulletedList
+        applyListToggle(
+            style: ordered ? .numberedList : .bulletedList,
+            markerFormat: ordered ? .decimal : .disc,
+            renumbers: ordered,
+            in: textView
+        )
+    }
+
+    /// A checklist (spec §6.2b) is a list whose marker is a checkbox glyph
+    /// rather than a bullet or number — the same text-level bookkeeping as
+    /// `toggleList` above, just with `.check` as the tag `activeStyles` and
+    /// `NoteListEditing.handleChecklistClick` use to recognize a checklist
+    /// paragraph. `.check` is never used for its own built-in glyph
+    /// (`NSTextList.marker(forItemNumber:)` would return "✓", a constant
+    /// checkmark unrelated to checked/unchecked state); `NoteListMarkers.markerText`
+    /// special-cases `.check` to always produce the unchecked glyph instead,
+    /// since toggle state isn't something a *new* item ever starts other
+    /// than unchecked.
+    static func toggleChecklist(in textView: NSTextView) {
+        applyListToggle(style: .checklist, markerFormat: .check, renumbers: false, in: textView)
+    }
+
+    /// Shared by `toggleList` and `toggleChecklist`: apply or remove
+    /// whichever list style `style`/`markerFormat` describes. Checklists
+    /// never renumber (`renumbers: false`) the same way bulleted lists
+    /// don't — neither marker depends on item position.
+    private static func applyListToggle(
+        style: NoteTextStyle,
+        markerFormat: NSTextList.MarkerFormat,
+        renumbers: Bool,
+        in textView: NSTextView
+    ) {
         let alreadyThisList = activeStyles(in: textView).contains(style)
         let existing = currentParagraphStyle(in: textView, at: textView.selectedRange())
         let newStyle = (existing?.mutableCopy() as? NSMutableParagraphStyle) ?? NoteFont.bodyParagraphStyle
@@ -88,7 +123,7 @@ enum NoteTextStyling {
             newStyle.firstLineHeadIndent = 0
             applyParagraphStyle(newStyle, in: textView, preservingTextLists: false)
         } else {
-            newStyle.textLists = [NSTextList(markerFormat: ordered ? .decimal : .disc, options: 0)]
+            newStyle.textLists = [NSTextList(markerFormat: markerFormat, options: 0)]
             newStyle.headIndent = Tokens.Typography.listIndent
             newStyle.firstLineHeadIndent = Tokens.Typography.listMarkerIndent
             applyParagraphStyle(newStyle, in: textView, preservingTextLists: false)
@@ -96,7 +131,7 @@ enum NoteTextStyling {
             // so on an empty line — including an entirely empty note —
             // applying a list above would look like nothing happened
             // without this inserting the marker as real text.
-            NoteListEditing.insertMarkers(in: textView, ordered: ordered)
+            NoteListEditing.insertMarkers(in: textView, ordered: renumbers)
         }
     }
 

@@ -170,6 +170,83 @@ enum NoteListEditing {
         return true
     }
 
+    // MARK: - Checkbox click
+
+    /// Spec §6.2b deliverable 2: "clicking the box toggles it; clicking the
+    /// text does not." Hooked from `NoteTextView.mouseDown` (`NoteEditorView.swift`)
+    /// with the click already converted to text-container coordinates.
+    /// Returns `true` if the click landed on a checkbox and was consumed —
+    /// the caller should skip `super.mouseDown`, so a toggle click never
+    /// also moves the caret — or `false` to let the click fall through to
+    /// `NSTextView`'s normal caret-placement handling, either because it
+    /// missed every checkbox or landed on the item's own text.
+    ///
+    /// Finding *which* character the click landed on needs a live
+    /// `NSLayoutManager`/`NSTextContainer`, which is exactly the
+    /// `NSTextView`-only work this type exists to hold (see the type doc
+    /// comment) — the actual glyph flip is `NoteListMarkers.toggleChecklistGlyph`,
+    /// a pure one-character mutation that's unit tested directly in
+    /// `NotebarStoreTests` without any of this geometry.
+    static func handleChecklistClick(at pointInContainer: NSPoint, in textView: NSTextView) -> Bool {
+        guard let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer,
+              let textStorage = textView.textStorage,
+              textStorage.length > 0
+        else { return false }
+
+        let nsString = textStorage.string as NSString
+        var fraction: CGFloat = 0
+        let charIndex = layoutManager.characterIndex(
+            for: pointInContainer,
+            in: textContainer,
+            fractionOfDistanceBetweenInsertionPoints: &fraction
+        )
+        guard charIndex < textStorage.length else { return false }
+
+        let paragraphRange = nsString.paragraphRange(for: NSRange(location: charIndex, length: 0))
+        guard let style = textStorage.attribute(.paragraphStyle, at: paragraphRange.location, effectiveRange: nil) as? NSParagraphStyle,
+              style.textLists.first?.markerFormat == .check,
+              let markerRange = NoteListMarkers.existingMarkerRange(in: nsString, paragraphRange: paragraphRange),
+              charIndex >= markerRange.location, charIndex < markerRange.location + markerRange.length
+        else { return false }
+
+        // The nearest-character check above only confirms the click is
+        // adjacent to the marker; re-confirm against the marker's actual
+        // drawn bounds so a click well past a short item's end — which
+        // still resolves to its nearest character — can't fire a toggle
+        // from empty space beyond the text.
+        let markerGlyphRange = layoutManager.glyphRange(forCharacterRange: markerRange, actualCharacterRange: nil)
+        let markerRect = layoutManager.boundingRect(forGlyphRange: markerGlyphRange, in: textContainer)
+        guard markerRect.contains(pointInContainer) else { return false }
+
+        textStorage.beginEditing()
+        guard NoteListMarkers.toggleChecklistGlyph(at: markerRange.location, in: textStorage) else {
+            textStorage.endEditing()
+            return false
+        }
+        let updatedString = textStorage.string as NSString
+        let isChecked = updatedString.substring(with: NSRange(location: markerRange.location, length: 1)) == NoteListMarkers.checklistCheckedGlyph
+
+        let contentStart = markerRange.location + markerRange.length
+        var contentEnd = paragraphRange.location + paragraphRange.length
+        if contentEnd > contentStart, updatedString.character(at: contentEnd - 1) == 10 /* "\n" */ {
+            contentEnd -= 1
+        }
+        NoteChecklistStyling.apply(
+            checked: isChecked,
+            to: textStorage,
+            contentRange: NSRange(location: contentStart, length: max(contentEnd - contentStart, 0))
+        )
+        textStorage.endEditing()
+
+        // A same-length glyph swap never shifts anything, so the caret
+        // doesn't need clamping or moving — leaving it exactly where it was
+        // is also what keeps a toggle click from feeling like it edited the
+        // document out from under the user.
+        textView.didChangeText()
+        return true
+    }
+
     // MARK: - Renumbering
 
     /// The general-purpose safety net: if the paragraph at `location` is

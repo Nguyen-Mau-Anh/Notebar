@@ -1,14 +1,17 @@
 import SwiftUI
 
-/// The seven formatting operations the bar (spec §6.2b) and the markdown
+/// The eight formatting operations the bar (spec §6.2b) and the markdown
 /// input shortcuts (deliverable 3, `NoteMarkdownShortcuts`) both drive, in
-/// the bar's left-to-right order. Spec §6.2b also lists a Checklist button,
-/// but checklists need a clickable `NSTextAttachment` — genuinely fiddly,
-/// and a separate task — so there is deliberately no `.checklist` case and
-/// no eighth button: a control that does nothing would be worse than one
-/// that isn't there.
+/// the bar's left-to-right order.
+///
+/// `.checklist` was deferred when this list first shipped, because a
+/// checkbox needs a clickable element, not just an attribute — see
+/// `NoteListEditing.handleChecklistClick` and `NoteChecklistStyling` for how
+/// that's actually done (a checklist is a list whose marker is a checkbox
+/// glyph, reusing `NoteListMarkers`/`NoteListEditing` rather than building a
+/// parallel mechanism).
 enum NoteTextStyle: CaseIterable {
-    case bold, italic, code, heading1, heading2, bulletedList, numberedList
+    case bold, italic, code, heading1, heading2, bulletedList, numberedList, checklist
 
     var symbol: String {
         switch self {
@@ -19,6 +22,7 @@ enum NoteTextStyle: CaseIterable {
         case .heading2: "textformat.size"
         case .bulletedList: "list.bullet"
         case .numberedList: "list.number"
+        case .checklist: "checklist"
         }
     }
 
@@ -31,6 +35,7 @@ enum NoteTextStyle: CaseIterable {
         case .heading2: "Heading 2"
         case .bulletedList: "Bulleted list"
         case .numberedList: "Numbered list"
+        case .checklist: "Checklist"
         }
     }
 
@@ -49,6 +54,7 @@ enum NoteTextStyle: CaseIterable {
         case .heading2: ("2", [.command, .option])
         case .bulletedList: ("8", [.command, .shift])
         case .numberedList: ("7", [.command, .shift])
+        case .checklist: ("9", [.command, .shift])
         }
     }
 }

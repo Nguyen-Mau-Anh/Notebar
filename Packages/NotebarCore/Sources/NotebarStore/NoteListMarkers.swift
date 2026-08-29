@@ -37,9 +37,78 @@ public enum NoteListMarkers {
     /// against the exact `.decimal` constant — a custom format string would
     /// stop matching it.
     public static func markerText(for itemNumber: Int, list: NSTextList) -> String {
+        // A checklist item's marker doesn't come from `list.marker(forItemNumber:)`
+        // at all — that API has no notion of checked/unchecked, only "which
+        // glyph does this list style use." A checklist's `NSTextList` exists
+        // solely to tag the paragraph as a checklist item (`.check`, chosen
+        // because it's the semantically-named marker format, not because its
+        // own glyph is used); the actual toggle state lives in the marker
+        // text itself, and every *new* item — from `NoteListEditing.insertMarkers`
+        // applying the style, or `handleReturn` starting the next item — is
+        // unchecked (spec §6.2b: "Return on a checklist item creates the
+        // next item unchecked").
+        if list.markerFormat == .check {
+            return checklistUncheckedGlyph + "\t"
+        }
         let marker = list.marker(forItemNumber: itemNumber)
         let punctuated = list.markerFormat == .decimal ? marker + "." : marker
         return punctuated + "\t"
+    }
+
+    /// The unchecked checkbox glyph a fresh checklist item's marker is
+    /// built from (`markerText(for:list:)` above).
+    ///
+    /// Deliberately not `☐` (U+2610 BALLOT BOX), the more obvious pick: it
+    /// has no glyph in SF Pro at all — verified with
+    /// `CTFontGetGlyphsForCharacters`, which reports glyph 0 (`.notdef`) for
+    /// it on `.SFNS-Regular` — so it would render as nothing, exactly the
+    /// failure mode that already hit `✕`/`⌄`/`▾`/`▼`/`▶` elsewhere in this
+    /// project (fixed there by importing SVGs; here, by picking a different
+    /// character instead). `□` (U+25A1 WHITE SQUARE) does have a glyph in
+    /// SF Pro, confirmed the same way.
+    public static let checklistUncheckedGlyph = "\u{25A1}"
+
+    /// The checked checkbox glyph. `☑` (U+2611 BALLOT BOX WITH CHECK) was
+    /// checked with the same `CTFontGetGlyphsForCharacters` probe and does
+    /// have a glyph in SF Pro.
+    public static let checklistCheckedGlyph = "\u{2611}"
+
+    /// What a click on `existingGlyph` should turn it into, or `nil` if
+    /// `existingGlyph` isn't a checklist glyph at all — a plain character
+    /// lookup, deliberately kept separate from `toggleChecklistGlyph(at:in:)`
+    /// below so the state-flip rule itself (unchecked ↔ checked, nothing
+    /// else) is directly testable without an `NSMutableAttributedString`.
+    public static func toggledChecklistGlyph(_ existingGlyph: String) -> String? {
+        switch existingGlyph {
+        case checklistUncheckedGlyph: checklistCheckedGlyph
+        case checklistCheckedGlyph: checklistUncheckedGlyph
+        default: nil
+        }
+    }
+
+    /// Flips the checkbox glyph at `location` in place — the one character
+    /// there, and nothing else. `location` must be exactly where an
+    /// existing checkbox glyph sits (a checklist marker's first character);
+    /// anywhere else, or a character that isn't a checklist glyph at all, is
+    /// a no-op that returns `false` and leaves `text` untouched.
+    ///
+    /// Deliberately a single-character replacement rather than anything
+    /// range-based over the paragraph: this is what guarantees toggling one
+    /// item can never reach into a neighbouring paragraph's own marker
+    /// (spec deliverable 2's "toggling an item changes only its own
+    /// marker"). Finding *which* location a click landed on is
+    /// `NSTextView`-geometry work the app target's
+    /// `NoteListEditing.handleChecklistClick` owns; this only performs the
+    /// mutation once that location is already known.
+    @discardableResult
+    public static func toggleChecklistGlyph(at location: Int, in text: NSMutableAttributedString) -> Bool {
+        let nsString = text.string as NSString
+        guard location >= 0, location < nsString.length else { return false }
+        let existingGlyph = nsString.substring(with: NSRange(location: location, length: 1))
+        guard let newGlyph = toggledChecklistGlyph(existingGlyph) else { return false }
+        let attributes = text.attributes(at: location, effectiveRange: nil)
+        text.replaceCharacters(in: NSRange(location: location, length: 1), with: NSAttributedString(string: newGlyph, attributes: attributes))
+        return true
     }
 
     /// Whether a paragraph carrying `style` is a list item at all.

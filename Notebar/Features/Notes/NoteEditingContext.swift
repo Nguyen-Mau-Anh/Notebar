@@ -40,6 +40,7 @@ final class NoteEditingContext {
         case .heading2: NoteTextStyling.toggleHeading(2, in: textView)
         case .bulletedList: NoteTextStyling.toggleList(ordered: false, in: textView)
         case .numberedList: NoteTextStyling.toggleList(ordered: true, in: textView)
+        case .checklist: NoteTextStyling.toggleChecklist(in: textView)
         }
 
         // `NoteTextStyling`'s functions edit `textStorage` directly, which
