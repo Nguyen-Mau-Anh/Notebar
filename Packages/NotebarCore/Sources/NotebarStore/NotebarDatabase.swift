@@ -12,6 +12,7 @@ public enum NotebarDatabase {
         public let notes: NoteRepository
         public let openTabs: OpenTabRepository
         public let tasks: TaskRepository
+        public let appState: AppStateRepository
     }
 
     /// Opens (creating if needed) the on-disk database in this app's
@@ -31,7 +32,8 @@ public enum NotebarDatabase {
         return Repositories(
             notes: GRDBNoteRepository(dbQueue: dbQueue),
             openTabs: GRDBOpenTabRepository(dbQueue: dbQueue),
-            tasks: GRDBTaskRepository(dbQueue: dbQueue)
+            tasks: GRDBTaskRepository(dbQueue: dbQueue),
+            appState: GRDBAppStateRepository(dbQueue: dbQueue)
         )
     }
 

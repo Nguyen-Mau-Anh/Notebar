@@ -25,10 +25,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             repositories = try! NotebarDatabase.openInMemory()
         }
 
+        // Applied before `PanelViewModel`/`PanelController` even exist, so
+        // it is unquestionably set before `controller.start()` calls
+        // `presentHandle()` — spec §6.5's "no visible flash of the wrong
+        // appearance". `PanelViewModel.init` reads the same saved value
+        // again for its own `theme` property; that second read is cheap and
+        // keeps this single-purpose rather than threading a value through.
+        let savedTheme = (try? repositories.appState.theme()) ?? .default
+        NSApp.appearance = savedTheme.nsAppearance
+
         let model = PanelViewModel(
             noteRepository: repositories.notes,
             openTabRepository: repositories.openTabs,
-            taskRepository: repositories.tasks
+            taskRepository: repositories.tasks,
+            appStateRepository: repositories.appState
         )
         self.model = model
         let content = FirstMouseHostingView(rootView: RootView(model: model))

@@ -28,6 +28,10 @@ enum Migrations {
             try db.execute(sql: TaskSchema.seedDefaultBoardAndColumns)
         }
 
+        migrator.registerMigration(AppStateSchema.migrationName) { db in
+            try db.execute(sql: AppStateSchema.createAppStateTable)
+        }
+
         return migrator
     }
 }

@@ -41,7 +41,7 @@ struct RootView: View {
                     switch model.selection {
                     case .notes:    NotesTab(model: model)
                     case .tasks:    TasksTab(model: model)
-                    case .settings: SettingsTab()
+                    case .settings: SettingsTab(model: model)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

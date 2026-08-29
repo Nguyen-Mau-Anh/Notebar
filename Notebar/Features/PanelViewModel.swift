@@ -131,6 +131,7 @@ final class PanelViewModel {
     private let noteRepository: NoteRepository
     private let openTabRepository: OpenTabRepository
     private let taskRepository: TaskRepository
+    private let appStateRepository: AppStateRepository
 
     /// All repository writes happen off the main thread, so a debounced
     /// save (or the open-tab replace it triggers) never blocks typing or
@@ -143,10 +144,26 @@ final class PanelViewModel {
     var notes: [Note] = []
     var activeNoteID: Note.ID?
 
-    init(noteRepository: NoteRepository, openTabRepository: OpenTabRepository, taskRepository: TaskRepository) {
+    // MARK: - Settings
+
+    /// The current appearance choice (spec §6.5). `AppDelegate` already
+    /// applies the saved theme to `NSApp.appearance` at launch, before this
+    /// model even exists, so there is no flash of the wrong appearance —
+    /// this is only what Settings' segmented picker reads and, via
+    /// `setTheme(_:)`, changes live thereafter.
+    private(set) var theme: Theme
+
+    init(
+        noteRepository: NoteRepository,
+        openTabRepository: OpenTabRepository,
+        taskRepository: TaskRepository,
+        appStateRepository: AppStateRepository
+    ) {
         self.noteRepository = noteRepository
         self.openTabRepository = openTabRepository
         self.taskRepository = taskRepository
+        self.appStateRepository = appStateRepository
+        self.theme = (try? appStateRepository.theme()) ?? .default
         loadPersistedState()
         loadTasks()
     }
@@ -164,8 +181,24 @@ final class PanelViewModel {
         self.init(
             noteRepository: repositories.notes,
             openTabRepository: repositories.openTabs,
-            taskRepository: repositories.tasks
+            taskRepository: repositories.tasks,
+            appStateRepository: repositories.appState
         )
+    }
+
+    /// Settings' Theme row calls this. Applies `NSApp.appearance` immediately
+    /// — `nil` for `.system` hands appearance back to macOS rather than
+    /// freezing it at whatever is current, see `Theme.nsAppearance` — and
+    /// persists the choice through `AppStateRepository` (spec §5's
+    /// `app_state` table) off the main thread, mirroring every other write
+    /// in this model.
+    func setTheme(_ theme: Theme) {
+        guard theme != self.theme else { return }
+        self.theme = theme
+        NSApp.appearance = theme.nsAppearance
+        persistenceQueue.async { [appStateRepository] in
+            try? appStateRepository.setTheme(theme)
+        }
     }
 
     /// Restores `notes` and `activeNoteID` from whatever was open when the
