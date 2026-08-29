@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The core is a plain Swift package targeting macOS 14, so it builds and tests
+  # on any runner GitHub offers today. This job is the one that must stay green.
+  core:
+    name: Core tests + purity guard
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Cache SwiftPM build
+        uses: actions/cache@v4
+        with:
+          path: Packages/NotebarCore/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('Packages/NotebarCore/Package.swift') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Test NotebarCore
+        working-directory: Packages/NotebarCore
+        run: swift test
+
+      # Guards the constraint the M5 Windows port rests on: NotebarCore must not
+      # import AppKit/SwiftUI/UIKit/Cocoa, and may only import CoreGraphics or
+      # QuartzCore behind a `#if canImport(...)`. This caught a real regression
+      # once already and was previously only run by hand via `make check`.
+      - name: Core purity guard
+        run: ./scripts/check-core-purity.sh
+
+  # The app target requires the macOS 26 SDK. GitHub's hosted runners may not
+  # carry Xcode 26 yet, so this job reports without failing the run. Flip
+  # continue-on-error to false once `xcodebuild -showsdks` here lists macosx26.
+  app:
+    name: App build (best effort until Xcode 26 runners exist)
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Available SDKs
+        run: xcodebuild -showsdks | grep -i macos || true
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      # Ad-hoc signing: CI has no Developer ID, and this build is only ever a
+      # compile check. Real signing and notarization arrive with the release
+      # workflow at M4.
+      - name: Build
+        run: |
+          xcodebuild \
+            -project Notebar.xcodeproj \
+            -scheme Notebar \
+            -configuration Debug \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
