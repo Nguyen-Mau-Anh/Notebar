@@ -55,6 +55,19 @@ private struct NoteEditorContainer: View {
             FormattingBarView(context: editingContext)
             NoteEditorView(model: model, noteID: noteID, editingContext: editingContext)
         }
+        // Belt-and-suspenders: this container being torn down — switching
+        // notes, closing the active tab, or switching away from Notes
+        // entirely — doesn't reliably resign the `NSTextView`'s first
+        // responder status first, so `Coordinator.textDidEndEditing` may
+        // never fire to clear `isEditorFocused`. `PanelController.send(_:)`'s
+        // live reconciliation against `panel.firstResponder` is what
+        // actually protects the collapse decision regardless
+        // (`PanelViewModel.selection`/`activeNoteID`'s `didSet`s cover the
+        // same ground for the model-level flag); this just keeps
+        // `isEditorFocused` itself honest for whatever none of those catch.
+        .onDisappear {
+            model.isEditorFocused = false
+        }
     }
 }
 

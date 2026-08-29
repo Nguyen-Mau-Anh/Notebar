@@ -263,6 +263,24 @@ final class PanelController {
         // guard already keeps a superseded collapse's completion from firing.
         animate(to: collapsedFrame(on: screen), duration: PanelTiming.collapseDuration) { [weak self] in
             self?.model.isExpanded = false
+            // `send(_:)` already reconciles `context.isEditorFocused` from
+            // `panel.firstResponder` on every event, so a normal,
+            // `shouldCollapse`-gated collapse can never reach here with it
+            // (or `hasOpenOverlay`, which has no such live reconciliation)
+            // still true. Escape is the exception: `PanelMachine` collapses
+            // on `.escapePressed` unconditionally, bypassing `shouldCollapse`
+            // entirely (spec 4.3, "Escape overrides every suppression signal,
+            // pinning included") — so a note could still be genuinely focused,
+            // or the all-notes popover genuinely open, at the instant Escape
+            // forces the panel shut. Every content view is torn down with it
+            // (`RootView` swaps to the collapsed handle the moment
+            // `isExpanded` flips), so whatever either flag reports the moment
+            // before is stale the moment after. This is that reconciliation
+            // point — same idea as `PanelViewModel.selection`'s invariant,
+            // for the one teardown path that isn't a `selection` or
+            // `activeNoteID` change.
+            self?.model.isEditorFocused = false
+            self?.model.hasOpenOverlay = false
         }
     }
 

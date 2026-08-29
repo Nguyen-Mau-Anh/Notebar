@@ -20,11 +20,18 @@ import NotebarCore
 /// the view — no reliable, public way to ask "is a popover currently
 /// presented" independent of the `isShowingMenu` binding that drives it.
 /// `hasOpenOverlay` therefore stays event-driven, and the `.onDisappear`
-/// below is a mitigation, not a guarantee: it only catches this view being
-/// torn down (e.g. a future tab switch away from Notes) while its own
-/// popover is open. If SwiftUI ever tears this view down without calling
-/// `onDisappear`, `hasOpenOverlay` can still stick `true` forever, exactly
-/// like the bug this fix is patterned after.
+/// below is a mitigation, not a guarantee, for this view being torn down
+/// while its own popover is open.
+///
+/// Two of this view's own teardown paths are covered by an actual guarantee
+/// regardless, though: this button only exists while `selection == .notes`,
+/// and `PanelViewModel.selection`'s `didSet` forces `hasOpenOverlay` false
+/// the moment that stops being true — before SwiftUI even runs the diff that
+/// would tear this view down, so it doesn't depend on `.onDisappear` firing
+/// at all. `PanelController.hidePanel()`'s completion covers the other
+/// (the whole panel collapsing out from under an open popover, which only
+/// Escape can force — see its comment there). `.onDisappear` below is what's
+/// left for any teardown that isn't one of those two.
 struct AllNotesMenuButton: View {
     let model: PanelViewModel
 

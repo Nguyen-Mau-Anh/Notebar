@@ -23,7 +23,32 @@ import NotebarStore
 @Observable
 final class PanelViewModel {
     var isExpanded = false
-    var selection: AppTab = .notes
+
+    /// Both `isEditorFocused`'s and `hasOpenOverlay`'s only producers
+    /// (`NoteEditorView`'s coordinator, `AllNotesMenuButton`) live inside
+    /// `NotesTab`, and neither is guaranteed to clear its flag on teardown —
+    /// a destroyed `NSTextView` doesn't reliably resign first responder
+    /// first, and a torn-down `.popover` isn't guaranteed to flip its
+    /// `isPresented` binding first either (user report: typed in a note,
+    /// switched to Tasks, and the panel could never collapse again).
+    /// `PanelController.send(_:)` already reconciles `isEditorFocused`
+    /// against `panel.firstResponder` fresh on every event, so that flag
+    /// specifically can no longer strand a collapse decision regardless of
+    /// what happens here. There is no equivalent live "is a popover actually
+    /// showing" to reconcile `hasOpenOverlay` against, though — this is that
+    /// backstop instead: `AllNotesMenuButton` only exists while
+    /// `selection == .notes`, so leaving `.notes` is a structural guarantee
+    /// neither flag can still be true, independent of whichever view-level
+    /// callback would otherwise have cleared it. Same idea as
+    /// `beginTaskDrag()`'s poll being the single source of truth for
+    /// `isDragging` — a live check beats an enumeration of exit paths.
+    var selection: AppTab = .notes {
+        didSet {
+            guard selection != oldValue, selection != .notes else { return }
+            isEditorFocused = false
+            hasOpenOverlay = false
+        }
+    }
 
     /// Drives `PanelContext.isPinned` via `PanelController`, which observes
     /// this property and forwards it. The suppression behaviour itself
@@ -142,7 +167,28 @@ final class PanelViewModel {
     private var pendingSaves: [Note.ID: DispatchWorkItem] = [:]
 
     var notes: [Note] = []
-    var activeNoteID: Note.ID?
+
+    /// Keeps `isEditorFocused` accurate for the teardown path `selection`'s
+    /// invariant doesn't cover: switching notes or closing the active note's
+    /// tab while staying on the Notes tab. `NotesTab` keys
+    /// `NoteEditorContainer` by `.id(activeID)`, so the `NSTextView` behind
+    /// the *previous* id is always gone the instant this changes — to a
+    /// different note's fresh editor, or to none at all — making any focus
+    /// state it reported stale by construction.
+    ///
+    /// `PanelController.send(_:)`'s live reconciliation against
+    /// `panel.firstResponder` is what actually protects the collapse
+    /// decision, so this isn't load-bearing for that anymore — it's here so
+    /// `isEditorFocused` stays trustworthy as a general-purpose signal, not
+    /// just the one `PanelContext` happens to overwrite. Guarded on an
+    /// actual change so redundantly reselecting the already-active tab
+    /// mid-typing doesn't blur it.
+    var activeNoteID: Note.ID? {
+        didSet {
+            guard activeNoteID != oldValue else { return }
+            isEditorFocused = false
+        }
+    }
 
     // MARK: - Settings
 
