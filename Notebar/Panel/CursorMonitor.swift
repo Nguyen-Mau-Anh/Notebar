@@ -24,6 +24,15 @@ final class CursorMonitor {
     /// back to the whole screen if unset.
     var triggerBand: ((NSScreen) -> CGRect?)?
 
+    /// Supplies how far the cursor may clear the panel bounds before the
+    /// exit timer starts (spec §4.3's `exitSlop`, spec §6.5's "Edge
+    /// tolerance" setting). Called fresh on every tick in `emitPanelEvents`
+    /// rather than read once, so a change made in Settings is live on the
+    /// very next tick — no restart needed. Falls back to
+    /// `PanelTiming.exitSlop` if unset, keeping production behaviour
+    /// unchanged for any caller (tests included) that never sets this.
+    var exitSlop: () -> CGFloat = { PanelTiming.exitSlop }
+
     /// The cursor's current position. Injectable so the transition logic can be
     /// exercised with scripted positions; defaults to the real cursor, so
     /// production behaviour is unchanged.
@@ -106,7 +115,7 @@ final class CursorMonitor {
         let isInside = !EdgeZone.isOutside(
             cursor: cursor,
             panelFrame: frame,
-            slop: PanelTiming.exitSlop
+            slop: exitSlop()
         )
         defer { wasInsidePanel = isInside }
         guard isInside != wasInsidePanel else { return }

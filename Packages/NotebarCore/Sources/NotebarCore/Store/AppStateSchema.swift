@@ -16,6 +16,15 @@ public enum AppStateSchema {
     /// The row key `theme` is stored under.
     public static let themeKey = "theme"
 
+    /// Row keys the three Activation timings (spec §6.5) are stored under —
+    /// `PanelTiming.edgeDwell`/`exitDwell`/`exitSlop` respectively. Named
+    /// after the constant they override, not the UI label, since the UI
+    /// label ("Open delay"/"Close delay"/"Edge tolerance") is free to change
+    /// without touching what's already on disk.
+    public static let edgeDwellKey = "edgeDwell"
+    public static let exitDwellKey = "exitDwell"
+    public static let exitSlopKey = "exitSlop"
+
     public static let createAppStateTable = """
     CREATE TABLE app_state (
       key   TEXT PRIMARY KEY,

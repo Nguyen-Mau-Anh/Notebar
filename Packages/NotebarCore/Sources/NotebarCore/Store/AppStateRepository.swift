@@ -14,4 +14,31 @@ public protocol AppStateRepository {
 
     /// Persists the theme choice.
     func setTheme(_ theme: Theme) throws
+
+    /// The persisted Activation → Open delay (spec §6.5), i.e.
+    /// `PanelTiming.edgeDwell`. Falls back to `PanelTiming.edgeDwell` when
+    /// nothing has been saved, and clamps to `PanelTiming.edgeDwellRange`
+    /// when the saved value parses but is out of range — a hand-edited
+    /// database must never be able to push the panel out of its designed
+    /// feel, only the settings UI's own slider can.
+    func edgeDwell() throws -> TimeInterval
+
+    /// Persists the Open delay.
+    func setEdgeDwell(_ value: TimeInterval) throws
+
+    /// The persisted Activation → Close delay, i.e. `PanelTiming.exitDwell`.
+    /// Same fallback/clamp contract as `edgeDwell()`, against
+    /// `PanelTiming.exitDwellRange`.
+    func exitDwell() throws -> TimeInterval
+
+    /// Persists the Close delay.
+    func setExitDwell(_ value: TimeInterval) throws
+
+    /// The persisted Activation → Edge tolerance, i.e. `PanelTiming.exitSlop`.
+    /// Same fallback/clamp contract as `edgeDwell()`, against
+    /// `PanelTiming.exitSlopRange`.
+    func exitSlop() throws -> CGFloat
+
+    /// Persists the Edge tolerance.
+    func setExitSlop(_ value: CGFloat) throws
 }

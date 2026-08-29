@@ -51,4 +51,23 @@ public enum PanelTiming {
     /// How long after the last keystroke the panel still counts as "in use".
     /// Referenced by `PanelMachine.shouldCollapse`.
     public static let typingGrace: TimeInterval = 2.0
+
+    // MARK: - Activation settings (spec §6.5)
+
+    /// Sane bounds for `edgeDwell` when it becomes a user setting. Used both
+    /// as the slider's range in Settings and as the clamp `AppStateRepository`
+    /// applies to a stored value on read, so a hand-edited database can't
+    /// push it further than the UI ever could. Zero is left in: an open
+    /// delay of zero is merely eager, not hostile.
+    public static let edgeDwellRange: ClosedRange<TimeInterval> = 0...0.5
+
+    /// Sane bounds for `exitDwell`. The floor is deliberately above zero —
+    /// an `exitDwell` of 0 makes the panel collapse the instant the cursor
+    /// leaves, which is the hostile behaviour spec §4.4 exists to prevent —
+    /// and the ceiling keeps a stored value from making the panel look stuck
+    /// open.
+    public static let exitDwellRange: ClosedRange<TimeInterval> = 0.05...2.0
+
+    /// Sane bounds for `exitSlop`.
+    public static let exitSlopRange: ClosedRange<CGFloat> = 0...100
 }

@@ -59,6 +59,13 @@ final class PanelController {
         monitor.triggerBand = { [weak self] screen in
             self?.triggerBand(on: screen)
         }
+        // Same "read at point of use" reasoning as `startTimer`'s interval
+        // lookup above: `CursorMonitor` calls this on every tick rather than
+        // this controller capturing `model.exitSlop` once, so a Settings
+        // change (Activation → Edge tolerance) is live on the next tick, no
+        // restart needed. `model.exitSlop` falls back to `PanelTiming.exitSlop`
+        // itself — see `PanelViewModel.init`.
+        monitor.exitSlop = { [weak self] in self?.model.exitSlop ?? PanelTiming.exitSlop }
         // Gives the rail's collapse button (spec §6.1) a path to `toggle()`.
         // `model` is built before this controller exists, so the view can't
         // be handed the method directly; this closure is installed the
@@ -147,7 +154,13 @@ final class PanelController {
     private func startTimer(_ which: PanelTimer) {
         timers[which]?.invalidate()
 
-        let interval = which == .edgeDwell ? PanelTiming.edgeDwell : PanelTiming.exitDwell
+        // Read from `model` fresh on every call rather than from
+        // `PanelTiming` directly, so a change made in Settings (Activation
+        // → Open/Close delay) takes effect on the very next dwell timer —
+        // no restart needed. `model.edgeDwell`/`exitDwell` already fall back
+        // to `PanelTiming`'s defaults whenever nothing is saved or the
+        // stored value is out of range (see `AppStateRepository`).
+        let interval = which == .edgeDwell ? model.edgeDwell : model.exitDwell
         let event: PanelEvent = which == .edgeDwell ? .edgeDwellElapsed : .exitDwellElapsed
 
         let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in

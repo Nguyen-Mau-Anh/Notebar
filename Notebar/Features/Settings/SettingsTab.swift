@@ -2,12 +2,11 @@ import AppKit
 import SwiftUI
 import NotebarCore
 
-/// Settings' sectioned list (spec §6.5), built to grow. Appearance, Data,
-/// and General are real; Activation stays an inert placeholder row (spec
-/// §6.5's one-line description) until its own settings land in a later
-/// pass. Deliberately not a settings framework: one section header plus a
-/// column of rows is enough for four sections, and adding a fifth is
-/// copy-paste, not a new abstraction.
+/// Settings' sectioned list (spec §6.5), built to grow. Appearance, Activation,
+/// and Data are real; General's launch-at-login row is still a placeholder.
+/// Deliberately not a settings framework: one section header plus a column
+/// of rows is enough for four sections, and adding a fifth is copy-paste,
+/// not a new abstraction.
 struct SettingsTab: View {
     let model: PanelViewModel
 
@@ -58,7 +57,46 @@ struct SettingsTab: View {
                     }
 
                     SettingsSection(title: "Activation") {
-                        SettingsComingSoonRow(detail: "Edge trigger, dwell timing, global hotkey.")
+                        SettingsRow(title: "Open delay") {
+                            ActivationSliderControl(
+                                value: Binding(
+                                    get: { model.edgeDwell },
+                                    set: { model.setEdgeDwell($0) }
+                                ),
+                                range: PanelTiming.edgeDwellRange,
+                                format: { "\(Int(($0 * 1000).rounded())) ms" }
+                            )
+                        }
+                        SettingsRow(title: "Close delay") {
+                            ActivationSliderControl(
+                                value: Binding(
+                                    get: { model.exitDwell },
+                                    set: { model.setExitDwell($0) }
+                                ),
+                                range: PanelTiming.exitDwellRange,
+                                format: { "\(Int(($0 * 1000).rounded())) ms" }
+                            )
+                        }
+                        SettingsRow(title: "Edge tolerance") {
+                            ActivationSliderControl(
+                                value: Binding(
+                                    get: { Double(model.exitSlop) },
+                                    set: { model.setExitSlop(CGFloat($0)) }
+                                ),
+                                range: Double(PanelTiming.exitSlopRange.lowerBound)...Double(PanelTiming.exitSlopRange.upperBound),
+                                format: { "\(Int($0.rounded())) pt" }
+                            )
+                        }
+                        SettingsRow(title: "Global hotkey") {
+                            Text("⌘⇧Space")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        SettingsRow(title: "Reset") {
+                            Button("Reset to Defaults") {
+                                model.resetActivationDefaults()
+                            }
+                        }
                     }
 
                     SettingsSection(title: "Data") {
@@ -154,6 +192,30 @@ private struct SettingsRow<Trailing: View>: View {
             .font(.system(size: 13))
             .lineLimit(1)
             .layoutPriority(1)
+    }
+}
+
+/// Activation's slider trailing content (spec §6.5): a slider paired with
+/// the value it currently represents, since these three timings are felt
+/// rather than seen — "somewhere near the middle" is not a setting anyone
+/// can reason about without the number beside it. `format` renders the raw
+/// `Double` (seconds for the two dwell timings, points for edge tolerance)
+/// into the unit-labelled text Settings actually shows.
+private struct ActivationSliderControl: View {
+    let value: Binding<Double>
+    let range: ClosedRange<Double>
+    let format: (Double) -> String
+
+    var body: some View {
+        HStack(spacing: Tokens.Space.xs) {
+            Slider(value: value, in: range)
+                .frame(width: 90)
+            Text(format(value.wrappedValue))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .frame(minWidth: 40, alignment: .trailing)
+        }
     }
 }
 

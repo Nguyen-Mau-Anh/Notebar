@@ -201,6 +201,19 @@ final class PanelViewModel {
     /// `setTheme(_:)`, changes live thereafter.
     private(set) var theme: Theme
 
+    /// The three Activation timings (spec §6.5), read once at launch the
+    /// same way `theme` is and kept live thereafter by `setEdgeDwell(_:)` /
+    /// `setExitDwell(_:)` / `setExitSlop(_:)`. `PanelController` and
+    /// `CursorMonitor` read these properties fresh at the point they act on
+    /// them — starting a dwell timer, checking exit slop on a tick — rather
+    /// than capturing a value once, so a change from Settings takes effect
+    /// immediately, no restart needed. `PanelTiming`'s constants remain the
+    /// fallback whenever a read fails, and the source of what "reset to
+    /// defaults" resets to.
+    private(set) var edgeDwell: TimeInterval
+    private(set) var exitDwell: TimeInterval
+    private(set) var exitSlop: CGFloat
+
     init(
         noteRepository: NoteRepository,
         openTabRepository: OpenTabRepository,
@@ -220,6 +233,24 @@ final class PanelViewModel {
         } catch {
             NotebarLog.store.error("failed to read saved theme, falling back to default: \(String(describing: error), privacy: .public)")
             self.theme = .default
+        }
+        do {
+            self.edgeDwell = try appStateRepository.edgeDwell()
+        } catch {
+            NotebarLog.store.error("failed to read saved open delay, falling back to default: \(String(describing: error), privacy: .public)")
+            self.edgeDwell = PanelTiming.edgeDwell
+        }
+        do {
+            self.exitDwell = try appStateRepository.exitDwell()
+        } catch {
+            NotebarLog.store.error("failed to read saved close delay, falling back to default: \(String(describing: error), privacy: .public)")
+            self.exitDwell = PanelTiming.exitDwell
+        }
+        do {
+            self.exitSlop = try appStateRepository.exitSlop()
+        } catch {
+            NotebarLog.store.error("failed to read saved edge tolerance, falling back to default: \(String(describing: error), privacy: .public)")
+            self.exitSlop = PanelTiming.exitSlop
         }
         loadPersistedState()
         loadTasks()
@@ -277,6 +308,61 @@ final class PanelViewModel {
                 NotebarLog.store.error("failed to persist theme change: \(String(describing: error), privacy: .public)")
             }
         }
+    }
+
+    /// Settings' Activation section calls these three. Each clamps to its
+    /// `PanelTiming` range before doing anything else — belt and braces
+    /// alongside the Settings slider's own bounds and `AppStateRepository`'s
+    /// clamp-on-read, since this is also the only path a future non-slider
+    /// caller would go through. Updates the in-memory property immediately
+    /// (what `PanelController`/`CursorMonitor` read at point of use) and
+    /// persists off the main thread, mirroring `setTheme(_:)`.
+    func setEdgeDwell(_ value: TimeInterval) {
+        let clamped = value.clamped(to: PanelTiming.edgeDwellRange)
+        guard clamped != edgeDwell else { return }
+        edgeDwell = clamped
+        persistenceQueue.async { [appStateRepository] in
+            do {
+                try appStateRepository.setEdgeDwell(clamped)
+            } catch {
+                NotebarLog.store.error("failed to persist open delay change: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    func setExitDwell(_ value: TimeInterval) {
+        let clamped = value.clamped(to: PanelTiming.exitDwellRange)
+        guard clamped != exitDwell else { return }
+        exitDwell = clamped
+        persistenceQueue.async { [appStateRepository] in
+            do {
+                try appStateRepository.setExitDwell(clamped)
+            } catch {
+                NotebarLog.store.error("failed to persist close delay change: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    func setExitSlop(_ value: CGFloat) {
+        let clamped = value.clamped(to: PanelTiming.exitSlopRange)
+        guard clamped != exitSlop else { return }
+        exitSlop = clamped
+        persistenceQueue.async { [appStateRepository] in
+            do {
+                try appStateRepository.setExitSlop(clamped)
+            } catch {
+                NotebarLog.store.error("failed to persist edge tolerance change: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    /// Settings' Activation *Reset to defaults* action (spec §6.5). Goes
+    /// through the same three setters as a direct slider drag would, so it
+    /// gets the same clamp, in-memory update, and persistence for free.
+    func resetActivationDefaults() {
+        setEdgeDwell(PanelTiming.edgeDwell)
+        setExitDwell(PanelTiming.exitDwell)
+        setExitSlop(PanelTiming.exitSlop)
     }
 
     /// Restores `notes` and `activeNoteID` from whatever was open when the
@@ -866,5 +952,15 @@ final class PanelViewModel {
             }
         }
         return candidates.sorted { $0.updatedAt > $1.updatedAt }
+    }
+}
+
+/// Used by `setEdgeDwell(_:)`/`setExitDwell(_:)`/`setExitSlop(_:)` to keep a
+/// value within its `PanelTiming` range regardless of caller — the Settings
+/// slider already constrains its own input, but this is the backstop for
+/// any future caller that doesn't.
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }
