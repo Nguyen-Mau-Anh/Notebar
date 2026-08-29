@@ -648,6 +648,19 @@ user should never have to look for it.
 
 ### 6.5 Settings
 
+**Settings row metrics.** A settings row is a label on the left and its control on the
+right. At the default 340 pt panel the content area is only 283 pt wide, so the row must be
+built to survive that:
+
+- The label uses `chrome.body` (13/18) with **`lineLimit(1)`** and layout priority over the
+  control. Without both, a segmented picker claims the width it wants and squeezes the
+  label until it wraps — "Theme" breaking into "The / me" is what that looks like.
+- Controls use macOS's **small** control size, which is the right density for a panel this
+  narrow and buys back roughly 20 pt of width.
+- If a control still cannot fit beside its label at the compact breakpoint, the row stacks:
+  label above, control below at full width. Stacking is the fallback, not the default —
+  vertical space in a 745 pt panel is scarcer than it looks once several sections exist.
+
 **Appearance → Theme** is Settings' first real control: a three-way choice between
 **System** (default), **Light**, and **Dark**, rendered as a segmented picker.
 
