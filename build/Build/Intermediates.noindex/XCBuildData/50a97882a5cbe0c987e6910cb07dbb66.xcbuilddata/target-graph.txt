@@ -1,6 +1,0 @@
-Target dependency graph (3 targets)
-Target 'Notebar' in project 'Notebar'
-➜ Explicit dependency on target 'NotebarCore' in project 'NotebarCore'
-Target 'NotebarCore' in project 'NotebarCore'
-➜ Explicit dependency on target 'NotebarCore' in project 'NotebarCore'
-Target 'NotebarCore' in project 'NotebarCore' (no dependencies)

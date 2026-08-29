@@ -1,4 +1,0 @@
-module NotebarCore {
-header "NotebarCore-Swift.h"
-export *
-}
