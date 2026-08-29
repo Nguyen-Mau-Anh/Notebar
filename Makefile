@@ -26,3 +26,6 @@ run: build
 
 clean:
 	rm -rf $(PROJECT) .build Packages/NotebarCore/.build
+
+dmg:
+	./scripts/make-dmg.sh
