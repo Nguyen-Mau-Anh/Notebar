@@ -53,6 +53,18 @@ struct EdgeZoneTests {
         #expect(zone.classify(cursor: CGPoint(x: 1930, y: 500), screen: right) == .away)
     }
 
+    @Test("a cursor anywhere within the handle's width arms the trigger")
+    func handleWidthArmsTrigger() {
+        // The suite's `zone` above uses a literal `triggerWidth: 2` as a unit
+        // fixture, which never exercises the 30pt value that actually ships.
+        // This builds the zone from `PanelTiming` directly so a drift between
+        // the two is caught here, not just by `PanelTimingTests`.
+        let shippingZone = EdgeZone(triggerWidth: PanelTiming.triggerWidth, proximityWidth: PanelTiming.proximityWidth)
+        // 1pt inside the handle's inner edge.
+        let justInsideHandle = CGPoint(x: screen.maxX - PanelTiming.handleWidth + 1, y: 500)
+        #expect(shippingZone.classify(cursor: justInsideHandle, screen: screen) == .inside)
+    }
+
     @Test("the exit slop widens the panel bounds")
     func exitSlopWidensBounds() {
         let panel = CGRect(x: 1500, y: 0, width: 420, height: 1080)

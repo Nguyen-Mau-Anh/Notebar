@@ -17,6 +17,14 @@ public enum PanelTiming {
     public static let handleWidth: CGFloat = 30
     public static let handleHeight: CGFloat = 56
 
+    /// The expanded panel's fixed width (spec §4.1). Flush to the right
+    /// screen edge.
+    public static let panelWidth: CGFloat = 340
+
+    /// Fraction of the screen's visible height the expanded panel occupies,
+    /// vertically centred (spec §4.1) — a card, not a full-height column.
+    public static let panelHeightFraction: CGFloat = 0.70
+
     /// Width of the activation strip at the screen edge. Equal to the handle
     /// width so that hovering the handle — the only thing the user can see —
     /// arms the panel. The 120 ms `edgeDwell` remains the guard against

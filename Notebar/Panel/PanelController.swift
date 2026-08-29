@@ -28,17 +28,15 @@ final class PanelController {
     /// been reopened.
     private var animationGeneration = 0
 
-    private static let panelWidth: CGFloat = 340
-    /// The panel is a vertically centred card, not a full-height column.
-    private static let panelHeightFraction: CGFloat = 0.70
-
     var isPinned: Bool {
         get { context.isPinned }
         set { context.isPinned = newValue }
     }
 
     init(content: NSView, model: PanelViewModel) {
-        let initial = NSRect(x: 0, y: 0, width: Self.panelWidth, height: 600)
+        // The size here is provisional — `presentHandle()` overwrites it with
+        // the collapsed handle's frame before the panel is ever displayed.
+        let initial = NSRect(x: 0, y: 0, width: PanelTiming.handleWidth, height: PanelTiming.handleHeight)
         panel = EdgePanel(contentRect: initial)
         panel.contentView = content
         self.model = model
@@ -131,14 +129,14 @@ final class PanelController {
     /// permanent sidebar.
     private func frames(on screen: NSScreen) -> (onscreen: NSRect, offscreen: NSRect) {
         let area = screen.visibleFrame
-        let height = (area.height * Self.panelHeightFraction).rounded()
+        let height = (area.height * PanelTiming.panelHeightFraction).rounded()
         let onscreen = NSRect(
-            x: area.maxX - Self.panelWidth,
+            x: area.maxX - PanelTiming.panelWidth,
             y: (area.minY + (area.height - height) / 2).rounded(),
-            width: Self.panelWidth,
+            width: PanelTiming.panelWidth,
             height: height
         )
-        return (onscreen, onscreen.offsetBy(dx: Self.panelWidth, dy: 0))
+        return (onscreen, onscreen.offsetBy(dx: PanelTiming.panelWidth, dy: 0))
     }
 
     /// The vertical band of the screen edge that arms the panel.
