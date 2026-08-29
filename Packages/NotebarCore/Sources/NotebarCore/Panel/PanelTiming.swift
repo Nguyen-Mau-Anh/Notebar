@@ -10,8 +10,18 @@ public enum PanelTiming {
     /// Cursor must stay outside the panel this long before collapsing.
     public static let exitDwell: TimeInterval = 0.350
 
-    /// Width of the activation strip at the screen edge.
-    public static let triggerWidth: CGFloat = 2
+    /// The collapsed handle's size. It lives here rather than in the app
+    /// target's Tokens because `triggerWidth` must equal it — the handle *is*
+    /// the target, and two modules disagreeing about its width is exactly how
+    /// the affordance stopped working.
+    public static let handleWidth: CGFloat = 30
+    public static let handleHeight: CGFloat = 56
+
+    /// Width of the activation strip at the screen edge. Equal to the handle
+    /// width so that hovering the handle — the only thing the user can see —
+    /// arms the panel. The 120 ms `edgeDwell` remains the guard against
+    /// accidental opens, not a narrow target.
+    public static let triggerWidth: CGFloat = handleWidth
 
     /// Distance from the edge at which polling speeds up.
     public static let proximityWidth: CGFloat = 80
