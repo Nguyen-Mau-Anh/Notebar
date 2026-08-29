@@ -591,6 +591,25 @@ user should never have to look for it.
 
 ### 6.5 Settings
 
+**Appearance → Theme** is Settings' first real control: a three-way choice between
+**System** (default), **Light**, and **Dark**, rendered as a segmented picker.
+
+- **System** follows macOS's own appearance and changes live when the user switches it,
+  including on the automatic day/night schedule. This is the default because an overlay
+  that floats above other apps should match them.
+- **Light** and **Dark** override it and stay put.
+
+Applied by setting `NSApp.appearance` to `NSAppearance(named: .aqua)` / `.darkAqua`, or
+`nil` for System. Every colour in the app already resolves through semantic tokens
+(§1.1–1.2 define both palettes), so this needs no per-view restyling — that is what the
+two token modes were built for.
+
+The choice persists in the `app_state` table (§5) rather than `UserDefaults`, keeping one
+storage story for everything the app remembers, and is applied at launch before the panel
+is first presented so there is no visible flash of the wrong appearance.
+
+
+
 Shell only in v1. The tab renders placeholder sections the design already implies —
 Activation (edge, dwell timings, hotkey), Appearance (width, theme, material), Data
 (database location, export), General (launch at login) — so filling them in later is
