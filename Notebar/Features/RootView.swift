@@ -1,0 +1,82 @@
+import SwiftUI
+
+struct RootView: View {
+    let model: PanelViewModel
+
+    var body: some View {
+        Group {
+            if model.isExpanded {
+                expandedBody
+            } else {
+                CollapsedHandle(tab: model.selection)
+            }
+        }
+    }
+
+    private var expandedBody: some View {
+        GeometryReader { proxy in
+            let isCompact = proxy.size.width < Tokens.Size.compactBreakpoint
+
+            HStack(spacing: 0) {
+                TabRail(
+                    selection: Binding(
+                        get: { model.selection },
+                        set: { model.selection = $0 }
+                    ),
+                    isCompact: isCompact
+                )
+
+                Divider()
+
+                Group {
+                    switch model.selection {
+                    case .notes:    NotesTab()
+                    case .tasks:    TasksTab()
+                    case .settings: SettingsTab()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .background(.regularMaterial)
+    }
+}
+
+/// What the panel shows at rest, flush to the right screen edge, once it has
+/// retreated instead of vanishing. `PanelController` sizes the window to
+/// exactly `Tokens.Size.handleWidth` x `Tokens.Size.handleHeight`, so this
+/// view only needs to fill that frame.
+private struct CollapsedHandle: View {
+    let tab: AppTab
+
+    var body: some View {
+        // Left corners rounded, right corners square: the handle reads as
+        // something tucked half behind the screen edge rather than a free
+        // floating pill. "Left"/"right" here are the physical screen edge,
+        // not layout direction — the panel is always flush to the display's
+        // right edge regardless of locale.
+        UnevenRoundedRectangle(
+            topLeadingRadius: Tokens.Radius.md,
+            bottomLeadingRadius: Tokens.Radius.md,
+            bottomTrailingRadius: 0,
+            topTrailingRadius: 0
+        )
+        .fill(.regularMaterial)
+        .overlay {
+            Image(systemName: tab.symbol)
+                .font(.system(size: 18))
+                .foregroundStyle(.secondary)
+        }
+        .frame(width: Tokens.Size.handleWidth, height: Tokens.Size.handleHeight)
+    }
+}
+
+#Preview("Expanded") {
+    let model = PanelViewModel()
+    model.isExpanded = true
+    return RootView(model: model).frame(width: 420, height: 700)
+}
+
+#Preview("Collapsed handle") {
+    RootView(model: PanelViewModel()).frame(width: 60, height: 100)
+}

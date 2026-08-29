@@ -7,12 +7,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        // Placeholder content, replaced by RootView in Task 8.
-        let placeholder = NSHostingView(
-            rootView: Color.blue.opacity(0.25).ignoresSafeArea()
-        )
+        let model = PanelViewModel()
+        let content = NSHostingView(rootView: RootView(model: model))
 
-        let controller = PanelController(content: placeholder)
+        let controller = PanelController(content: content, model: model)
         controller.start()
         self.controller = controller
     }
