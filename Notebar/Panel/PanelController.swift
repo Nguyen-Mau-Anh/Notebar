@@ -19,6 +19,13 @@ final class PanelController {
     private var timers: [PanelTimer: Timer] = [:]
     private var escapeMonitor: Any?
 
+    /// Incremented on every animation start. A completion handler that does not
+    /// match the current value belongs to an animation that has been superseded,
+    /// and must not run: acting on it fires `.animationFinished` for a transition
+    /// that no longer exists, and can call `orderOut` on a panel that has since
+    /// been reopened.
+    private var animationGeneration = 0
+
     private static let panelWidth: CGFloat = 340
     /// The panel is a vertically centred card, not a full-height column.
     private static let panelHeightFraction: CGFloat = 0.70
@@ -145,7 +152,15 @@ final class PanelController {
     }
 
     private func hidePanel() {
-        guard panel.isVisible, let screen = activeScreen() else { return }
+        guard panel.isVisible else {
+            // `.hidePanel` should only ever be emitted while the panel is
+            // expanded or expanding. If this fires, the reducer and the
+            // window have drifted out of sync — surface it instead of
+            // silently doing nothing.
+            assertionFailure("hidePanel effect received while panel is not visible")
+            return
+        }
+        guard let screen = activeScreen() else { return }
         let (_, offscreen) = frames(on: screen)
 
         animate(to: offscreen, duration: PanelTiming.collapseDuration) { [weak self] in
@@ -158,14 +173,17 @@ final class PanelController {
         duration: TimeInterval,
         then completion: (() -> Void)? = nil
     ) {
+        animationGeneration &+= 1
+        let generation = animationGeneration
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = duration
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().setFrame(frame, display: true)
         }, completionHandler: { [weak self] in
+            guard let self, generation == self.animationGeneration else { return }
             completion?()
             // The reducer decides what "finished" means for the current state.
-            self?.send(.animationFinished)
+            self.send(.animationFinished)
         })
     }
 
