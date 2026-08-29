@@ -44,6 +44,46 @@ struct GRDBLinkRepositoryTests {
         #expect(try links.outgoing(from: LinkTarget(type: .task, id: task.id)).isEmpty)
     }
 
+    @Test("incoming(to:) returns links from both a note and a task pointing at one target")
+    func incomingFromBothEntityTypes() throws {
+        let (links, notes, tasks) = try makeRepositories()
+        let sourceNote = try notes.create()
+        let columnID = try tasks.columns()[0].id
+        let sourceTask = try tasks.create(title: "Ship it", columnID: columnID)
+        let target = try notes.create()
+
+        try links.create(Link(srcType: .note, srcId: sourceNote.id, dstType: .note, dstId: target.id))
+        try links.create(Link(srcType: .task, srcId: sourceTask.id, dstType: .note, dstId: target.id))
+
+        let incoming = try links.incoming(to: LinkTarget(type: .note, id: target.id))
+        #expect(incoming.count == 2)
+        #expect(Set(incoming.map(\.srcType)) == [.note, .task])
+        #expect(Set(incoming.map(\.srcId)) == [sourceNote.id, sourceTask.id])
+    }
+
+    @Test("deleting a chip's target leaves the referencing note's stored text untouched")
+    func deletingTargetPreservesReferencingNoteText() throws {
+        let (links, notes, _) = try makeRepositories()
+        let note = try notes.create()
+        let target = try notes.create()
+
+        let chipText = "See @Other "
+        let bodyRTF = NoteRTF.rtfdData(from: NSAttributedString(string: chipText))
+        let link = Link(srcType: .note, srcId: note.id, dstType: .note, dstId: target.id)
+        try links.create(link, savingNoteBody: note.id, bodyRTF: bodyRTF, bodyPlain: chipText)
+
+        // Deleting the target cascades the `link` row away (`LinkSchema`'s
+        // `AFTER DELETE` trigger) — that must never touch the referencing
+        // note's own row. A tombstone is the chip's *styling* changing, not
+        // its text (spec §6.4: "never delete the user's text").
+        try notes.delete(id: target.id)
+
+        let reloadedNote = try notes.fetch(id: note.id)
+        #expect(reloadedNote?.bodyPlain == chipText)
+        #expect(reloadedNote?.bodyRTF == bodyRTF)
+        #expect(try links.incoming(to: LinkTarget(type: .note, id: target.id)).isEmpty)
+    }
+
     @Test("the UNIQUE constraint rejects a duplicate link")
     func duplicateRejected() throws {
         let (links, notes, tasks) = try makeRepositories()

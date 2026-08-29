@@ -17,7 +17,13 @@ public enum LinkEntityType: String, Codable, Equatable, Sendable {
 /// `LinkRepository.outgoing(from:)`/`incoming(to:)` rather than two loose
 /// parameters, so a caller can't accidentally transpose a type and an id
 /// that happen to both be strings.
-public struct LinkTarget: Equatable, Sendable {
+///
+/// `Hashable` (spec §6.4 deliverable 3, tombstones): `LinkTombstone` and
+/// `PanelViewModel.existingLinkTargets()` collect every note/task id that
+/// still exists into a `Set<LinkTarget>` once per note load, so checking
+/// whether a chip's target survived is a set lookup rather than a query per
+/// chip.
+public struct LinkTarget: Equatable, Hashable, Sendable {
     public var type: LinkEntityType
     public var id: String
 

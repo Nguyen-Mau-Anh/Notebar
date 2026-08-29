@@ -56,6 +56,13 @@ private struct NoteEditorContainer: View {
             VStack(spacing: 0) {
                 FormattingBarView(context: editingContext)
                 NoteEditorView(model: model, noteID: noteID, editingContext: editingContext, mentionContext: mentionContext)
+                    // The editor keeps the space it currently has; the
+                    // Backlinks section below only ever claims what it
+                    // needs, capped at `Tokens.Size.backlinksMaxHeight` —
+                    // without this, a heavily-referenced note could squeeze
+                    // the editor itself down instead.
+                    .layoutPriority(1)
+                BacklinksSection(model: model, target: LinkTarget(type: .note, id: noteID))
             }
 
             // Anchored just below the formatting bar rather than tracking

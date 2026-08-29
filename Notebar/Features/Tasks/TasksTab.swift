@@ -246,6 +246,8 @@ private struct TaskCardView: View {
                 }
 
             metadata
+
+            BacklinksSection(model: model, target: LinkTarget(type: .task, id: task.id))
         }
         .padding(.top, Tokens.Space.xs)
     }

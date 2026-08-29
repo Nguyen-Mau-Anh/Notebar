@@ -1,10 +1,16 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct TabRail: View {
     @Binding var selection: AppTab
     @Binding var isPinned: Bool
     @Binding var isMaximized: Bool
     let isCompact: Bool
+
+    /// A task-card drag is in flight (`PanelViewModel.isDragging`). Gates
+    /// `TabRailButton`'s spring-load-to-switch below — see that type's doc
+    /// comment for why dragging a card onto a note needs this at all.
+    let isDragging: Bool
 
     /// Calls `PanelViewModel.requestCollapse`. A plain closure, not a
     /// binding, because collapsing is a one-shot action, not state this view
@@ -21,7 +27,8 @@ struct TabRail: View {
                 TabRailButton(
                     tab: tab,
                     isSelected: selection == tab,
-                    isCompact: isCompact
+                    isCompact: isCompact,
+                    isDragging: isDragging
                 ) {
                     selection = tab
                 }
@@ -150,11 +157,31 @@ private struct CollapseButton: View {
     }
 }
 
+/// Spec §6.4 deliverable 2 ("dragging a task card onto an open note")
+/// against §6.1's single-active-tab layout (`RootView.expandedBody`'s
+/// `switch model.selection` mounts exactly one tab's content at a time):
+/// there is no way to already be looking at a note while dragging from the
+/// Tasks board, since starting that drag requires being on the Tasks tab.
+/// `.onDrop(isTargeted:)` below turns hovering a drag over this button into
+/// a tab switch, mirroring Finder's spring-loaded folders, so the drag can
+/// continue on into the now-visible note and land there — the drop itself
+/// is still declined here (`{ _ in false }`), same as a release outside
+/// every task-board group (spec §6.3a): only *dwelling* over the icon
+/// switches tabs, not letting go on it.
+///
+/// Gated on `isDragging` (`PanelViewModel.isDragging`, the board's own
+/// `NSEvent.pressedMouseButtons` poll — untouched by any of this) so an
+/// unrelated plain-text drag from outside the app can't reroute the panel's
+/// own navigation, and on `!isSelected` so hovering the already-active tab
+/// is a no-op rather than a redundant reselect.
 private struct TabRailButton: View {
     let tab: AppTab
     let isSelected: Bool
     let isCompact: Bool
+    let isDragging: Bool
     let action: () -> Void
+
+    @State private var isDropTargeted = false
 
     var body: some View {
         Button(action: action) {
@@ -185,5 +212,10 @@ private struct TabRailButton: View {
         .padding(.horizontal, Tokens.Space.xs)
         .accessibilityLabel(tab.title)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .onDrop(of: [.plainText], isTargeted: $isDropTargeted) { _ in false }
+        .onChange(of: isDropTargeted) { _, isTargeted in
+            guard isTargeted, isDragging, !isSelected else { return }
+            action()
+        }
     }
 }

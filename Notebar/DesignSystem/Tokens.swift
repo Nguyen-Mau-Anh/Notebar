@@ -65,6 +65,13 @@ enum Tokens {
         /// count never produces a popover taller than the editor itself.
         static let mentionPopoverWidth: CGFloat = 260
         static let mentionPopoverMaxHeight: CGFloat = 220
+
+        /// The Backlinks section every note and task shows (spec §6.4
+        /// deliverable 1). Capped and internally scrolling, same reasoning
+        /// as `taskDetailMaxHeight`: a heavily-referenced note must not push
+        /// its own editor down to nothing, or a task card's metadata off the
+        /// bottom of the board.
+        static let backlinksMaxHeight: CGFloat = 96
     }
 
     /// The note editor's type scale (spec §6.2/§6.2b): a fixed set of four

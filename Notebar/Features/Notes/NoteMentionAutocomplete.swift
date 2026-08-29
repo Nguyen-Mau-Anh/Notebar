@@ -92,9 +92,11 @@ final class NoteMentionContext {
 
     /// Replaces the `@query` text with a chip and writes the backing `link`
     /// row in the same transaction as the note body save (spec §6.4
-    /// deliverable 3), via `PanelViewModel.insertLinkChip`.
+    /// deliverable 3), via `NoteChipInsertion.insert` —
+    /// `NoteEditorView.Coordinator`'s drag-and-drop handling (deliverable 2)
+    /// is the other caller of that same insertion path.
     func select(_ candidate: MentionCandidate) {
-        guard let textView, let model, let start = mentionStartLocation, let textStorage = textView.textStorage else {
+        guard let textView, let model, let start = mentionStartLocation else {
             cancel()
             return
         }
@@ -113,32 +115,7 @@ final class NoteMentionContext {
         // starts no new one either.
         cancel()
 
-        let chip = NSMutableAttributedString(string: candidate.title, attributes: NoteFont.typingAttributes)
-        let chipRange = NSRange(location: 0, length: chip.length)
-        chip.addAttribute(.link, value: LinkURL.url(for: candidate.type, id: candidate.id), range: chipRange)
-        NoteChipStyling.apply(to: chip, range: chipRange)
-        chip.append(NSAttributedString(string: " ", attributes: NoteFont.typingAttributes))
-
-        textStorage.beginEditing()
-        textStorage.replaceCharacters(in: mentionRange, with: chip)
-        textStorage.endEditing()
-
-        let newCaret = mentionRange.location + chip.length
-        textView.setSelectedRange(NSRange(location: newCaret, length: 0))
-        // Reset so the character typed right after the chip isn't itself
-        // linked/accent-coloured — `replaceCharacters(in:with:)` otherwise
-        // leaves `typingAttributes` wherever the chip's own attributes left
-        // it.
-        textView.typingAttributes = NoteFont.typingAttributes
-        textView.didChangeText()
-
-        let attributedString = textView.attributedString()
-        model.insertLinkChip(
-            noteID: noteID,
-            bodyRTF: NoteRTF.rtfdData(from: attributedString),
-            bodyPlain: NoteRTF.plainText(from: attributedString),
-            destination: LinkTarget(type: candidate.type, id: candidate.id)
-        )
+        NoteChipInsertion.insert(candidate: candidate, replacing: mentionRange, in: textView, model: model, noteID: noteID)
     }
 }
 

@@ -92,7 +92,10 @@ struct NoteEditorView: NSViewRepresentable {
             // chip's accent colour back before anything is ever drawn. See
             // that type's doc comment for why this is done here, on load,
             // rather than exempting chip runs from the strip.
-            let attributedString = NoteChipStyling.restyled(NoteRTF.attributedString(fromRTFD: note.bodyRTF))
+            let attributedString = NoteChipStyling.restyled(
+                NoteRTF.attributedString(fromRTFD: note.bodyRTF),
+                existingTargets: model.existingLinkTargets()
+            )
             textView.textStorage?.setAttributedString(attributedString)
         }
 
@@ -200,6 +203,25 @@ struct NoteEditorView: NSViewRepresentable {
         /// its own marker) and this returns `false` so the plain "\n" the
         /// key press would otherwise insert never lands on top of it.
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
+            // Spec §6.4 deliverable 2: dragging a task card onto this note
+            // arrives here like any other text change — `NSTextView` funnels
+            // typing, pasting, *and* dropping plain text through this same
+            // delegate call, already positioned at the drop point — carrying
+            // the dragged card's raw task id as `replacementString`.
+            // `model.isDragging` (true only for the lifetime of a task-card
+            // drag — `PanelViewModel.beginTaskDrag`/`endTaskDrag`, the
+            // board's own 50ms poll, still the single source of truth and
+            // untouched by anything here) plus the id actually resolving to
+            // a live task is what tells this apart from someone pasting or
+            // dropping ordinary text that happens to look like one — at
+            // which point this falls through to the normal insertion below,
+            // completely unaffected.
+            if let replacementString, let model, model.isDragging,
+               let task = model.task(withID: replacementString) {
+                let candidate = MentionCandidate(id: task.id, type: .task, title: task.title, updatedAt: task.updatedAt)
+                NoteChipInsertion.insert(candidate: candidate, replacing: affectedCharRange, in: textView, model: model, noteID: noteID)
+                return false
+            }
             if replacementString == "\n", NoteListEditing.handleReturn(in: textView, range: affectedCharRange) {
                 return false
             }

@@ -794,4 +794,77 @@ final class PanelViewModel {
             expandedTaskID = target.id
         }
     }
+
+    /// Every note/task id currently known to exist, as `LinkTarget`s — what
+    /// `NoteChipStyling.restyled` checks a chip's `.link` URL against to
+    /// decide whether it's a tombstone (spec §6.4 deliverable 3, second
+    /// half). Computed once per note load (`NoteEditorView.makeNSView`), not
+    /// once per chip: note ids cost one `summaries()` query — never `all()`,
+    /// same reasoning as `allNotesByRecency()`/`mentionCandidates(matching:)`
+    /// — and task ids cost nothing at all, read straight off the
+    /// already-resident `taskColumnGroups` rather than the repository again.
+    func existingLinkTargets() -> Set<LinkTarget> {
+        var targets = Set<LinkTarget>()
+        do {
+            for summary in try noteRepository.summaries() {
+                targets.insert(LinkTarget(type: .note, id: summary.id))
+            }
+        } catch {
+            NotebarLog.notes.error("existingLinkTargets failed to load note summaries: \(String(describing: error), privacy: .public)")
+        }
+        for task in taskColumnGroups.flatMap(\.tasks) {
+            targets.insert(LinkTarget(type: .task, id: task.id))
+        }
+        return targets
+    }
+
+    /// Every inbound reference to `target` — spec §6.4 deliverable 1's
+    /// Backlinks section, shown at the bottom of a note's editor
+    /// (`NotesTab`) and inside an expanded task card (`TasksTab`). One query
+    /// on `idx_link_dst` via `LinkRepository.incoming(to:)`, then each
+    /// link's source resolved to a title: note titles from
+    /// `noteRepository.summaries()` (never `all()`, same reasoning as
+    /// `mentionCandidates(matching:)`), task titles from the already-loaded
+    /// `taskColumnGroups`. Reuses `MentionCandidate` rather than a
+    /// dedicated type — a backlink row needs exactly the same shape (id,
+    /// type, title, updated-at) the `@` autocomplete's rows already show,
+    /// down to the icon each type gets.
+    ///
+    /// A source a link row points at but that can't be resolved to a title
+    /// is silently dropped rather than shown as a stray entry — in practice
+    /// this never happens, since `LinkSchema`'s cascade triggers delete a
+    /// link the moment either endpoint is deleted, but the guard costs
+    /// nothing and keeps this from ever crashing on a row it can't explain.
+    func backlinks(for target: LinkTarget) -> [MentionCandidate] {
+        let links: [Link]
+        do {
+            links = try linkRepository.incoming(to: target)
+        } catch {
+            NotebarLog.notes.error("backlinks failed, target=\(target.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            return []
+        }
+        guard !links.isEmpty else { return [] }
+
+        let noteSummaries: [NoteSummary]
+        do {
+            noteSummaries = try noteRepository.summaries()
+        } catch {
+            NotebarLog.notes.error("backlinks failed to load note summaries: \(String(describing: error), privacy: .public)")
+            noteSummaries = []
+        }
+        let noteByID = Dictionary(uniqueKeysWithValues: noteSummaries.map { ($0.id, $0) })
+        let taskByID = Dictionary(uniqueKeysWithValues: taskColumnGroups.flatMap(\.tasks).map { ($0.id, $0) })
+
+        let candidates: [MentionCandidate] = links.compactMap { link in
+            switch link.srcType {
+            case .note:
+                guard let summary = noteByID[link.srcId] else { return nil }
+                return MentionCandidate(id: summary.id, type: .note, title: summary.displayTitle, updatedAt: summary.updatedAt)
+            case .task:
+                guard let task = taskByID[link.srcId] else { return nil }
+                return MentionCandidate(id: task.id, type: .task, title: task.title, updatedAt: task.updatedAt)
+            }
+        }
+        return candidates.sorted { $0.updatedAt > $1.updatedAt }
+    }
 }

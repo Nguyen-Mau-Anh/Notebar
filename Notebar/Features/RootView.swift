@@ -32,6 +32,7 @@ struct RootView: View {
                         set: { model.isMaximized = $0 }
                     ),
                     isCompact: isCompact,
+                    isDragging: model.isDragging,
                     onCollapse: { model.requestCollapse?() }
                 )
 
