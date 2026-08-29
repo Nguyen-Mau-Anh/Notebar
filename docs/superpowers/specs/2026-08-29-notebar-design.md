@@ -218,9 +218,21 @@ The active screen is the one whose frame contains the cursor, so multi-monitor w
 construction. Only that screen's right edge triggers in v1; edge and screen selection
 become settings later.
 
-**The trigger band matches the panel, not the screen.** Because the panel is 70% of the
-screen height and vertically centred, the armed strip covers only that same vertical band
-rather than the full edge. Without this, touching the edge near the top of the screen
+**The trigger band is the collapsed handle, not the panel.** The armed region is exactly
+the 30x56pt handle — the thing the user can see — rather than a strip spanning the panel's
+full height.
+
+An earlier draft armed the panel's whole 745pt vertical band, reasoning that the handle
+should be a target you could aim at without hitting precisely. That is the wrong trade once
+the handle is visible: a 745pt-tall armed strip down the right edge fires on any cursor
+movement near that edge — reaching for a scrollbar, dragging a window, crossing to another
+display — and an overlay that appears when you did not ask for it is worse than one that
+occasionally takes a second attempt. A visible affordance can be aimed at.
+
+The flicker hazard the wide band was originally protecting against does not return: the
+handle sits inside the expanded panel's bounds both horizontally and vertically, so the
+cursor is already within the panel the moment it expands, and `cursorLeftPanel` cannot fire
+immediately. Without this, touching the edge near the top of the screen
 would open a panel centred well below the cursor, `CursorMonitor` would immediately report
 `.cursorLeftPanel`, and the panel would collapse 350 ms after appearing — the state machine
 behaving exactly as specified while the result looked like a flicker bug. `EdgeZone.classify`
