@@ -681,6 +681,40 @@ by dragging.
 One fixed location for the primary action beats a contextually smarter one that moves: the
 user should never have to look for it.
 
+### 6.4b Diagnostics
+
+**Logging.** `os.Logger` with subsystem `com.anhnm.notebar` and one category per area —
+`panel`, `notes`, `tasks`, `store`, `app`. The unified log is the right home on macOS: no
+files to write or rotate, and it can be queried *after* a failure that has already happened,
+including one that killed the process.
+
+Levels are used for what they mean: `.debug` for flow, `.info` for notable state changes,
+`.error` for a failure the user may notice, `.fault` for a broken invariant. Note content is
+never logged — titles, bodies, and task details stay out, because the log is exportable and
+the user may hand it to someone.
+
+**Errors must stop being silent.** There are currently ~20 `try?` sites that discard the
+error entirely. `try? noteRepository.create()` returning `nil` means the `+` button does
+nothing, with no crash, no message, and nothing in any log — the failure is destroyed at the
+moment it happens, and no amount of logging added later can recover it. Every one of those
+sites logs the real error with context. Behaviour is unchanged — a failed save must still
+not crash the app — but it stops being invisible.
+
+**Export.** Settings → Data offers *Export Diagnostics*, which collects the last hour of the
+app's unified-log entries plus environment (app version and build, macOS version, display
+geometry, database path and size, migration state) and writes a single file the user can
+attach to a report. It must contain no note or task content.
+
+When the app cannot launch at all, the same data is reachable from a terminal:
+
+```
+log show --predicate 'subsystem == "com.anhnm.notebar"' --last 1h
+```
+
+**Version.** The bundle already carries `0.1.0 (1)` and never shows it. It appears in
+Settings → General and is stamped in the log at launch, so a bug report identifies its build
+without the reporter having to know how to find it.
+
 ### 6.5 Settings
 
 **Settings row metrics.** A settings row is a label on the left and its control on the
@@ -715,10 +749,17 @@ is first presented so there is no visible flash of the wrong appearance.
 
 
 
-Shell only in v1. The tab renders placeholder sections the design already implies —
-Activation (edge, dwell timings, hotkey), Appearance (width, theme, material), Data
-(database location, export), General (launch at login) — so filling them in later is
-wiring, not design.
+Four sections. Appearance is real (§6.5's Theme control); the rest fill in as follows.
+
+**Activation** — the constants in `PanelTiming` that were always destined to be settings:
+edge-dwell delay, exit-dwell delay, and exit slop, each a slider or stepper with its current
+value shown and a *Reset to defaults* action. The defaults have been validated by use and
+must remain the starting point. The global hotkey is displayed; rebinding is not in scope.
+
+**Data** — database location (with *Reveal in Finder*), its size on disk, and
+*Export Diagnostics* (§6.4b).
+
+**General** — launch at login via `SMAppService`, and the app version and build.
 
 ---
 
