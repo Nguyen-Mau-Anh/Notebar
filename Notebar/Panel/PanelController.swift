@@ -191,15 +191,23 @@ final class PanelController {
         return (onscreen, onscreen.offsetBy(dx: width, dy: 0))
     }
 
-    /// The vertical band of the screen edge that arms the panel.
+    /// The region of the screen edge that arms the panel: exactly the
+    /// collapsed handle, not the taller strip the expanded panel would
+    /// occupy (spec §4.2).
     ///
-    /// It must match where the panel will actually appear. If the whole edge
-    /// armed it, touching near the top of the screen would open a panel centred
-    /// far below the cursor, `CursorMonitor` would immediately report
-    /// `.cursorLeftPanel`, and the panel would collapse 350 ms after opening —
-    /// a flicker bug produced by a state machine behaving exactly as specified.
+    /// A wider armed band was tried and rejected: arming the panel's full
+    /// height meant any cursor movement near the right edge — reaching for a
+    /// scrollbar, dragging a window, crossing to another display — opened the
+    /// panel unbidden. The handle is a visible affordance; the user can aim
+    /// at it, so the trigger only needs to cover it.
+    ///
+    /// This does not reintroduce the flicker bug that the wide band once
+    /// guarded against: the handle sits inside the expanded panel's bounds
+    /// both horizontally and vertically, so the moment the panel expands the
+    /// cursor is already inside it, and `CursorMonitor` cannot immediately
+    /// report `.cursorLeftPanel`.
     private func triggerBand(on screen: NSScreen) -> NSRect {
-        frames(on: screen).onscreen
+        collapsedFrame(on: screen)
     }
 
     /// Where the panel rests when collapsed: a small handle flush to the

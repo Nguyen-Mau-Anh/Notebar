@@ -65,6 +65,21 @@ struct EdgeZoneTests {
         #expect(shippingZone.classify(cursor: justInsideHandle, screen: screen) == .inside)
     }
 
+    @Test("a handle-sized trigger rect only arms within the handle's height")
+    func handleSizedRectArmsOnlyItsBand() {
+        // `PanelController.triggerBand` now passes the 30x56 collapsed handle
+        // frame, not the full 340x745 panel frame, as `classify`'s `screen`
+        // argument. The width difference doesn't matter to `classify` — only
+        // `maxX` is used, and both frames share the same right edge — but the
+        // narrower vertical band is exactly the point of the change.
+        let shippingZone = EdgeZone(triggerWidth: PanelTiming.triggerWidth, proximityWidth: PanelTiming.proximityWidth)
+        let handle = CGRect(x: screen.maxX - PanelTiming.handleWidth, y: 500, width: PanelTiming.handleWidth, height: PanelTiming.handleHeight)
+        let inHandle = CGPoint(x: handle.maxX - 1, y: handle.midY)
+        let aboveHandle = CGPoint(x: handle.maxX - 1, y: handle.maxY + 50)
+        #expect(shippingZone.classify(cursor: inHandle, screen: handle) == .inside)
+        #expect(shippingZone.classify(cursor: aboveHandle, screen: handle) == .away)
+    }
+
     @Test("the exit slop widens the panel bounds")
     func exitSlopWidensBounds() {
         let panel = CGRect(x: 1500, y: 0, width: 420, height: 1080)
