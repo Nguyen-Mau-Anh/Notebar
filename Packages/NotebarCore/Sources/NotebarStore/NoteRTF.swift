@@ -72,9 +72,17 @@ public enum NoteRTF {
     /// in practice means the attributed string is empty or otherwise
     /// degenerate — falling back to an empty blob is preferable to losing a
     /// save over it.
+    /// Strips `.foregroundColor` before encoding — see the doc comment on
+    /// `attributedString(fromRTFD:)` for why this is safe. Both directions
+    /// strip it: on write, so a save produces appearance-neutral bytes going
+    /// forward (smaller, and portable to whatever appearance the note is
+    /// next opened under); on read, so every note already saved with a
+    /// baked-in colour is fixed the moment it's opened, without waiting for
+    /// a re-save.
     public static func rtfdData(from attributedString: NSAttributedString) -> Data {
-        attributedString.rtfd(
-            from: NSRange(location: 0, length: attributedString.length),
+        let colorless = strippingForegroundColor(attributedString)
+        return colorless.rtfd(
+            from: NSRange(location: 0, length: colorless.length),
             documentAttributes: [:]
         ) ?? Data()
     }
@@ -84,11 +92,33 @@ public enum NoteRTF {
     /// `Data` (never valid RTFD), and any blob that fails to parse — a
     /// future format, a corrupt row — falls back to `empty` rather than
     /// losing the whole note to a crash.
+    ///
+    /// Strips `.foregroundColor` before returning. Every note ever saved was
+    /// serialized while `NoteEditorView`'s `NSTextView` had no explicit
+    /// `textColor` at all, so AppKit baked in plain black regardless of the
+    /// current appearance — that's what made existing notes unreadable in
+    /// dark mode. This is safe to discard unconditionally *specifically*
+    /// because the formatting bar (spec §6.2b: bold, italic, inline code,
+    /// H1, H2, bulleted/numbered/checklist) has no colour control, so no
+    /// stored `.foregroundColor` was ever a choice the user made — every one
+    /// is a serialization artifact, and dropping it lets the text view's own
+    /// dynamic `textColor` govern instead. This stops being true the moment
+    /// a colour picker is added to the formatting bar.
     public static func attributedString(fromRTFD data: Data) -> NSAttributedString {
         guard !data.isEmpty,
               let attributedString = NSAttributedString(rtfd: data, documentAttributes: nil)
         else { return empty }
-        return attributedString
+        return strippingForegroundColor(attributedString)
+    }
+
+    /// Shared by both directions of the RTFD codec — see
+    /// `attributedString(fromRTFD:)` for why removing this attribute
+    /// unconditionally is safe today.
+    private static func strippingForegroundColor(_ attributedString: NSAttributedString) -> NSAttributedString {
+        guard attributedString.length > 0 else { return attributedString }
+        let mutable = NSMutableAttributedString(attributedString: attributedString)
+        mutable.removeAttribute(.foregroundColor, range: NSRange(location: 0, length: mutable.length))
+        return mutable
     }
 
     /// The visible-text projection stored in `body_plain` — what `note_fts`

@@ -49,6 +49,13 @@ struct NoteEditorView: NSViewRepresentable {
         // `NSTextAttachment` instead of being ignored or interpreted as a
         // file-path string — `NSTextView` does the rest of the work itself.
         textView.importsGraphics = true
+        // Without these, `NSTextView` falls back to hard black regardless of
+        // appearance — nothing else here ever sets a colour. `labelColor` is
+        // a dynamic system colour that resolves per appearance, so it
+        // follows the theme setting automatically, including "System"
+        // tracking macOS live.
+        textView.textColor = .labelColor
+        textView.insertionPointColor = .labelColor
         textView.textContainerInset = NSSize(width: Tokens.Space.md, height: Tokens.Space.md)
         textView.textContainer?.widthTracksTextView = true
         textView.typingAttributes = NoteFont.typingAttributes

@@ -26,7 +26,12 @@ enum NoteFont {
     /// What a brand-new, still-empty note's `NSTextView` starts with, so the
     /// very first character typed already carries body size and line height
     /// rather than whatever `NSTextView`'s own built-in default is.
+    ///
+    /// `.foregroundColor: .labelColor` matches `NoteEditorView`'s own
+    /// `textView.textColor` — a dynamic system colour, not hardcoded black —
+    /// so a freshly typed character stays readable if the appearance flips
+    /// mid-edit rather than waiting on `textColor` alone to cover it.
     static var typingAttributes: [NSAttributedString.Key: Any] {
-        [.font: body, .paragraphStyle: bodyParagraphStyle]
+        [.font: body, .paragraphStyle: bodyParagraphStyle, .foregroundColor: NSColor.labelColor]
     }
 }

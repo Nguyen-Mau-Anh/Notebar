@@ -545,3 +545,53 @@ struct GRDBNoteRepositorySummariesTests {
         #expect(try repository.fetch(id: "not-a-real-id") == nil)
     }
 }
+
+@Suite("stored colour is stripped for dark mode")
+struct NoteRTFColorStrippingTests {
+    /// The formatting bar has no colour control (bold, italic, inline code,
+    /// H1, H2, bulleted/numbered/checklist — spec §6.2b), so a stored
+    /// `.foregroundColor` was never a user choice, only default black baked
+    /// in at serialization time. `rtfdData(from:)` strips it on the way out,
+    /// so a fresh save never bakes it back in — this is the round trip a
+    /// real save-then-reopen takes.
+    @Test("an explicit foreground colour does not survive an RTFD round trip")
+    func foregroundColorStrippedOnRoundTrip() {
+        let attributed = NSMutableAttributedString(string: "Buy milk")
+        attributed.addAttribute(
+            .foregroundColor, value: NSColor.black,
+            range: NSRange(location: 0, length: attributed.length)
+        )
+
+        let data = NoteRTF.rtfdData(from: attributed)
+        let reloaded = NoteRTF.attributedString(fromRTFD: data)
+
+        #expect(reloaded.length > 0)
+        #expect(reloaded.attribute(.foregroundColor, at: 0, effectiveRange: nil) == nil)
+    }
+
+    /// The invariant that actually keeps dark mode working: every note the
+    /// user already has was serialized before this fix existed, so its
+    /// stored bytes already carry baked-in black regardless of what
+    /// `rtfdData(from:)` does going forward. Bypasses it deliberately,
+    /// writing directly through the raw AppKit API, to reproduce exactly
+    /// that pre-existing shape — `attributedString(fromRTFD:)` must strip
+    /// the colour on *read* too, or every note ever written stays black
+    /// until its next save.
+    @Test("attributedString(fromRTFD:) strips a foreground colour already present in the stored blob")
+    func foregroundColorStrippedEvenWhenBakedIntoStoredBlob() {
+        let attributed = NSMutableAttributedString(string: "Buy milk")
+        attributed.addAttribute(
+            .foregroundColor, value: NSColor.black,
+            range: NSRange(location: 0, length: attributed.length)
+        )
+        let data = attributed.rtfd(
+            from: NSRange(location: 0, length: attributed.length),
+            documentAttributes: [:]
+        ) ?? Data()
+
+        let reloaded = NoteRTF.attributedString(fromRTFD: data)
+
+        #expect(reloaded.length > 0)
+        #expect(reloaded.attribute(.foregroundColor, at: 0, effectiveRange: nil) == nil)
+    }
+}
