@@ -82,19 +82,47 @@ private struct SettingsSection<Content: View>: View {
 
 /// One settings row: a title on the left, an arbitrary control on the right
 /// — today only the Theme picker, but the shape any future real control
-/// slots into.
+/// slots into. Applied here rather than to the Theme row alone so Activation,
+/// Data, and General inherit the same metrics the moment their placeholder
+/// rows grow real controls (spec §6.5).
+///
+/// At the default 340pt panel the content area is only 283pt wide, and a
+/// segmented picker claims the width it wants — with no line limit or
+/// priority on the label, the label is what gave, wrapping "Theme" into
+/// "The / me". `lineLimit(1)` plus `layoutPriority` over the control fixes
+/// that; `.controlSize(.small)` is the right density for a panel this
+/// narrow and buys back roughly 20pt on top. `ViewThatFits` is the fallback
+/// for a control that still doesn't fit beside its label even then: label
+/// above, control below at full width — a fallback, not the default, since
+/// vertical space in a 745pt panel is scarcer than it looks once several
+/// sections exist.
 private struct SettingsRow<Trailing: View>: View {
     let title: String
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 13))
-            Spacer(minLength: Tokens.Space.sm)
-            trailing
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                label
+                Spacer(minLength: Tokens.Space.sm)
+                trailing
+            }
+
+            VStack(alignment: .leading, spacing: Tokens.Space.xs) {
+                label
+                trailing
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
+        .controlSize(.small)
         .padding(Tokens.Space.sm)
+    }
+
+    private var label: some View {
+        Text(title)
+            .font(.system(size: 13))
+            .lineLimit(1)
+            .layoutPriority(1)
     }
 }
 
