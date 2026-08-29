@@ -1,4 +1,5 @@
 import SwiftUI
+import NotebarCore
 
 enum Tokens {
     enum Size {
@@ -10,8 +11,10 @@ enum Tokens {
         static let boardBreakpoint: CGFloat = 700
 
         /// The collapsed handle's footprint at the right screen edge.
-        static let handleWidth: CGFloat = 30
-        static let handleHeight: CGFloat = 56
+        /// Defined in `PanelTiming` rather than here: `EdgeZone.triggerWidth`
+        /// must equal the handle's width, so there can only be one source.
+        static let handleWidth: CGFloat = PanelTiming.handleWidth
+        static let handleHeight: CGFloat = PanelTiming.handleHeight
     }
 
     enum Space {
@@ -24,5 +27,8 @@ enum Tokens {
     enum Radius {
         static let sm: CGFloat = 6
         static let md: CGFloat = 10
+        /// The panel's own outer edge (spec §2), distinct from `md` which the
+        /// collapsed handle carries.
+        static let panel: CGFloat = 12
     }
 }

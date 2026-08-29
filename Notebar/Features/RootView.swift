@@ -39,6 +39,16 @@ struct RootView: View {
             }
         }
         .background(.regularMaterial)
+        // Left corners rounded at the panel's own radius, right corners
+        // square: the panel is flush to the screen's right edge, same
+        // treatment as `CollapsedHandle` below but at `radius.panel` rather
+        // than `radius.md`.
+        .clipShape(UnevenRoundedRectangle(
+            topLeadingRadius: Tokens.Radius.panel,
+            bottomLeadingRadius: Tokens.Radius.panel,
+            bottomTrailingRadius: 0,
+            topTrailingRadius: 0
+        ))
     }
 }
 

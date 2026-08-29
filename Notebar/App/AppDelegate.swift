@@ -11,7 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
 
         let model = PanelViewModel()
-        let content = NSHostingView(rootView: RootView(model: model))
+        let content = FirstMouseHostingView(rootView: RootView(model: model))
 
         let controller = PanelController(content: content, model: model)
         controller.start()
