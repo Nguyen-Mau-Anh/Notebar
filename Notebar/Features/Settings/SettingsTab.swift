@@ -2,11 +2,20 @@ import SwiftUI
 
 struct SettingsTab: View {
     var body: some View {
-        PlaceholderTab(
-            symbol: "gearshape",
-            title: "Settings",
-            detail: "Activation, appearance, and data settings, arriving in M4."
-        )
+        VStack(spacing: 0) {
+            TabToolbar {
+                Text("Settings")
+                    .font(.system(size: 13, weight: .semibold))
+            } right: {
+                EmptyView()
+            }
+
+            PlaceholderTab(
+                symbol: "gearshape",
+                title: "Settings",
+                detail: "Activation, appearance, and data settings, arriving in M4."
+            )
+        }
     }
 }
 

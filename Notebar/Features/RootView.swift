@@ -23,6 +23,10 @@ struct RootView: View {
                         get: { model.selection },
                         set: { model.selection = $0 }
                     ),
+                    isPinned: Binding(
+                        get: { model.isPinned },
+                        set: { model.isPinned = $0 }
+                    ),
                     isCompact: isCompact
                 )
 
@@ -30,8 +34,8 @@ struct RootView: View {
 
                 Group {
                     switch model.selection {
-                    case .notes:    NotesTab()
-                    case .tasks:    TasksTab()
+                    case .notes:    NotesTab(model: model)
+                    case .tasks:    TasksTab(model: model)
                     case .settings: SettingsTab()
                     }
                 }

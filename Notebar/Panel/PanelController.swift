@@ -55,6 +55,7 @@ final class PanelController {
         monitor.start()
         observeKeyWindow()
         installEscapeMonitor()
+        observePin()
     }
 
     /// Puts the window on screen at its collapsed handle frame the moment the
@@ -231,6 +232,22 @@ final class PanelController {
             // The reducer decides what "finished" means for the current state.
             self.send(.animationFinished)
         })
+    }
+
+    /// `model.isPinned` is the only channel from SwiftUI into `isPinned` —
+    /// the rail's pin button sets it, and this mirrors it into `context`
+    /// every time it changes. `withObservationTracking` must be re-armed
+    /// after every fire; it only observes the next single change otherwise.
+    private func observePin() {
+        withObservationTracking {
+            _ = model.isPinned
+        } onChange: { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.isPinned = self.model.isPinned
+                self.observePin()
+            }
+        }
     }
 
     // MARK: - Context signals

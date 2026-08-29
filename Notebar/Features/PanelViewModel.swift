@@ -8,9 +8,59 @@ import Observation
 /// `RootView` reads it to pick which of the two to render. `selection` lives
 /// here rather than as `RootView`'s own `@State` because the collapsed
 /// handle must show the icon of the *currently selected* tab, and
-/// `PanelController` has no other way to know what that is.
+/// `PanelController` has no other way to know what that is. Note-tab state
+/// (`notes`, `activeNoteID`) and Task state (`taskGroups`) live here for the
+/// same reason: they are UI state, not AppKit state, but `PanelController`
+/// still needs `isPinned` to forward into `PanelContext`.
+///
+/// Everything below is in-memory only — no database yet. SQLite lands behind
+/// repository protocols in a later task without needing this UI to change.
 @Observable
 final class PanelViewModel {
     var isExpanded = false
     var selection: AppTab = .notes
+
+    /// Drives `PanelContext.isPinned` via `PanelController`, which observes
+    /// this property and forwards it. The suppression behaviour itself
+    /// already lives in `PanelMachine.shouldCollapse` — this is only the
+    /// missing path from SwiftUI into it.
+    var isPinned = false
+
+    // MARK: - Notes
+
+    var notes: [Note] = []
+    var activeNoteID: Note.ID?
+
+    /// Creates a new untitled note and makes it the active tab — the
+    /// zero-friction-capture path the toolbar's `+` exists for.
+    func createNote() {
+        let note = Note()
+        notes.append(note)
+        activeNoteID = note.id
+    }
+
+    /// Closes a note tab. If it was active, falls back to the note that took
+    /// its place in the strip, or the new last tab, or nil once the last
+    /// note is gone — `NotesTab` shows the empty state in that case.
+    func closeNote(id: Note.ID) {
+        guard let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        notes.remove(at: index)
+        guard activeNoteID == id else { return }
+        activeNoteID = notes.indices.contains(index) ? notes[index].id : notes.last?.id
+    }
+
+    // MARK: - Tasks
+
+    var taskGroups: [TaskGroup] = TaskGroup.seeded
+
+    var totalTaskCount: Int {
+        taskGroups.reduce(0) { $0 + $1.tasks.count }
+    }
+
+    /// Appends a new task into the first group. Groups are fixed and
+    /// dragging between them is M2 scope — see spec §6.4a.
+    func addTask() {
+        guard !taskGroups.isEmpty else { return }
+        taskGroups[0].tasks.append(TaskItem(title: "New task"))
+    }
 }

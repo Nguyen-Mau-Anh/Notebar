@@ -15,6 +15,19 @@ enum Tokens {
         /// must equal the handle's width, so there can only be one source.
         static let handleWidth: CGFloat = PanelTiming.handleWidth
         static let handleHeight: CGFloat = PanelTiming.handleHeight
+
+        /// The pin toggle's height (spec §6.1); its width matches `railWidth`
+        /// so it reads as capping the rail rather than floating beside it.
+        static let pinHeight: CGFloat = 32
+
+        /// The tab toolbar row shared by every content tab (spec §6.4a).
+        static let toolbarHeight: CGFloat = 36
+        /// The toolbar's primary-action (`+`) hit target.
+        static let actionHitTarget: CGFloat = 28
+
+        /// Note tab strip: min/max width per tab before tail truncation.
+        static let noteTabMinWidth: CGFloat = 96
+        static let noteTabMaxWidth: CGFloat = 160
     }
 
     enum Space {
