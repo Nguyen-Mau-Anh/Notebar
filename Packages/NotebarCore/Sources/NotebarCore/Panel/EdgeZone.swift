@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(CoreGraphics)
 import CoreGraphics
+#endif
 
 public enum EdgeProximity: Equatable, Sendable {
     /// Far from the edge. Poll slowly.
