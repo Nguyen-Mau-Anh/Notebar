@@ -1,11 +1,24 @@
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var panel: EdgePanel?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // LSUIElement in Info.plist already hides the Dock icon; this makes the
-        // behaviour explicit and survives someone flipping the plist by accident.
         NSApp.setActivationPolicy(.accessory)
-        NSLog("Notebar launched")
+
+        // Temporary verification scaffold — replaced by PanelController in Task 7.
+        guard let screen = NSScreen.main else { return }
+        let width: CGFloat = 420
+        let frame = NSRect(
+            x: screen.visibleFrame.maxX - width,
+            y: screen.visibleFrame.minY,
+            width: width,
+            height: screen.visibleFrame.height
+        )
+        let panel = EdgePanel(contentRect: frame)
+        panel.backgroundColor = NSColor.systemRed.withAlphaComponent(0.35)
+        panel.orderFrontRegardless()
+        self.panel = panel
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
