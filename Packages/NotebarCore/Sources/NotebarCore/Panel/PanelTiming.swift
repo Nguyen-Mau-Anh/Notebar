@@ -23,4 +23,8 @@ public enum PanelTiming {
 
     /// Deliberately faster than expanding — reads as responsive, not sluggish.
     public static let collapseDuration: TimeInterval = 0.140
+
+    /// How long after the last keystroke the panel still counts as "in use".
+    /// Referenced by `PanelMachine.shouldCollapse`.
+    public static let typingGrace: TimeInterval = 2.0
 }
