@@ -1,9 +1,32 @@
 name: CI
 
+# DISABLED — manual trigger only.
+#
+# GitHub refused to start jobs on 2026-08-29: "The job was not started because
+# recent account payments have failed or your spending limit needs to be
+# increased." Nothing was wrong with the code; both jobs were rejected before
+# running a single step.
+#
+# Why it burned through the allowance so fast: this repo is private and macOS
+# runners bill at a 10x minutes multiplier, so a 1-2 minute run costs 10-20
+# billable minutes. Roughly 34 runs in one day is 300-600 minutes against a
+# 2,000/month allowance.
+#
+# The workflow is kept rather than deleted -- it works, and it caught a real
+# Windows-portability regression. To re-enable, fix billing (or make the repo
+# public, where Actions minutes are free) and restore the push/pull_request
+# triggers below.
+#
+# Until then the gate is local, and every agent already runs it before
+# committing:
+#
+#     make check && make test && make build
+#
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 concurrency:
