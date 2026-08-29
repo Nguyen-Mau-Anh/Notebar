@@ -401,9 +401,33 @@ the content is not locked inside an Apple archive format.
 
 ### 6.1 Application tab rail (left)
 
-**Pin control, top-anchored.** Above the three tabs and separated from them by a hairline
-sits a pin toggle: 56pt wide, 32pt tall, a 15pt `pin` glyph in `text.secondary`. Active, it
-becomes `pin.fill` in `accent`. Toggling it drives `PanelContext.isPinned`, which
+**Control row, top-anchored.** Above the three tabs and separated from them by a hairline
+sits a single 56x32pt row holding **two 24x24pt toggles** side by side with a 4pt gap:
+**pin** on the left, **maximize** on the right. They are deliberately smaller and
+unlabelled so the row does not read as a fourth tab — these change the panel's *behaviour
+and size*, not its content.
+
+**Maximize** switches the expanded panel between two sizes:
+
+| Mode | Geometry |
+|---|---|
+| Normal (default) | 340 pt wide, 70% of `visibleFrame.height`, vertically centred |
+| Maximized | **half of `visibleFrame.width`, full `visibleFrame.height`** |
+
+Both are flush to the right edge and keep the left-rounded / right-square corner treatment.
+Glyph is `arrow.up.left.and.arrow.down.right` normally, `arrow.down.right.and.arrow.up.left`
+when maximized, `accent` in that state.
+
+Maximizing crosses the 700 pt wide breakpoint on any ordinary display, which is what finally
+makes the Tasks board's side-by-side kanban layout (§6.3) reachable — at the default 340 pt
+it can only ever render as stacked groups.
+
+Maximize is **independent of pin**: a maximized panel still collapses on cursor exit unless
+pinned. The two controls sit together precisely so that "work in this for a while" is one
+gesture away from "and don't take it away from me".
+
+The pin toggle itself: a 15pt `pin` glyph in `text.secondary`. Active, it becomes
+`pin.fill` in `accent`. Toggling it drives `PanelContext.isPinned`, which
 `PanelMachine.shouldCollapse` already treats as an absolute veto — a pinned panel ignores
 cursor exit, the exit dwell, and every other collapse trigger. Only an explicit unpin or
 `Esc` closes it (spec section 4.3).

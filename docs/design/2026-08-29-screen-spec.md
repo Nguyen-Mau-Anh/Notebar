@@ -182,7 +182,14 @@ Centred inside it is the **18pt SF Symbol of the currently selected tab** in
 `text.secondary`, stepping to `accent` on hover. The handle is what the expand animation
 grows from and the collapse animation returns to.
 
-**Pin control.** The rail is topped by a 56x32pt pin toggle, separated from the three tabs
+**Maximize control.** Beside the pin, in the same 56x32pt row, a 24x24pt maximize toggle:
+15pt `arrow.up.left.and.arrow.down.right` in `text.secondary`, becoming
+`arrow.down.right.and.arrow.up.left` in `accent` when active, with a `radius.sm` background
+at `accent` 10%. It switches the expanded panel between 340pt-wide/70%-height and
+half-screen-width/full-height, both flush right. Crossing 700pt is what makes the kanban
+layout in §5.3 reachable.
+
+**Pin control.** The rail is topped by a 56x32pt control row whose left half is the pin toggle, separated from the three tabs
 by a 1px `border.separator` hairline with `space.xs` clearance either side. Idle: a 15pt
 `pin` glyph in `text.secondary`. Pinned: `pin.fill` in `accent`, with a `radius.sm`
 background at `accent` 10%. It is smaller and unlabelled precisely so it does not read as a
