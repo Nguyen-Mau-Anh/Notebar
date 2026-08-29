@@ -19,7 +19,7 @@ CORE_TARGET_SOURCES="Packages/NotebarCore/Sources/NotebarCore/"
 # These are never legitimate in NotebarCore, conditional or not: they are
 # Apple-only UI frameworks with no counterpart on other platforms, so there is
 # no #if canImport(...) that makes them acceptable here.
-if grep -rnE '^[[:space:]]*import[[:space:]]+(AppKit|SwiftUI|UIKit|Cocoa)' \
+if grep -rnE '^[[:space:]]*import[[:space:]]+(AppKit|SwiftUI|UIKit|Cocoa|os|OSLog|Combine|CoreData|SwiftData|CryptoKit)' \
      "$CORE_TARGET_SOURCES" 2>/dev/null; then
   echo "ERROR: NotebarCore imports a UI framework (see above)." >&2
   echo "AppKit/SwiftUI/UIKit/Cocoa are Apple-only and have no place in this package." >&2
