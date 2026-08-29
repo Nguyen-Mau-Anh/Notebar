@@ -639,6 +639,13 @@ treats it as a hard invariant, so this needs a producer, not a reducer change.
 
 ### 6.4 Linking
 
+**Chips are `.link` attributes, not attachments.** A chip is an attributed run carrying a
+custom URL — `notebar://note/<id>` or `notebar://task/<id>` — plus accent styling. That
+choice matters: `NSTextView` already handles clicks on `.link` runs through
+`textView(_:clickedOnLink:at:)`, and RTFD round-trips the attribute natively. Building
+chips as `NSTextAttachment` instead would mean owning hit-testing, drawing, and
+serialization by hand — the same weight that got checkboxes deferred, for no benefit.
+
 - Typing `@` in a note or task detail opens an autocomplete popover over notes and tasks,
   ranked by recency then FTS relevance. Selecting one inserts a **link chip** — an
   attributed run carrying a custom attribute holding the target's type and id — and writes
@@ -649,6 +656,17 @@ treats it as a hard invariant, so this needs a producer, not a reducer change.
 - Clicking a chip opens the target — notes as a new tab, tasks as a detail sheet.
 - Deleting an entity soft-deletes it; existing chips render as tombstones rather than
   silently deleting text the user wrote.
+
+**Order of work.** Storage and insertion first — the `link` table, the repository, `@`
+autocomplete, chip insertion, and click-to-open — then backlinks, drag-to-link, and
+tombstones. The first half is usable on its own; the second half is only meaningful once
+links exist to be found.
+
+**The `link` table has been specced since §5 and was never built.** Six migrations shipped
+without it while notes and tasks were built separately, which is exactly the retrofit §5
+warned about. The generic edge shape still holds — one table for note→task, task→note,
+note→note, task→task, with backlinks as a reverse-index query — so the cost is building it,
+not redesigning it.
 
 ### 6.2a All-notes menu
 
