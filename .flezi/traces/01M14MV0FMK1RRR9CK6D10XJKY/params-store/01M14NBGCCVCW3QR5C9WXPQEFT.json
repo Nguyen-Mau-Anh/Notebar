@@ -1,9 +1,0 @@
-{
-  "record_id": "01M14NBGCCVCW3QR5C9WXPQEFT",
-  "tool_name": "Bash",
-  "tool_input": {
-    "command": "mkdir -p /Users/anhnm/dev/01.Github/Notebar/docs/superpowers/specs && echo \"created\"",
-    "description": "Create spec directory"
-  },
-  "captured_at": "2026-08-28T17:05:52.012Z"
-}

@@ -1,9 +1,0 @@
-{
-  "record_id": "01M14P517EHB5HBK07H196VW3F",
-  "tool_name": "Bash",
-  "tool_input": {
-    "command": "cd /Users/anhnm/dev/01.Github/Notebar\nmkdir -p docs/superpowers/plans\ncommand -v xcodegen >/dev/null 2>&1 && echo \"xcodegen: $(xcodegen --version)\" || echo \"xcodegen: NOT INSTALLED (plan Task 1 installs it)\"\ncommand -v brew >/dev/null 2>&1 && echo \"brew: yes\" || echo \"brew: NO\"",
-    "description": "Check for xcodegen and brew"
-  },
-  "captured_at": "2026-08-28T17:19:48.462Z"
-}

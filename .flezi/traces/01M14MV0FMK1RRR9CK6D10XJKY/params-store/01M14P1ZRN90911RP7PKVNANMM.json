@@ -1,9 +1,0 @@
-{
-  "record_id": "01M14P1ZRN90911RP7PKVNANMM",
-  "tool_name": "Bash",
-  "tool_input": {
-    "command": "cd /Users/anhnm/dev/01.Github/Notebar\n# Self-review found one ambiguity: §4.2 left the timer mechanism as a choice. Pin it.\npython3 - <<'PY'\nimport re, pathlib\np = pathlib.Path(\"docs/superpowers/specs/2026-08-29-notebar-design.md\")\ns = p.read_text()\ns = s.replace(\n\"\"\"```\nTimer (or CVDisplayLink)\n  └── NSEvent.mouseLocation      ← static property; NO permission, NO entitlement\"\"\",\n\"\"\"```\nTimer on the main run loop, .common mode\n  └── NSEvent.mouseLocation      ← static property; NO permission, NO entitlement\"\"\")\ns = s.replace(\n\"\"\"The active screen is the one whose frame contains the cursor, so multi-monitor works by\nconstruction. Only that screen's right edge triggers in v1; edge and screen selection\nbecome settings later.\"\"\",\n\"\"\"A plain `Timer` is used rather than `CVDisplayLink`: polling is not display-synchronized\nwork, and `.common` run-loop mode keeps it firing while menus and drags are tracking —\nexactly the moments the panel must stay responsive.\n\nThe active screen is the one whose frame contains the cursor, so multi-monitor works by\nconstruction. Only that screen's right edge triggers in v1; edge and screen selection\nbecome settings later.\"\"\")\np.write_text(s)\nprint(\"patched\")\nPY\ngrep -c \"TBD\\|TODO\\|FIXME\\|???\" docs/superpowers/specs/2026-08-29-notebar-design.md || echo \"0 placeholders\"",
-    "description": "Fix spec ambiguity found in self-review"
-  },
-  "captured_at": "2026-08-28T17:18:08.661Z"
-}

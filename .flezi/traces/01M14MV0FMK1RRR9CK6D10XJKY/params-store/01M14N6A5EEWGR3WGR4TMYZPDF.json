@@ -1,9 +1,0 @@
-{
-  "record_id": "01M14N6A5EEWGR3WGR4TMYZPDF",
-  "tool_name": "Bash",
-  "tool_input": {
-    "command": "echo \"=== macOS version ===\"; sw_vers\necho; echo \"=== Xcode ===\"; xcodebuild -version 2>&1 | head -5\necho; echo \"=== Swift ===\"; swift --version 2>&1 | head -3\necho; echo \"=== macOS SDKs available ===\"; xcodebuild -showsdks 2>/dev/null | grep -i macos",
-    "description": "Check macOS, Xcode, and Swift toolchain versions"
-  },
-  "captured_at": "2026-08-28T17:03:01.806Z"
-}

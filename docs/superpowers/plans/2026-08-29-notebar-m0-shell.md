@@ -670,7 +670,7 @@ public enum PanelMachine {
 }
 ```
 
-- [ ] **Step 6: Run the tests and confirm they pass**
+- [ ] **Step 6: Add the temporary stub, then confirm the tests pass**
 
 ```bash
 cd Packages/NotebarCore && swift test 2>&1 | tail -20; cd ../..
@@ -683,7 +683,7 @@ Expected: still failing — `shouldCollapse` does not exist yet. Add a temporary
     static func shouldCollapse(_ context: PanelContext) -> Bool { true }
 ```
 
-Re-run. Expected: `Test run with 12 tests passed`.
+Re-run. Expected: 13 tests pass (1 smoke + 12 transition).
 
 - [ ] **Step 7: Commit**
 
@@ -822,7 +822,7 @@ Replace the stub in `PanelMachine.swift` with the scaffold below, then fill in t
 cd Packages/NotebarCore && swift test 2>&1 | tail -20; cd ../..
 ```
 
-Expected: all 18 tests pass. If an invariant test fails, the policy contradicts spec section 4.4 — the invariant wins, so adjust the policy.
+Expected: all 19 tests pass (1 smoke + 12 transition + 6 invariant). If an invariant test fails, the policy contradicts spec section 4.4 — the invariant wins, so adjust the policy.
 
 - [ ] **Step 6: Add policy tests for the judgment calls**
 
@@ -1002,7 +1002,7 @@ public struct EdgeZone: Equatable, Sendable {
 cd Packages/NotebarCore && swift test 2>&1 | tail -10; cd ../..
 ```
 
-Expected: all tests pass (26 total across the three suites).
+Expected: all tests pass (27 total across four suites: 1 smoke + 12 transition + 6 invariant + 8 geometry).
 
 - [ ] **Step 5: Commit**
 

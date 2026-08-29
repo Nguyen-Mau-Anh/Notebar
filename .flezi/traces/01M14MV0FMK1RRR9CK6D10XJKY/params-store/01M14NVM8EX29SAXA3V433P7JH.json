@@ -1,9 +1,0 @@
-{
-  "record_id": "01M14NVM8EX29SAXA3V433P7JH",
-  "tool_name": "Bash",
-  "tool_input": {
-    "command": "cat > /Users/anhnm/.claude/projects/-Users-anhnm-dev-01-Github-Notebar/memory/prefers-native-over-electron.md <<'EOF'\n---\nname: prefers-native-over-electron\ndescription: User rejects Electron for always-running/background apps due to RAM growth; prefers native or lightweight runtimes\nmetadata:\n  type: user\n---\n\nAnh rejects Electron for always-running or background desktop apps, citing lived\nexperience with Teams and Claude Desktop becoming sluggish and RAM-heavy over long\nsessions. Chose native SwiftUI for [[notebar-project]] despite not knowing Swift.\n\n**Why:** For a resident utility, a permanent runtime memory floor is judged worse\nthan a temporary language-learning cost. This is product judgment about how an\nalways-on tool should feel, not a benchmark preference.\n\n**How to apply:** When recommending a desktop stack for anything resident, background,\nor \"invisible until needed\", lead with native or lightweight options and treat\nElectron as needing justification. If Electron is genuinely the right call, address\nthe idle-memory floor explicitly rather than omitting it. Note that Anh's primary\nlanguage is TypeScript/Node (no Rust or .NET toolchain installed), so native\nrecommendations should come with an explicit plan for bounding the unfamiliar surface.\nEOF\n\nMEM=/Users/anhnm/.claude/projects/-Users-anhnm-dev-01-Github-Notebar/memory/MEMORY.md\ntouch \"$MEM\"\ngrep -q \"prefers-native-over-electron\" \"$MEM\" || echo \"- [Prefers native over Electron](prefers-native-over-electron.md) — rejects Electron for always-running apps over RAM growth; TS is their home language\" >> \"$MEM\"\necho \"--- memory saved ---\"; cat \"$MEM\"",
-    "description": "Save stack preference to memory"
-  },
-  "captured_at": "2026-08-28T17:14:40.270Z"
-}

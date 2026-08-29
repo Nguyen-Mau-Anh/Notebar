@@ -41,3 +41,7 @@ playwright-report/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# flezi runtime telemetry — not source
+.flezi/traces/
+.flezi/skill-state.json

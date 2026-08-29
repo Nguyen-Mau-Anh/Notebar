@@ -1,9 +1,0 @@
-{
-  "record_id": "01M14MV0X18NPT3FFZT46WEZFF",
-  "tool_name": "Bash",
-  "tool_input": {
-    "command": "cat \"/Users/anhnm/.claude/skills/flezi/references/routing.md\" 2>/dev/null | head -200",
-    "description": "Read flezi routing classifier reference"
-  },
-  "captured_at": "2026-08-28T16:56:51.873Z"
-}
