@@ -147,7 +147,8 @@ Windows SmartScreen warns on first run — click **More info**, then **Run anywa
 an MSIX install alternative if one is attached to the release, and what has not yet been
 verified on a real Windows machine.
 
-Requires Windows 10 build 22621 (22H2) or later, x64 or arm64.
+Requires Windows 10 build 22621 (22H2) or later. The release is an x64 build; it also runs
+on arm64 Windows under emulation, but there is no native arm64 build yet.
 
 Source: `windows/Notebar.App` (the WinUI app), `windows/Notebar.Core` (the portable panel
 state machine and models — the Windows counterpart to `NotebarCore` above, a separate

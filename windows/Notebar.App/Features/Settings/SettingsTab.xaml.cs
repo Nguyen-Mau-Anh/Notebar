@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -11,18 +12,26 @@ namespace Notebar.App.Features.Settings;
 /// <summary>The four Settings sections -- General, Activation, Data, About (Task 16 brief) --
 /// matching the shipped macOS SettingsTab.swift.</summary>
 /// <remarks>
-/// Every control here writes through immediately: there is no Save button, matching macOS.
-/// General's Theme selection persists via <see cref="IAppStateRepository.SetTheme"/> and is
-/// applied live through the <c>applyTheme</c> callback <see cref="Attach"/> is given, which
-/// RootPage wires to setting <c>RequestedTheme</c> on itself -- the root of the visual tree
-/// every <c>{ThemeResource}</c> in the panel resolves against. Activation's three sliders
-/// write through to both the repository (survives relaunch) and the static
-/// <see cref="Notebar.App.Settings"/> holder PanelController actually reads on every effect
-/// (felt on the very next dwell, not the next relaunch) -- the same split
-/// <c>Notebar.App.Settings</c>'s own remarks describe.
+/// There is no Save button anywhere in this tab, matching macOS -- every control writes
+/// through on its own. General's Theme selection persists via
+/// <see cref="IAppStateRepository.SetTheme"/> and is applied live through the
+/// <c>applyTheme</c> callback <see cref="Attach"/> is given, which RootPage wires to setting
+/// <c>RequestedTheme</c> on itself -- the root of the visual tree every
+/// <c>{ThemeResource}</c> in the panel resolves against. Activation's three sliders write to
+/// two places at two different speeds: the static <see cref="Notebar.App.Settings"/> holder
+/// PanelController actually reads on every effect updates on every tick, unthrottled (felt
+/// on the very next dwell), while the repository write (needed only to survive a relaunch)
+/// is debounced -- see <see cref="SliderCommitDelay"/>.
 /// </remarks>
 internal sealed partial class SettingsTab : UserControl
 {
+    /// <summary>How long a slider must sit still before its value is written to the
+    /// repository. Matches the note editor's own 400ms save debounce (editor.js) in spirit,
+    /// not literally shared code -- that debounce lives in guest-side JS behind a WebView2
+    /// boundary this tab has no access to, so this is DispatcherQueueTimer, the WinUI-side
+    /// idiom NoteEditorHost's own focus-poll timer and CursorMonitor already use.</summary>
+    private static readonly TimeSpan SliderCommitDelay = TimeSpan.FromMilliseconds(400);
+
     private IAppStateRepository? _appStateRepository;
     private IDiagnosticsRepository? _diagnosticsRepository;
     private Action<Theme>? _applyTheme;
@@ -35,7 +44,48 @@ internal sealed partial class SettingsTab : UserControl
     /// applyTheme before RootPage even exists to receive it in some call orders.</summary>
     private bool _initializing;
 
-    internal SettingsTab() => InitializeComponent();
+    // One-shot (IsRepeating = false) per slider: Stop()+Start() on every tick restarts the
+    // delay window, so only the LAST value in a drag (or a burst of arrow-key presses) is
+    // ever written -- a Slider.ValueChanged fires continuously during a drag, and writing to
+    // SQLite on every one of those (up to ~50 per gesture, at this control's StepFrequency)
+    // would be a synchronous disk write on the UI thread on every tick. The in-memory
+    // Notebar.App.Settings.* value it pairs with is still updated on every tick, unthrottled
+    // -- that is what makes the panel feel the new timing on its very next dwell, and only
+    // the repository write (which only has to survive a relaunch, not any single tick) is
+    // debounced.
+    private readonly DispatcherQueueTimer _edgeDwellCommitTimer;
+    private readonly DispatcherQueueTimer _exitDwellCommitTimer;
+    private readonly DispatcherQueueTimer _exitSlopCommitTimer;
+
+    internal SettingsTab()
+    {
+        InitializeComponent();
+
+        // DependencyObject.DispatcherQueue, not DispatcherQueue.GetForCurrentThread() --
+        // see NoteEditorHost's own constructor remarks for why the static call is ambiguous
+        // here.
+        _edgeDwellCommitTimer = CreateCommitTimer(() => _appStateRepository?.SetEdgeDwell(EdgeDwellSlider.Value));
+        _exitDwellCommitTimer = CreateCommitTimer(() => _appStateRepository?.SetExitDwell(ExitDwellSlider.Value));
+        _exitSlopCommitTimer = CreateCommitTimer(() => _appStateRepository?.SetExitSlop(ExitSlopSlider.Value));
+    }
+
+    private DispatcherQueueTimer CreateCommitTimer(Action commit)
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.IsRepeating = false;
+        timer.Interval = SliderCommitDelay;
+        timer.Tick += (_, _) => commit();
+        return timer;
+    }
+
+    /// <summary>Restarts a one-shot commit timer -- Stop() before Start() so a timer already
+    /// running (mid-drag) gets its delay window pushed out again rather than firing on
+    /// schedule and then firing again from this call.</summary>
+    private static void RestartCommitTimer(DispatcherQueueTimer timer)
+    {
+        timer.Stop();
+        timer.Start();
+    }
 
     /// <summary>Wires everything up. Called once by RootPage.AttachController, mirroring
     /// NotesTab.Attach/TasksTab.Attach.</summary>
@@ -124,26 +174,28 @@ internal sealed partial class SettingsTab : UserControl
 
     private void OnEdgeDwellChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        if (_initializing || _appStateRepository is null) return;
+        if (_initializing) return;
+        // Live and unthrottled: PanelController reads this on every effect, so the panel
+        // feels the new delay on its very next dwell, not after the debounce below settles.
         Notebar.App.Settings.EdgeDwell = e.NewValue;
-        _appStateRepository.SetEdgeDwell(e.NewValue);
         UpdateSliderLabels();
+        if (_appStateRepository is not null) RestartCommitTimer(_edgeDwellCommitTimer);
     }
 
     private void OnExitDwellChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        if (_initializing || _appStateRepository is null) return;
+        if (_initializing) return;
         Notebar.App.Settings.ExitDwell = e.NewValue;
-        _appStateRepository.SetExitDwell(e.NewValue);
         UpdateSliderLabels();
+        if (_appStateRepository is not null) RestartCommitTimer(_exitDwellCommitTimer);
     }
 
     private void OnExitSlopChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        if (_initializing || _appStateRepository is null) return;
+        if (_initializing) return;
         Notebar.App.Settings.ExitSlop = e.NewValue;
-        _appStateRepository.SetExitSlop(e.NewValue);
         UpdateSliderLabels();
+        if (_appStateRepository is not null) RestartCommitTimer(_exitSlopCommitTimer);
     }
 
     private void UpdateSliderLabels()

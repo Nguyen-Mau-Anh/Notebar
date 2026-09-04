@@ -28,15 +28,21 @@ a cost worth carrying yet. Signing may come later if that changes.
 
 If `Notebar-x64.msix` is attached to this release, you can install it instead of running
 the portable build directly. It's also unsigned, so it can't be installed by double-clicking
-— Windows refuses to install an unsigned package that way. Install it from PowerShell
-instead:
+— Windows refuses to install an unsigned package that way, and refuses `-AllowUnsigned`
+from an ordinary PowerShell window too, since the package contains executable content.
+**Open PowerShell as Administrator** (right-click the Start menu → *Terminal (Admin)*, or
+search "PowerShell", right-click it, and choose *Run as administrator*), then run:
 
 ```powershell
 Add-AppxPackage -Path .\Notebar-x64.msix -AllowUnsigned
 ```
 
+Running that same command from a non-elevated PowerShell fails with an access-denied error
+— that's expected, and elevating is the fix, not a sign the package itself is broken.
+
 If no `.msix` is attached to this release, MSIX packaging didn't succeed for this build —
-the portable zip above is the supported path and needs no special command at all.
+the portable zip above is the supported path, needs no elevation, and needs no special
+command at all.
 
 ### Known difference from macOS: exclusive fullscreen
 
