@@ -1,0 +1,68 @@
+<UserControl
+    x:Class="Notebar.App.Features.Linking.MentionAutocomplete"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:linking="using:Notebar.App.Features.Linking">
+
+    <!--
+        The @ mention popover's content (screen spec §4.2 "Mention popover"): every
+        matching note/task, most-recently-updated first, capped in height and scrollable —
+        mirrors AllNotesMenu.xaml exactly, down to the empty-state copy's tone. Host-side
+        XAML, not part of the WebView2 document, precisely so it can be styled with the rest
+        of the app and NotesTab can set PanelController.HasOpenOverlay while it is open
+        (Task 15 brief) — editor.js only ever reports the "@" and the query text; this
+        control renders whatever NotesTab hands it via SetCandidates and raises
+        CandidateSelected on a click or a committed keyboard selection, exactly mirroring
+        AllNotesMenu's own division of labor with NotesTab.
+    -->
+    <Grid Width="{StaticResource MentionPopoverWidth}">
+        <TextBlock x:Name="EmptyLabel" Text="No matches"
+                   Style="{StaticResource ChromeCaptionTextStyle}"
+                   Foreground="{ThemeResource TextSecondaryBrush}"
+                   Padding="{StaticResource SpaceMd}" Visibility="Collapsed"/>
+
+        <ScrollViewer x:Name="ListScroller" MaxHeight="{StaticResource MentionPopoverMaxHeight}">
+            <ItemsControl x:Name="RowsList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="linking:MentionRowVm">
+                        <Grid>
+                            <!-- The keyboard-selected row's accent 12% background + 2px
+                                 left border (screen spec §4.2). A sibling of the Button
+                                 below, not its Background, since a plain bool doesn't
+                                 convert to a Brush the way it converts to Visibility. -->
+                            <Border Background="{ThemeResource AccentSelected12Brush}"
+                                    BorderBrush="{ThemeResource AccentBrush}"
+                                    BorderThickness="2,0,0,0"
+                                    Visibility="{x:Bind IsHighlighted, Mode=OneWay}"/>
+
+                            <Button Background="Transparent" BorderThickness="0"
+                                    Padding="{StaticResource MentionRowPadding}"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                    Click="OnRowClick">
+                                <Grid ColumnSpacing="{StaticResource SpaceSm}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <FontIcon Grid.Column="0" Glyph="{x:Bind TypeGlyph}" FontSize="11"
+                                              Foreground="{ThemeResource TextSecondaryBrush}"
+                                              VerticalAlignment="Center" Width="14"/>
+
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Text="{x:Bind DisplayTitle}"
+                                                   Style="{StaticResource ChromeBodyTextStyle}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{x:Bind RelativeTime}"
+                                                   Style="{StaticResource ChromeMicroTextStyle}"
+                                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

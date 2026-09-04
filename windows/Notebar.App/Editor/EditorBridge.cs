@@ -25,12 +25,28 @@ internal sealed record EditorMessage(
     [property: JsonPropertyName("url")] string? Url,
     [property: JsonPropertyName("dataUrl")] string? DataUrl)
 {
-    // The six message kinds editor.js posts.
+    // The eight message kinds editor.js posts.
     internal const string Focus = "focus";
     internal const string Keystroke = "keystroke";
     internal const string Change = "change";
     internal const string Chip = "chip";
     internal const string Image = "image";
+
+    /// <summary>Task 15: the guest reports the "@" mention session's live state -- opened,
+    /// the query typed since, and the caret's client-coordinate rect -- so the host-side
+    /// popover (host-side, not the WebView2 document, precisely so it can set
+    /// PanelController.HasOpenOverlay -- see NoteEditorHost's own remarks) knows what to
+    /// show and where. Open=false closes any popover the host has showing, however the
+    /// guest arrived at that: whitespace typed into the query, the caret moving away, or
+    /// Escape.</summary>
+    internal const string Mention = "mention";
+
+    /// <summary>Task 15: ArrowUp/ArrowDown/Enter/Tab pressed while a mention session is
+    /// open, forwarded here because the popover they need to drive is host-side XAML the
+    /// guest cannot reach directly -- see editor.js's own remarks on why these are
+    /// intercepted with preventDefault rather than left to move the caret or insert a
+    /// newline.</summary>
+    internal const string MentionKey = "mentionKey";
 
     /// <summary>Task 13: the guest's document.queryCommandState/Value snapshot,
     /// posted on every selectionchange so the formatting bar's toggles
@@ -82,6 +98,25 @@ internal sealed record EditorMessage(
     [JsonPropertyName("checklist")]
     public bool? Checklist { get; init; }
 
+    // --- "mention" message fields (Task 15). Only editor.js's mention-session tracking
+    // ever populates Open/Query/X/Y; only its mention-key interception populates Key. ---
+
+    [JsonPropertyName("open")]
+    public bool? Open { get; init; }
+
+    [JsonPropertyName("query")]
+    public string? Query { get; init; }
+
+    [JsonPropertyName("x")]
+    public double? X { get; init; }
+
+    [JsonPropertyName("y")]
+    public double? Y { get; init; }
+
+    /// <summary>Only the "mentionKey" message carries this.</summary>
+    [JsonPropertyName("key")]
+    public string? Key { get; init; }
+
     /// <summary>Null for anything that is not a well-formed EditorMessage —
     /// a malformed message from the guest is a bridge bug, not something
     /// worth taking the host down over.</summary>
@@ -123,4 +158,16 @@ internal sealed record EditorStyles(
         message.BulletedList ?? false,
         message.NumberedList ?? false,
         message.Checklist ?? false);
+}
+
+/// <summary>Task 15: the @ mention session's live state, derived from one "mention"
+/// EditorMessage -- NotesTab's mention popover reacts to this, never to a raw
+/// EditorMessage, the same reason EditorStyles exists above.</summary>
+internal readonly record struct MentionUpdate(bool Open, string Query, double X, double Y)
+{
+    internal static MentionUpdate FromMessage(EditorMessage message) => new(
+        message.Open ?? false,
+        message.Query ?? "",
+        message.X ?? 0,
+        message.Y ?? 0);
 }

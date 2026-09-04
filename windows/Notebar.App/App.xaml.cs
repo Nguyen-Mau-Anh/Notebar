@@ -86,6 +86,8 @@ public partial class App : Application
         // Task 14: the tasks board's repository -- its three columns are seeded by
         // migration, same as the note/open-tab/attachment tables above.
         ITaskRepository taskRepository = new SqliteTaskRepository(database);
+        // Task 15: the note/task link graph -- chips, backlinks, tombstones.
+        ILinkRepository linkRepository = new SqliteLinkRepository(database);
 
         // Held for the app's lifetime, not scoped to OnLaunched: the controller
         // owns the panel's whole state machine, and the monitor is the only
@@ -106,7 +108,7 @@ public partial class App : Application
         // with). RootPage exists already (PanelWindow's constructor built it via
         // InitializeComponent above), but the controller wrapping this same window could not
         // exist before this point, so this is the earliest this wiring can happen.
-        window.AttachController(panelController, noteRepository, openTabRepository, attachmentRepository, taskRepository);
+        window.AttachController(panelController, noteRepository, openTabRepository, attachmentRepository, taskRepository, linkRepository);
 
         // One hidden window backs both the tray callback and the global
         // hotkey — see MessageWindow's remarks for why a second window

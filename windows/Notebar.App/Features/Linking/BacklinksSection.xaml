@@ -1,0 +1,58 @@
+<UserControl
+    x:Class="Notebar.App.Features.Linking.BacklinksSection"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:linking="using:Notebar.App.Features.Linking">
+
+    <!--
+        The inbound-references list every note shows below its editor (product spec §6.4
+        deliverable 1): one query on ILinkRepository.Incoming, resolved to titles by
+        NotesTab and handed here as plain MentionCandidate rows — this control only ever
+        renders them and raises TargetSelected. Row look mirrors MentionAutocomplete's own,
+        since both list the same MentionCandidate shape.
+
+        Hidden entirely when there are no backlinks (Root's own Visibility below, toggled by
+        Show). An empty "Backlinks" header over nothing would be pure noise.
+    -->
+    <Grid x:Name="Root" Visibility="Collapsed">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Rectangle Grid.Row="0" Height="{StaticResource HairlineThickness}"
+                   Fill="{ThemeResource BorderSeparatorBrush}"/>
+
+        <TextBlock Grid.Row="1" Text="Backlinks" Style="{StaticResource ChromeLabelTextStyle}"
+                   Padding="{StaticResource BacklinksHeaderPadding}"/>
+
+        <ScrollViewer Grid.Row="2" MaxHeight="{StaticResource BacklinksMaxHeight}">
+            <ItemsControl x:Name="RowsList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="linking:MentionCandidate">
+                        <Button Background="Transparent" BorderThickness="0"
+                                Padding="{StaticResource BacklinkRowPadding}"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                Click="OnRowClick">
+                            <Grid ColumnSpacing="{StaticResource SpaceSm}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="{x:Bind TypeGlyph}" FontSize="10"
+                                          Foreground="{ThemeResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center" Width="12"/>
+
+                                <TextBlock Grid.Column="1" Text="{x:Bind DisplayTitle}"
+                                           Style="{StaticResource ChromeCaptionTextStyle}"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

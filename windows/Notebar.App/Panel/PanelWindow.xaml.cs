@@ -41,17 +41,18 @@ public sealed partial class PanelWindow : Window
     internal IntPtr Handle => _hwnd;
 
     /// <summary>Hands the page its PanelController seam, plus the repositories Task 12's
-    /// Notes tab and Task 14's Tasks tab need to construct themselves. Called once from
-    /// App.xaml.cs after PanelController exists -- the controller wraps this window, so it
-    /// cannot exist before this constructor has already run and RootPage has already been
-    /// built by InitializeComponent above.</summary>
+    /// Notes tab, Task 14's Tasks tab, and Task 15's linking need to construct themselves.
+    /// Called once from App.xaml.cs after PanelController exists -- the controller wraps
+    /// this window, so it cannot exist before this constructor has already run and
+    /// RootPage has already been built by InitializeComponent above.</summary>
     internal void AttachController(
         PanelController panelController,
         INoteRepository noteRepository,
         IOpenTabRepository openTabRepository,
         IAttachmentRepository attachmentRepository,
-        ITaskRepository taskRepository) =>
-        Root.AttachController(panelController, noteRepository, openTabRepository, attachmentRepository, taskRepository);
+        ITaskRepository taskRepository,
+        ILinkRepository linkRepository) =>
+        Root.AttachController(panelController, noteRepository, openTabRepository, attachmentRepository, taskRepository, linkRepository);
 
     /// <summary>Places the window from a rect in device-independent pixels
     /// relative to the given monitor's work area.</summary>

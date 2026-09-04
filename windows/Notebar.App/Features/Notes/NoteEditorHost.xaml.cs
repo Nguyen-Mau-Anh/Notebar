@@ -58,6 +58,7 @@ internal sealed partial class NoteEditorHost : UserControl
 
     private readonly INoteRepository _noteRepository;
     private readonly IAttachmentRepository _attachmentRepository;
+    private readonly ILinkRepository _linkRepository;
     private readonly PanelController _panelController;
     private readonly DispatcherQueueTimer _focusPollTimer;
 
@@ -108,6 +109,16 @@ internal sealed partial class NoteEditorHost : UserControl
     /// caret's actual state rather than being decorative.</summary>
     internal event Action<EditorStyles>? StylesChanged;
 
+    /// <summary>Task 15: the guest's live @ mention session state -- open/closed, the query
+    /// typed since, and the caret's client-coordinate rect. NotesTab owns the popover this
+    /// drives (host-side XAML, so it can set PanelController.HasOpenOverlay).</summary>
+    internal event Action<MentionUpdate>? MentionUpdated;
+
+    /// <summary>Task 15: ArrowUp/ArrowDown/Enter/Tab pressed while a mention session is
+    /// open -- see EditorMessage.MentionKey's own remarks on why these arrive here instead
+    /// of being handled guest-side.</summary>
+    internal event Action<string>? MentionKeyPressed;
+
     /// <summary>See the class remarks: re-derived from three independent
     /// sources, never a single stored flag.</summary>
     internal bool HasFocus => _hasFocus;
@@ -115,12 +126,14 @@ internal sealed partial class NoteEditorHost : UserControl
     internal NoteEditorHost(
         INoteRepository noteRepository,
         IAttachmentRepository attachmentRepository,
+        ILinkRepository linkRepository,
         PanelController panelController)
     {
         InitializeComponent();
 
         _noteRepository = noteRepository;
         _attachmentRepository = attachmentRepository;
+        _linkRepository = linkRepository;
         _panelController = panelController;
 
         // Asked fresh by the reducer on every Send, never cached by
@@ -173,6 +186,76 @@ internal sealed partial class NoteEditorHost : UserControl
         _generation++;
         await EnsureInitializedAsync();
         await CallAsync("notebar.setContent", note.BodyHtml, _generation);
+
+        // Tombstones (product spec §6.4 deliverable 3): one query for every note/task that
+        // still exists -- ILinkRepository.ExistingTargets's own remarks are explicit that
+        // this must be called once per note load, never once per chip, which is exactly
+        // what happens here: one call, after setContent, not a lookup per <a> the guest
+        // finds. The guest only needs the *alive* URL set to toggle .tombstone on whatever
+        // chips are actually in its DOM; every existing target's URL, not just the ones
+        // this particular note references, is a safe superset to hand it -- the guest
+        // simply never matches the extras against anything.
+        IReadOnlySet<LinkTarget> existingTargets = _linkRepository.ExistingTargets();
+        string[] aliveUrls = existingTargets.Select(LinkUrl.Build).ToArray();
+        await CallAsync("notebar.markTombstones", aliveUrls);
+    }
+
+    /// <summary>Task 15: replaces the "@query" text the guest's active mention session is
+    /// sitting on with a chip, and persists the result -- markup and the link row together,
+    /// through <see cref="ILinkRepository.CreateSavingNoteBody"/>, never a separate
+    /// Create + body save (see the task brief's own "chip insertion and the link row must
+    /// commit together"). Bypasses the guest's ordinary 400ms debounced save entirely:
+    /// this always writes synchronously, right after the chip lands in the DOM, so there is
+    /// no window in which the chip's markup exists without the row behind it.</summary>
+    internal async Task InsertChipAsync(LinkTarget target, string title)
+    {
+        if (_note is null) return;
+        string noteId = _note.Id;
+
+        await EnsureInitializedAsync();
+
+        string url = LinkUrl.Build(target);
+        string escapedTitle = System.Net.WebUtility.HtmlEncode(title);
+        // A trailing space, like the macOS build's own chip insertion
+        // (NoteChipInsertion.swift): typing right after a chip must not
+        // extend it.
+        string chipHtml = $"<a href=\"{url}\" class=\"chip\">{escapedTitle}</a> ";
+
+        string html = await CallWithResultAsync("notebar.insertMentionChip", chipHtml);
+
+        // insertMentionChip is one WebView2 round trip; if the user switched
+        // notes while it was in flight, _note no longer refers to the note
+        // this chip was meant for -- abandon rather than save a chip into
+        // the wrong note or resurrect one the user already left. Mirrors
+        // the generation guard on the guest->host side, for a host->guest
+        // call this class itself initiated.
+        if (_note is null || _note.Id != noteId) return;
+
+        string plain = NoteHtml.ToPlainText(html);
+        Link link = Link.New(new LinkTarget(LinkEntityType.Note, noteId), target);
+        _linkRepository.CreateSavingNoteBody(link, noteId, html, plain);
+
+        _note = _note with { BodyHtml = html, BodyPlain = plain };
+        ContentChanged?.Invoke(noteId, html, plain);
+    }
+
+    /// <summary>Tells the guest to clear its mention-session state without inserting
+    /// anything. NotesTab calls this when its mention Flyout closes some way other than a
+    /// candidate being selected (light-dismiss on a click outside both the document and the
+    /// popover) -- the guest already handles Escape and an invalidated query itself, but has
+    /// no way to observe the host's own Flyout closing on its own.</summary>
+    internal async Task CancelMentionAsync()
+    {
+        if (_initialization is not { IsCompletedSuccessfully: true }) return;
+        try
+        {
+            await CallAsync("notebar.cancelMention");
+        }
+        catch (Exception)
+        {
+            // Same reasoning as RefreshFocusAsync below: a WebView mid-navigation or
+            // mid-teardown just needs this call dropped, not the host crashing over it.
+        }
     }
 
     /// <summary>Runs a rich-text command (bold, insertUnorderedList, formatBlock
@@ -357,6 +440,14 @@ internal sealed partial class NoteEditorHost : UserControl
             case EditorMessage.Styles:
                 StylesChanged?.Invoke(EditorStyles.FromMessage(message));
                 break;
+
+            case EditorMessage.Mention:
+                MentionUpdated?.Invoke(MentionUpdate.FromMessage(message));
+                break;
+
+            case EditorMessage.MentionKey:
+                if (message.Key is not null) MentionKeyPressed?.Invoke(message.Key);
+                break;
         }
     }
 
@@ -471,6 +562,17 @@ internal sealed partial class NoteEditorHost : UserControl
     {
         string call = $"{function}({string.Join(", ", args.Select(EncodeArg))})";
         await WebView.CoreWebView2.ExecuteScriptAsync(call);
+    }
+
+    /// <summary>Same as <see cref="CallAsync"/>, but for a guest function that returns a
+    /// string -- ExecuteScriptAsync's result is always the JSON encoding of the JS
+    /// expression's value, so this decodes it back to the raw string, the same pattern
+    /// <see cref="FlushPendingSaveAsync"/> already uses for notebar.getContent().</summary>
+    private async Task<string> CallWithResultAsync(string function, params object?[] args)
+    {
+        string call = $"{function}({string.Join(", ", args.Select(EncodeArg))})";
+        string encoded = await WebView.CoreWebView2.ExecuteScriptAsync(call);
+        return JsonSerializer.Deserialize<string>(encoded) ?? "";
     }
 
     private static string EncodeArg(object? arg) => arg switch

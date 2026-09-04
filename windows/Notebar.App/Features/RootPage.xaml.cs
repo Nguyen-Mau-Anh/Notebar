@@ -40,13 +40,16 @@ internal sealed partial class RootPage : Page
     /// constructs PanelWindow first and PanelController second, wrapping the window it just
     /// built -- so it cannot be handed in through this page's own constructor. The note
     /// repositories are Task 12's, for NotesTabControl; taskRepository is Task 14's, for
-    /// TasksTabControl.</summary>
+    /// TasksTabControl; linkRepository is Task 15's, for NotesTabControl's mention
+    /// popover/backlinks (NotesTabControl also needs taskRepository itself, to search tasks
+    /// for the mention popover and resolve a task backlink's title).</summary>
     internal void AttachController(
         PanelController panelController,
         INoteRepository noteRepository,
         IOpenTabRepository openTabRepository,
         IAttachmentRepository attachmentRepository,
-        ITaskRepository taskRepository)
+        ITaskRepository taskRepository,
+        ILinkRepository linkRepository)
     {
         _viewModel = new PanelViewModel(panelController);
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -54,7 +57,7 @@ internal sealed partial class RootPage : Page
         Handle.SetTab(_viewModel.Selection);
         UpdateActiveTab();
 
-        NotesTabControl.Attach(noteRepository, openTabRepository, attachmentRepository, panelController);
+        NotesTabControl.Attach(noteRepository, openTabRepository, attachmentRepository, taskRepository, linkRepository, panelController);
         TasksTabControl.Attach(taskRepository, panelController);
 
         // Task 12's data-loss fix: App.FlushPendingNoteSave is the seam Task 9

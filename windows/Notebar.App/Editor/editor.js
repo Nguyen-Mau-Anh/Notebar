@@ -194,6 +194,135 @@ document.addEventListener('selectionchange', () => {
   });
 });
 
+// --- @ mention autocomplete (Task 15, product spec §6.4 deliverable 3) ---
+//
+// Mirrors macOS's NoteMentionContext.refresh(): detects an "@" typed
+// immediately before the caret, tracks the query typed since, and ends the
+// session the same three ways -- whitespace/newline appearing in the query,
+// the caret moving to before the "@", or (implicitly, via mentionAnchor
+// staying valid only while the caret is still ahead of it) any edit that
+// invalidates the range between the two. The popover itself is host-side
+// XAML (NoteEditorHost.MentionUpdated / NotesTab), never built here -- this
+// side only detects the session and reports it, exactly the same split
+// AllNotesMenu already has between "renders rows" and "owns the Flyout".
+//
+// mentionAnchor is a live DOM Range endpoint {node, offset} pointing at the
+// "@" character itself, not an index into a string -- contenteditable
+// mutates the same Text node as the user keeps typing, so this offset never
+// needs to be recomputed as the query grows.
+let mentionAnchor = null;
+
+// The caret's own client-coordinate rect, for the host to anchor the
+// popover below (screen spec §4.2: "anchored below the text-insertion
+// point"). A collapsed Range usually reports a real client rect; the one
+// case it doesn't in Chromium is a caret at the very start of an empty
+// line, where this falls back to the containing block element's own rect.
+function caretRect() {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const range = sel.getRangeAt(0).cloneRange();
+  range.collapse(true);
+  const rects = range.getClientRects();
+  if (rects.length > 0) return rects[0];
+  const el = elementAt(range.startContainer);
+  return el ? el.getBoundingClientRect() : null;
+}
+
+// The text between mentionAnchor (just after the "@") and the caret -- the
+// live query. Range.setEnd throws if the caret has moved to before
+// mentionAnchor (DOM Ranges require start <= end in document order); that
+// throw is exactly the "caret moved in front of the @" cancellation signal,
+// so it is caught rather than left to propagate.
+function mentionQuery(caretRange) {
+  if (!mentionAnchor) return null;
+  const probe = document.createRange();
+  probe.setStart(mentionAnchor.node, mentionAnchor.offset);
+  try {
+    probe.setEnd(caretRange.startContainer, caretRange.startOffset);
+    return probe.toString();
+  } catch {
+    return null;
+  }
+}
+
+function postMention(open, query) {
+  const rect = open ? caretRect() : null;
+  post({
+    type: 'mention',
+    open,
+    query,
+    x: rect ? rect.left : 0,
+    y: rect ? rect.bottom : 0,
+  });
+}
+
+// Ends the session without inserting anything and tells the host to close
+// whatever popover it has showing. A no-op if no session is active, so
+// callers on a teardown path (setContent below) can call this
+// unconditionally.
+function cancelMention() {
+  if (!mentionAnchor) return;
+  mentionAnchor = null;
+  post({ type: 'mention', open: false, query: '', x: 0, y: 0 });
+}
+
+// Called on every text change and every selection change while the
+// document has focus (see the two listeners below) -- detects the start of
+// a new session and, for an already-active one, re-filters on the text
+// typed since, or ends it per mentionQuery's own rules above.
+function refreshMention() {
+  const sel = window.getSelection();
+  if (!sel || !sel.isCollapsed || sel.rangeCount === 0) { cancelMention(); return; }
+  const caretRange = sel.getRangeAt(0);
+  if (!doc.contains(caretRange.startContainer)) { cancelMention(); return; }
+
+  if (mentionAnchor) {
+    const query = mentionQuery(caretRange);
+    if (query === null || /\s/.test(query) || query.includes('@')) {
+      cancelMention();
+      return;
+    }
+    postMention(true, query);
+    return;
+  }
+
+  // Look at the character immediately before the caret for a freshly typed
+  // "@". Only a text-node caret can have a character "immediately before
+  // it" in the sense this needs.
+  const node = caretRange.startContainer;
+  const offset = caretRange.startOffset;
+  if (node.nodeType !== Node.TEXT_NODE || offset === 0) return;
+  if (node.textContent[offset - 1] !== '@') return;
+
+  mentionAnchor = { node, offset: offset - 1 };
+  postMention(true, '');
+}
+
+doc.addEventListener('input', refreshMention);
+document.addEventListener('selectionchange', () => {
+  if (document.activeElement !== doc) return;
+  refreshMention();
+});
+
+// Escape and the three navigation keys the host-side popover needs are
+// intercepted here with preventDefault -- without it Escape does nothing
+// AppKit-visible, ArrowUp/ArrowDown would move the caret instead of the
+// popover's selection, and Enter/Tab would insert a newline/tab character
+// into the note instead of committing a candidate. Only intercepted while a
+// mention session is actually active, so ordinary typing is never affected.
+doc.addEventListener('keydown', (e) => {
+  if (!mentionAnchor) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    cancelMention();
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === 'Tab') {
+    e.preventDefault();
+    post({ type: 'mentionKey', key: e.key });
+  }
+});
+
 // Host → guest.
 window.notebar = {
   setContent(html, generation) {
@@ -204,6 +333,13 @@ window.notebar = {
     saveTimer = null;
     docGeneration = generation;
     doc.innerHTML = html;
+    // A mention session belongs to the note it started in -- mentionAnchor
+    // would otherwise point at a Text node that just got torn out of the
+    // document, and the popover it drove would be showing over the wrong
+    // note's editor. Mirrors macOS's NoteEditorContainer building a fresh
+    // NoteMentionContext per note (`.id(activeID)`); this can't rebuild the
+    // whole module, so it just resets the one piece of state instead.
+    cancelMention();
   },
   getContent()          { return contentForSave(); },
   hasFocus()            { return document.activeElement === doc; },
@@ -216,6 +352,41 @@ window.notebar = {
       a.classList.toggle('tombstone', !alive.has(a.getAttribute('href')));
     });
   },
+  // Task 15: replaces the "@query" text the active mention session is
+  // sitting on with a chip, then hands back the resulting document html so
+  // the host can save it -- NoteEditorHost.InsertChipAsync writes that html
+  // and the link row together through ILinkRepository.CreateSavingNoteBody
+  // rather than waiting for the ordinary 400ms debounced save, so a crash
+  // between "chip is in the DOM" and "the link row exists" is impossible.
+  // Selects the range from mentionAnchor to the caret's current position
+  // (wherever it ended up -- always exactly the "@query" text the user
+  // typed) and lets execCommand('insertHTML') replace that selection, the
+  // same mechanism the markdown shortcuts above use to replace a marker.
+  insertMentionChip(html) {
+    doc.focus();
+    const sel = window.getSelection();
+    if (mentionAnchor && sel && sel.rangeCount > 0) {
+      const caretRange = sel.getRangeAt(0);
+      const range = document.createRange();
+      range.setStart(mentionAnchor.node, mentionAnchor.offset);
+      range.setEnd(caretRange.startContainer, caretRange.startOffset);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    // Cleared *before* execCommand, not after -- same reasoning as macOS's
+    // NoteMentionContext.select(_:): insertHTML fires a synchronous 'input'
+    // event that re-enters refreshMention() before this call returns, and
+    // that re-entrant call must see no active session rather than try to
+    // re-derive a query against a chip's own inserted text.
+    mentionAnchor = null;
+    document.execCommand('insertHTML', false, html);
+    return contentForSave();
+  },
+  // The host's answer to a mention popover closing without a row having
+  // been selected (Escape already handles itself guest-side; this covers
+  // the Flyout's own light-dismiss on a click outside both the document and
+  // the popover, which the guest has no way to observe on its own).
+  cancelMention() { mentionAnchor = null; },
 };
 
 // document.execCommand is deprecated and is still the only thing that does

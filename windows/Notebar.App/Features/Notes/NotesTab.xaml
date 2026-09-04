@@ -3,19 +3,22 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:chrome="using:Notebar.App.Features"
-    xmlns:notes="using:Notebar.App.Features.Notes">
+    xmlns:notes="using:Notebar.App.Features.Notes"
+    xmlns:linking="using:Notebar.App.Features.Linking">
 
     <!--
         The Notes tab's whole surface (screen spec §4): the tab strip and its own toolbar
-        actions on the left/right of the shared 36pt TabToolbar row, and the body underneath
-        — either the one shared NoteEditorHost or the §4.3 empty state. Mirrors the macOS
-        build's NotesTab.swift, which wraps the same three pieces the same way.
+        actions on the left/right of the shared 36pt TabToolbar row, the body underneath —
+        either the one shared NoteEditorHost or the §4.3 empty state — and, below the
+        editor, the Task 15 backlinks list (product spec §6.4 deliverable 1). Mirrors the
+        macOS build's NotesTab.swift, which wraps the same pieces the same way.
     -->
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <chrome:TabToolbar Grid.Row="0">
@@ -84,5 +87,10 @@
              constructor takes the repositories and PanelController it needs, so it cannot be
              declared here directly. -->
         <Grid x:Name="EditorSlot" Grid.Row="2" Visibility="Collapsed"/>
+
+        <!-- Task 15: below the editor, never inside EditorSlot — Backlinks.Show hides
+             itself entirely when the active note has none, and NotesTab recomputes it only
+             on a note switch (see BacklinksSection.xaml's own remarks). -->
+        <linking:BacklinksSection x:Name="Backlinks" Grid.Row="3"/>
     </Grid>
 </UserControl>

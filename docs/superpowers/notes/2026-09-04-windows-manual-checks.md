@@ -195,3 +195,37 @@ this file rather than starting a new one.
       after every create, delete, and drag.
 - [ ] The board's empty state ("No tasks yet") shows only when all three columns are empty,
       and disappears the moment the first task is created.
+
+## Linking
+
+- [ ] Typing `@` in a note opens the mention popover; typing more characters filters it to
+      matching notes and tasks.
+- [ ] While the mention popover is open, the panel does NOT collapse even if the cursor
+      leaves the panel bounds or the note editor loses keyboard focus (e.g. clicking a
+      candidate row in the popover itself).
+- [ ] Pressing Escape while the popover is open closes it, the trigger `@` and any typed
+      query stay as plain text, and the panel collapses normally afterward (hovering away
+      no longer keeps it pinned open).
+- [ ] Clicking outside both the note editor and the popover (e.g. the tab strip) closes the
+      popover via click-away, and the panel collapses normally afterward.
+- [ ] ArrowUp/ArrowDown move the popover's highlighted row without moving the caret in the
+      note; Enter and Tab both insert the highlighted candidate as a chip.
+- [ ] Selecting a note from the popover inserts a chip at the `@query` position, replacing
+      the typed text entirely (no leftover `@` or query characters).
+- [ ] After inserting a chip, collapsing/re-expanding the panel and quitting/relaunching the
+      app both show the chip still in place and still clickable.
+- [ ] Clicking a note chip opens that note as a tab (creating one if it doesn't already have
+      one) and switches to it.
+- [ ] Clicking a task chip is expected to do nothing yet -- Task 14's Tasks board does not
+      subscribe to `LinkNavigation.TaskRequested` as of this task; confirm it does nothing
+      harmful (no crash, no error) rather than confirming it opens the board.
+- [ ] A note that other notes/tasks link to shows a "Backlinks" section below its editor,
+      listing each of them; a note with no backlinks shows no such section at all.
+- [ ] Clicking a note row in the backlinks list opens that note as a tab, the same as
+      clicking a chip pointing at it would.
+- [ ] Deleting a note that another note links to: reopening the note holding the chip shows
+      it struck through (tombstoned) instead of in its normal chip styling.
+- [ ] Clicking a tombstoned chip does nothing -- no navigation, no error.
+- [ ] Restoring the situation (create a new note, link to it, confirm the chip renders
+      normally, not tombstoned) after a tombstone check, to confirm tombstoning is specific
+      to the deleted target and not stuck on for the whole session.
