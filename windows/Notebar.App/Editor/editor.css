@@ -1,0 +1,241 @@
+/*
+ * The note-body type scale and both palettes from
+ * docs/design/2026-08-29-screen-spec.md §1.2/§1.3, as CSS custom properties.
+ *
+ * data-theme is set on <html> by the host (window.notebar.setTheme), never
+ * read from a media query: the panel's theme is the app's own Settings
+ * value, not the browser's guess at the OS theme, and the two can disagree
+ * (e.g. "Follow system" resolved once at launch vs. changed since). This is
+ * also why no color is ever written into a note's stored HTML — the macOS
+ * build did that for checked checkboxes and shipped text that stayed black
+ * in dark mode and never updated live. Every color below is resolved from
+ * these variables at paint time instead.
+ */
+:root {
+  --surface-panel-bg: #FBFBFD;
+  --surface-elevated-bg: #FFFFFF;
+  --border-separator: rgba(0, 0, 0, 0.08);
+  --text-primary: #1D1D1F;
+  --text-secondary: #6E6E73;
+  --text-tertiary: #A1A1A6;
+  --accent: #007AFF;
+  --accent-chip-bg: rgba(0, 122, 255, 0.12);
+  --accent-chip-bg-hover: rgba(0, 122, 255, 0.18);
+  --tombstone-bg: rgba(161, 161, 166, 0.10);
+}
+
+:root[data-theme="dark"] {
+  --surface-panel-bg: #242426;
+  --surface-elevated-bg: #2C2C2E;
+  --border-separator: rgba(255, 255, 255, 0.10);
+  --text-primary: #F5F5F7;
+  --text-secondary: #98989D;
+  --text-tertiary: #6E6E73;
+  --accent: #0A84FF;
+  --accent-chip-bg: rgba(10, 132, 255, 0.12);
+  --accent-chip-bg-hover: rgba(10, 132, 255, 0.18);
+  --tombstone-bg: rgba(110, 110, 115, 0.10);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--surface-panel-bg);
+}
+
+body {
+  /* SF Pro is macOS-only; Segoe UI Variable is Windows 11's equivalent
+     system font, with Segoe UI and a generic fallback behind it. */
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * The editable surface itself. Line-length guardrail from §1.3: the text
+ * column never exceeds 640px even at the panel's wide breakpoint, centered
+ * with flexible side padding, so prose stays in the 60-75 character
+ * comfortable-reading range instead of stretching edge to edge.
+ */
+#doc {
+  max-width: 640px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 16px;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+#doc p {
+  margin: 0 0 8px;
+}
+
+/* editor.h1 / editor.h2 — space.lg (20px) above, space.sm (12px) below,
+   except when it opens the document, matching the chrome spacing scale. */
+#doc h1, #doc h2 {
+  margin: 20px 0 12px;
+  font-weight: 600;
+}
+
+#doc > h1:first-child,
+#doc > h2:first-child {
+  margin-top: 0;
+}
+
+#doc h1 {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+#doc h2 {
+  font-size: 17px;
+  line-height: 22px;
+}
+
+/* editor.list — 14/Regular, 20px line height, 20px indent per level. Native
+   <ul>/<ol> markers, deliberately: TextKit on macOS would not draw a list
+   marker next to an empty line, and had to synthesise one as real text.
+   A browser draws the marker regardless of the line's content, which is
+   the whole reason this editor is a WebView instead of a custom text view. */
+#doc ul, #doc ol {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+#doc li {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+#doc ul ul, #doc ul ol, #doc ol ul, #doc ol ol {
+  margin-bottom: 0;
+}
+
+/* editor.checkbox — a checklist item is <li><input type="checkbox"> text</li>.
+   Checking one never strikes through or greys the text: a checked line is
+   still actionable, and Notebar's checklists are lightweight, not archival. */
+#doc ul.checklist {
+  list-style: none;
+  padding-left: 0;
+}
+
+#doc ul.checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/*
+ * A real <input type="checkbox">, not a glyph. Six Unicode box/checkmark
+ * glyphs shipped invisible in the system font on macOS; a native form
+ * control has no such failure mode. accent-color gives the checked state
+ * the accent fill natively, so "checked" is never a stored CSS class that a
+ * database round-trip can drop — it is read straight off input.checked
+ * every time the document renders.
+ */
+#doc ul.checklist input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  flex: none;
+  accent-color: var(--accent);
+  border: 1.5px solid var(--text-tertiary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#doc ul.checklist input[type="checkbox"]:checked {
+  border-color: var(--accent);
+}
+
+/* editor.code — inline and block, SF Mono equivalent, surface.elevated.bg,
+   radius.sm (6px) per §1.5's corner-radius scale. */
+#doc code {
+  font-family: "Cascadia Code", "Cascadia Mono", Consolas, monospace;
+  font-size: 13px;
+  background: var(--surface-elevated-bg);
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+
+#doc pre {
+  margin: 0 0 8px;
+  padding: 12px;
+  background: var(--surface-elevated-bg);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+#doc pre code {
+  padding: 0;
+  background: none;
+  line-height: 18px;
+}
+
+/*
+ * Link chip — an inline reference to another note or task (product spec
+ * §6.4). Selector matches editor.js's own click/tombstone handling exactly:
+ * any <a href="notebar://...">, no extra class needed to opt in.
+ */
+#doc a[href^="notebar://"] {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent-chip-bg);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+#doc a[href^="notebar://"]:hover {
+  background: var(--accent-chip-bg-hover);
+}
+
+/*
+ * Tombstone — the chip's target was soft-deleted. Styling is re-derived
+ * every render from the .tombstone class the host applies via
+ * markTombstones(ids), never baked into the stored HTML: whether a link
+ * target still exists can change after the note was saved, so "is this a
+ * tombstone" has to be answered again on every load, the same rule that
+ * governs a checkbox's checked look.
+ */
+#doc a[href^="notebar://"].tombstone {
+  background: var(--tombstone-bg);
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+  cursor: default;
+  pointer-events: none;
+}
+
+#doc img {
+  display: block;
+  max-width: 100%;
+  margin: 8px 0;
+  border-radius: 6px;
+}
+
+#doc blockquote {
+  margin: 0 0 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-separator);
+  color: var(--text-secondary);
+}

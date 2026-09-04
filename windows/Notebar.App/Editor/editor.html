@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!--
+  Served over https://notebar.local, never file:// — a file:// origin breaks
+  window.chrome.webview.postMessage and gives the document no stable origin
+  for the asset requests below. The host maps this folder with
+  SetVirtualHostNameToFolderMapping and navigates here.
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <!-- Zoom is disabled host-side (IsZoomControlEnabled = false); no viewport
+       meta needed since this document never renders at a scale other than 1. -->
+  <link rel="stylesheet" href="editor.css">
+  <script src="editor.js" defer></script>
+</head>
+<body>
+  <!--
+    Everything the user sees and edits. Checkboxes, lists, chips and images
+    are ordinary HTML rendered by Chromium — the whole reason this editor is
+    a WebView2 instead of another NSTextView-style custom text system: no
+    custom glyph rendering, no synthesised list markers, no per-checkbox
+    hit-region math.
+  -->
+  <div id="doc" contenteditable="true" spellcheck="false"></div>
+</body>
+</html>

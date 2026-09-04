@@ -1,0 +1,8 @@
+<UserControl
+    x:Class="Notebar.App.Features.Notes.NoteEditorHost"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <WebView2 x:Name="WebView" />
+    </Grid>
+</UserControl>

@@ -35,3 +35,17 @@ this file rather than starting a new one.
 - [ ] Type in a note, quit immediately: reopening shows the typed text.
 - [ ] The tray menu dismisses when you click somewhere else.
 - [ ] Restart Explorer (Task Manager → Windows Explorer → Restart): the tray icon comes back.
+
+## Editor
+
+- [ ] Typing in a note persists after collapsing and re-expanding.
+- [ ] Typing in a note persists after quitting and relaunching.
+- [ ] The panel does not collapse while the cursor is outside it and you are typing.
+- [ ] Clicking away from the editor, waiting 3 s, then moving the cursor off: it collapses.
+- [ ] Bold, italic, H1, H2, bullets, numbers, and checklists all apply.
+- [ ] A numbered list shows "1." on the first, empty line.
+- [ ] Checkboxes toggle by clicking them, and the state survives a reload.
+- [ ] Pasting a screenshot inserts it and it survives a relaunch.
+- [ ] Right-clicking in the editor does NOT show the browser context menu.
+- [ ] F12 does NOT open developer tools.
+- [ ] A pasted external link opens in the default browser, not inside the panel.
