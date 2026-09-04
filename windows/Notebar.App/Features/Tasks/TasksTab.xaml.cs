@@ -4,6 +4,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
+using Notebar.App.Features;
+using Notebar.App.Features.Linking;
 using Notebar.App.Panel;
 using Notebar.Core.Models;
 using Notebar.Core.Repositories;
@@ -19,6 +21,7 @@ internal sealed partial class TasksTab : UserControl
 {
     private TasksViewModel? _viewModel;
     private PanelController? _panelController;
+    private PanelViewModel? _panelViewModel;
 
     private BoardColumn? _queueColumn;
     private BoardColumn? _workingColumn;
@@ -34,10 +37,13 @@ internal sealed partial class TasksTab : UserControl
     internal TasksTab() => InitializeComponent();
 
     /// <summary>Wires everything up. Called once by RootPage.AttachController, mirroring
-    /// NotesTab.Attach.</summary>
-    internal void Attach(ITaskRepository taskRepository, PanelController panelController)
+    /// NotesTab.Attach. panelViewModel is RootPage's own rail selection -- OnTaskRequested
+    /// below is the only reason this needs it: switching a note's task-chip click to the
+    /// Tasks tab, not just opening the task once there.</summary>
+    internal void Attach(ITaskRepository taskRepository, PanelController panelController, PanelViewModel panelViewModel)
     {
         _panelController = panelController;
+        _panelViewModel = panelViewModel;
 
         // A local, not the field, feeds every closure below: nullable flow analysis can
         // prove a just-assigned local stays non-null inside a lambda that captures it, but
@@ -62,7 +68,32 @@ internal sealed partial class TasksTab : UserControl
         Detail.PriorityChanged += (id, priority) => viewModel.UpdatePriority(id, priority);
         Detail.DueDateChanged += (id, dueAt) => viewModel.UpdateDueDate(id, dueAt);
 
+        // A static event with an instance handler outlives the instance that subscribed to
+        // it -- normally the classic managed leak. Safe here only because TasksTab is a
+        // process-lifetime singleton (RootPage.xaml builds exactly one, alive for as long as
+        // the panel window is): there is nothing for this subscription to leak past. Never
+        // unsubscribed for the same reason NotesTab's own Attach-time subscriptions aren't.
+        LinkNavigation.TaskRequested += OnTaskRequested;
+
         viewModel.Load();
+    }
+
+    /// <summary>Task 15's note-chip and backlink clicks on a task target funnel through
+    /// LinkNavigation.TaskRequested rather than reaching into this class directly (see
+    /// LinkNavigation's own remarks). Switches the rail to the Tasks tab and opens the
+    /// task's detail pane -- the same select/show path OnListSelectionChanged uses, so a
+    /// chip click and a card click land in an identical state.</summary>
+    private void OnTaskRequested(string taskId)
+    {
+        if (_viewModel is null) return;
+        // The chip's target may have been deleted since the chip was written -- exactly
+        // what tombstones exist for on the note side, but a race (deleted between the
+        // click and this handler running) is still possible here. Do nothing rather than
+        // open a tab onto a task that no longer exists.
+        if (_viewModel.Find(taskId) is null) return;
+
+        if (_panelViewModel is not null) _panelViewModel.Selection = AppTab.Tasks;
+        _viewModel.SelectTask(taskId);
     }
 
     // --- board (create, structural rebuild) ---

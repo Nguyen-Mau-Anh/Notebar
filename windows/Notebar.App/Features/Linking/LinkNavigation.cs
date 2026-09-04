@@ -4,17 +4,15 @@ namespace Notebar.App.Features.Linking;
 /// hands off through.</summary>
 /// <remarks>
 /// Task 14's Tasks board owns opening a task and showing its detail pane, and
-/// Features/Tasks/ is off limits to Task 15 (see the task brief) -- rather than reach into
-/// TasksTab directly, NotesTab.OnChipClicked and NotesTab.OnBacklinkSelected raise this
-/// static event instead, and the board can subscribe once its own "open this task and show
-/// its detail" API exists. Static, not instance-scoped: there is exactly one Tasks board in
-/// the app, and both a note chip click and a backlink row click need to reach it without
-/// either side holding a reference to the other.
+/// Features/Tasks/ was off limits to Task 15 while it was live (see the task brief) --
+/// rather than reach into TasksTab directly, NotesTab.OnChipClicked and
+/// NotesTab.OnBacklinkSelected raise this static event instead. Static, not
+/// instance-scoped: there is exactly one Tasks board in the app, and both a note chip click
+/// and a backlink row click need to reach it without either side holding a reference to the
+/// other.
 ///
-/// No subscriber exists yet as of this task -- clicking a task chip or a task backlink row
-/// today raises this event into the void. That is a known, reported gap (see the Task 15
-/// report), not a silent one: the alternative was reaching into Features/Tasks/, which the
-/// brief explicitly rules out.
+/// TasksTab.OnTaskRequested is now the one subscriber, wired once in TasksTab.Attach (see
+/// its own remarks on why that subscription is never unsubscribed).
 /// </remarks>
 internal static class LinkNavigation
 {

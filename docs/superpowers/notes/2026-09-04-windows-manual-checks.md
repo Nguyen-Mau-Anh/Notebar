@@ -224,9 +224,11 @@ this file rather than starting a new one.
       app both show the chip still in place and still clickable.
 - [ ] Clicking a note chip opens that note as a tab (creating one if it doesn't already have
       one) and switches to it.
-- [ ] Clicking a task chip is expected to do nothing yet -- Task 14's Tasks board does not
-      subscribe to `LinkNavigation.TaskRequested` as of this task; confirm it does nothing
-      harmful (no crash, no error) rather than confirming it opens the board.
+- [ ] Clicking a task chip in a note switches to the Tasks board, selects that task, and
+      opens its detail pane.
+- [ ] Clicking a task chip whose target was deleted since the chip was written does nothing
+      harmful (no crash, no error) -- it does not switch tabs or open an empty/broken detail
+      pane.
 - [ ] A note that other notes/tasks link to shows a "Backlinks" section below its editor,
       listing each of them; a note with no backlinks shows no such section at all.
 - [ ] Clicking a note row in the backlinks list opens that note as a tab, the same as

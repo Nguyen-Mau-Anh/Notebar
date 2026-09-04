@@ -58,7 +58,11 @@ internal sealed partial class RootPage : Page
         UpdateActiveTab();
 
         NotesTabControl.Attach(noteRepository, openTabRepository, attachmentRepository, taskRepository, linkRepository, panelController);
-        TasksTabControl.Attach(taskRepository, panelController);
+        // _viewModel is also handed to TasksTabControl (not just panelController): a task
+        // chip/backlink click, routed through LinkNavigation.TaskRequested (see
+        // TasksTab.OnTaskRequested), needs to switch the rail's own selection to the Tasks
+        // tab, not just open the task once there.
+        TasksTabControl.Attach(taskRepository, panelController, _viewModel);
 
         // Task 12's data-loss fix: App.FlushPendingNoteSave is the seam Task 9
         // named but nothing could assign until a NoteEditorHost existed to
