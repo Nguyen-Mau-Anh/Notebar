@@ -2703,6 +2703,10 @@ public static class Sql
             System.Globalization.DateTimeStyles.AssumeUniversal |
             System.Globalization.DateTimeStyles.AdjustToUniversal);
 
+    /// <summary>Nullable date to a bindable parameter value. Unused until the
+    /// task repository, whose due_at and completed_at columns are nullable —
+    /// it lives here so both repositories share one encoding rather than
+    /// inventing two.</summary>
     public static object ToDb(DateTimeOffset? value) =>
         value is { } v ? ToText(v) : DBNull.Value;
 }
@@ -3273,7 +3277,14 @@ public sealed class SqliteNoteRepository(NotebarDatabase db) : INoteRepository
             """;
         Bind(cmd, note);
         cmd.ExecuteNonQuery();
-        return note;
+
+        // Return the round-tripped row, not the one just constructed. Note.New
+        // stamps DateTimeOffset.UtcNow at tick precision and Sql.ToText
+        // truncates to milliseconds, so the two are never equal — and Note is a
+        // record, so structural equality makes that a deterministic test
+        // failure rather than a subtle one. Every repository method returning a
+        // persisted entity must do this.
+        return Fetch(note.Id)!;
     }
 
     public void Update(Note note)
