@@ -171,13 +171,20 @@ jobs:
         run: msbuild windows/Notebar.sln /p:Configuration=Release /p:Platform=x64
 
       # AppxBundle=Never keeps the output a single .msix rather than a
-      # .msixbundle, matching what "Collect the package" looks for.
+      # .msixbundle, matching what "Collect the package" looks for. Uses
+      # /t:Publish rather than a plain default-target build: every prior
+      # variant (default target, csproj or sln, dotnet build or msbuild.exe,
+      # with the AppxManifest/Manifest/Content item group present, across two
+      # WindowsAppSDK major versions) produced an empty package.map.txt with
+      # no AppxManifest.xml ever staged. /t:Publish drives a different target
+      # chain that's more consistently documented to trigger the single-
+      # project MSIX packaging pipeline from the CLI.
       - name: Package MSIX
         run: >
           msbuild windows/Notebar.sln
+          /t:Publish
           /p:Configuration=Release
           /p:Platform=x64
-          /p:UapAppxPackageBuildMode=SideloadOnly
           /p:AppxBundle=Never
           /p:AppxPackageSigningEnabled=false
           /p:GenerateAppxPackageOnBuild=true
