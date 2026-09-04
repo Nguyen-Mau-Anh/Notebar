@@ -30,6 +30,14 @@ internal sealed class PanelController
     internal bool HasOpenOverlay { get; set; }
     internal bool IsDragging { get; set; }
 
+    /// <summary>Raised every time HidePanel actually runs -- a real collapse,
+    /// not merely IsMaximized or IsPinned changing. Task 12's note editor
+    /// subscribes this to flush any save still waiting out its debounce:
+    /// the panel collapsing is one of the three points (screen spec / task
+    /// brief: tab switch, panel collapse, quit) a pending save must not be
+    /// left stranded at.</summary>
+    internal event Action? PanelHidden;
+
     /// <summary>Asked fresh on every Send rather than cached as a flag.</summary>
     /// <remarks>
     /// On macOS this started life as a stored bool set by focus events, and it
@@ -165,6 +173,8 @@ internal sealed class PanelController
         HasOpenOverlay = false;
 
         AfterAnimation(PanelTiming.CollapseDuration, generation);
+
+        PanelHidden?.Invoke();
     }
 
     /// <summary>Fires AnimationFinished once the animation's duration has elapsed,

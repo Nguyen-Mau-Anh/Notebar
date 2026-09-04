@@ -1,0 +1,79 @@
+<UserControl
+    x:Class="Notebar.App.Features.Notes.NotesTab"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:chrome="using:Notebar.App.Features"
+    xmlns:notes="using:Notebar.App.Features.Notes">
+
+    <!--
+        The Notes tab's whole surface (screen spec §4): the tab strip and its own toolbar
+        actions on the left/right of the shared 36pt TabToolbar row, and the body underneath
+        — either the one shared NoteEditorHost or the §4.3 empty state. Mirrors the macOS
+        build's NotesTab.swift, which wraps the same three pieces the same way.
+    -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <chrome:TabToolbar Grid.Row="0">
+            <chrome:TabToolbar.LeftContent>
+                <notes:NoteTabStrip x:Name="TabStrip"/>
+            </chrome:TabToolbar.LeftContent>
+            <chrome:TabToolbar.RightContent>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Button x:Name="NewNoteButton" Width="28" Height="28" Padding="0"
+                            BorderThickness="0" Background="Transparent"
+                            CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                            Click="OnNewNoteClick"
+                            PointerEntered="OnNewNotePointerEntered" PointerExited="OnNewNotePointerExited"
+                            AutomationProperties.Name="New Note">
+                        <Grid>
+                            <Border x:Name="NewNoteHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                                    Background="{ThemeResource AccentHover08Brush}" Visibility="Collapsed"/>
+                            <FontIcon x:Name="NewNoteIconOff" Glyph="&#xE710;" FontSize="15"
+                                      Foreground="{ThemeResource TextSecondaryBrush}"/>
+                            <FontIcon x:Name="NewNoteIconOn" Glyph="&#xE710;" FontSize="15"
+                                      Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="AllNotesButton" Width="28" Height="28" Padding="0"
+                            BorderThickness="0" Background="Transparent"
+                            CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                            Click="OnAllNotesClick"
+                            PointerEntered="OnAllNotesPointerEntered" PointerExited="OnAllNotesPointerExited"
+                            AutomationProperties.Name="All Notes">
+                        <Grid>
+                            <Border x:Name="AllNotesHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                                    Background="{ThemeResource AccentHover08Brush}" Visibility="Collapsed"/>
+                            <FontIcon x:Name="AllNotesIconOff" Glyph="&#xE70D;" FontSize="15"
+                                      Foreground="{ThemeResource TextSecondaryBrush}"/>
+                            <FontIcon x:Name="AllNotesIconOn" Glyph="&#xE70D;" FontSize="15"
+                                      Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+                </StackPanel>
+            </chrome:TabToolbar.RightContent>
+        </chrome:TabToolbar>
+
+        <!-- §4.3 empty state — shown whenever there is no active note, which is reachable in
+             practice (every tab can be closed; open_tab rows persist), not only on first
+             run. -->
+        <StackPanel x:Name="EmptyState" Grid.Row="1" Spacing="8"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24">
+            <FontIcon Glyph="&#xE8A5;" FontSize="32" Foreground="{ThemeResource TextTertiaryBrush}"
+                      HorizontalAlignment="Center"/>
+            <TextBlock Text="No notes open" Style="{StaticResource ChromeTitleTextStyle}"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Notes you write stay ready here — click + to start one."
+                       Style="{StaticResource ChromeCaptionTextStyle}" HorizontalAlignment="Center"
+                       TextAlignment="Center" TextWrapping="Wrap" MaxWidth="240"/>
+        </StackPanel>
+
+        <!-- Holds the one shared NoteEditorHost, added in code-behind — NoteEditorHost's
+             constructor takes the repositories and PanelController it needs, so it cannot be
+             declared here directly. -->
+        <Grid x:Name="EditorSlot" Grid.Row="1" Visibility="Collapsed"/>
+    </Grid>
+</UserControl>

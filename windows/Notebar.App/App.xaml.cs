@@ -4,17 +4,27 @@ using Notebar.App.Interop;
 using Notebar.App.Panel;
 using Notebar.Core.Geometry;
 using Notebar.Core.Panel;
+using Notebar.Core.Repositories;
+using Notebar.Store;
 
 namespace Notebar.App;
 
 public partial class App : Application
 {
+    /// <summary>How long Quit waits for FlushPendingNoteSave before giving up
+    /// and exiting anyway. A save that cannot complete within this window
+    /// (a wedged WebView2 renderer, most plausibly) must not be able to
+    /// leave the app unquittable — a bounded loss of the last keystrokes is
+    /// a smaller harm than an app the user can no longer close.</summary>
+    private static readonly TimeSpan FlushTimeout = TimeSpan.FromSeconds(3);
+
     private PanelWindow? _window;
     private CursorMonitor? _cursorMonitor;
     private PanelController? _panelController;
     private MessageWindow? _messageWindow;
     private TrayIcon? _trayIcon;
     private GlobalHotKey? _hotKey;
+    private NotebarDatabase? _database;
 
     /// <summary>The one PanelController for the app's lifetime. Later tasks —
     /// the note editor reporting keystrokes and focus, the tray icon's toggle,
@@ -22,13 +32,14 @@ public partial class App : Application
     /// each holding their own reference.</summary>
     internal PanelController? PanelController => _panelController;
 
-    /// <summary>Set by the note editor (Task 10) to flush any save still
-    /// waiting out its debounce. Quit invokes this synchronously before
-    /// tearing anything else down — on macOS this exact path was the
-    /// difference between losing the last few seconds of typing and not.
-    /// There is no editor yet to wire this to, so it is a named seam rather
-    /// than a TODO.</summary>
-    internal Action? FlushPendingNoteSave { get; set; }
+    /// <summary>Set by NotesTab (Task 12), once it has constructed the one
+    /// NoteEditorHost, to flush any save still waiting out its debounce.
+    /// Awaited by Quit, bounded by FlushTimeout, before anything else is
+    /// torn down — a fire-and-forget Action here was the macOS build's own
+    /// bug before it was fixed: the flush racing process exit and losing.
+    /// There is nothing to set this before AttachController runs, so it is
+    /// a named seam rather than a TODO for the time in between.</summary>
+    internal Func<Task>? FlushPendingNoteSave { get; set; }
 
     public App() => InitializeComponent();
 
@@ -47,6 +58,31 @@ public partial class App : Application
 
         window.ApplyFrame(PanelGeometry.Collapsed(workAreaDips), scale);
         window.ShowWithoutActivating();
+
+        // Task 12: the one database this app opens. %LOCALAPPDATA%\Notebar —
+        // the conventional per-user, non-roaming location for an app's own
+        // data on Windows. A locked, corrupt, or otherwise inaccessible file
+        // must not stop the panel from showing at all: OpenInMemory is the
+        // same degrade path NotebarDatabase already documents for tests,
+        // pressed into service here so a bad database file costs the user a
+        // session of persistence rather than the app failing to launch.
+        string dbPath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Notebar", "notebar.sqlite");
+        NotebarDatabase database;
+        try
+        {
+            database = NotebarDatabase.Open(dbPath);
+        }
+        catch (Exception)
+        {
+            database = NotebarDatabase.OpenInMemory();
+        }
+        _database = database;
+
+        INoteRepository noteRepository = new SqliteNoteRepository(database);
+        IOpenTabRepository openTabRepository = new SqliteOpenTabRepository(database);
+        IAttachmentRepository attachmentRepository = new SqliteAttachmentRepository(database);
 
         // Held for the app's lifetime, not scoped to OnLaunched: the controller
         // owns the panel's whole state machine, and the monitor is the only
@@ -67,7 +103,7 @@ public partial class App : Application
         // with). RootPage exists already (PanelWindow's constructor built it via
         // InitializeComponent above), but the controller wrapping this same window could not
         // exist before this point, so this is the earliest this wiring can happen.
-        window.AttachController(panelController);
+        window.AttachController(panelController, noteRepository, openTabRepository, attachmentRepository);
 
         // One hidden window backs both the tray callback and the global
         // hotkey — see MessageWindow's remarks for why a second window
@@ -111,14 +147,47 @@ public partial class App : Application
     /// icon being visible — the same rule macOS follows, where the menu bar
     /// item can be hidden by the notch. Task 16's Settings window calls this
     /// too, once it exists.
+    ///
+    /// <para>
+    /// A plain synchronous <c>void</c> method — TrayIcon's menu callback and
+    /// GlobalHotKey both expect a bare <c>Action</c> — that fires QuitAsync
+    /// and returns immediately. The process does not actually end until
+    /// QuitAsync's own Environment.Exit(0) runs; the WinUI message loop is
+    /// still pumping in the meantime, which is what lets the awaited flush
+    /// below actually make progress.
+    /// </para>
     /// </remarks>
-    internal void Quit()
+    internal void Quit() => _ = QuitAsync();
+
+    /// <summary>The awaitable half of Quit. FlushPendingNoteSave is a
+    /// <c>Func&lt;Task&gt;</c>, not a fire-and-forget <c>Action</c>,
+    /// specifically so this can await it before anything else runs — wiring
+    /// an async save to a synchronous seam is exactly the bug that let the
+    /// flush race process exit and lose on macOS before that was fixed
+    /// there. Bounded by FlushTimeout: a save that throws is caught here
+    /// (NoteEditorHost.FlushPendingSaveAsync already catches its own, but
+    /// nothing upstream should have to trust that), and a save that never
+    /// completes at all must not be able to hang the app open forever.
+    /// </summary>
+    private async Task QuitAsync()
     {
-        FlushPendingNoteSave?.Invoke();
+        if (FlushPendingNoteSave is { } flush)
+        {
+            try
+            {
+                await Task.WhenAny(flush(), Task.Delay(FlushTimeout));
+            }
+            catch (Exception)
+            {
+                // Best-effort: a broken flush must not stop the app from
+                // quitting.
+            }
+        }
 
         _trayIcon?.Dispose();
         _hotKey?.Dispose();
         _messageWindow?.Dispose();
+        _database?.Dispose();
 
         // Exit() gives WinUI a chance to run its own shutdown notifications;
         // Environment.Exit is the backstop that actually ends the process

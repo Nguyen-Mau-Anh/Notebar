@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Notebar.App.Panel;
 using Notebar.Core.Panel;
+using Notebar.Core.Repositories;
 
 namespace Notebar.App.Features;
 
@@ -28,15 +29,6 @@ internal sealed partial class RootPage : Page
 
     private PanelViewModel? _viewModel;
 
-    /// <summary>Raised by the Notes toolbar's + button. Unwired for now -- Task 12 builds
-    /// the note repository plumbing this needs and subscribes to it; this task only owns the
-    /// button existing, being a full hit target, and firing something.</summary>
-    internal event RoutedEventHandler? NewNoteRequested;
-
-    /// <summary>Raised by the Notes toolbar's all-notes chevron. Unwired for now -- see
-    /// NewNoteRequested.</summary>
-    internal event RoutedEventHandler? AllNotesRequested;
-
     /// <summary>Raised by the Tasks toolbar's + button. Unwired for now -- Task 14 owns the
     /// task repository plumbing this needs.</summary>
     internal event RoutedEventHandler? NewTaskRequested;
@@ -50,14 +42,27 @@ internal sealed partial class RootPage : Page
     /// <summary>Called once by PanelWindow after both this page and the PanelController it
     /// needs exist. The controller cannot exist before the window does -- App.xaml.cs
     /// constructs PanelWindow first and PanelController second, wrapping the window it just
-    /// built -- so it cannot be handed in through this page's own constructor.</summary>
-    internal void AttachController(PanelController panelController)
+    /// built -- so it cannot be handed in through this page's own constructor. The three
+    /// repositories are Task 12's -- NotesTabControl is the only thing that needs them.</summary>
+    internal void AttachController(
+        PanelController panelController,
+        INoteRepository noteRepository,
+        IOpenTabRepository openTabRepository,
+        IAttachmentRepository attachmentRepository)
     {
         _viewModel = new PanelViewModel(panelController);
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         Rail.ViewModel = _viewModel;
         Handle.SetTab(_viewModel.Selection);
         UpdateActiveTab();
+
+        NotesTabControl.Attach(noteRepository, openTabRepository, attachmentRepository, panelController);
+
+        // Task 12's data-loss fix: App.FlushPendingNoteSave is the seam Task 9
+        // named but nothing could assign until a NoteEditorHost existed to
+        // wire it to. App.Quit() awaits this before disposing anything or
+        // exiting -- see App.QuitAsync.
+        ((App)Application.Current).FlushPendingNoteSave = NotesTabControl.FlushPendingSaveAsync;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -90,20 +95,13 @@ internal sealed partial class RootPage : Page
         }
     }
 
-    private void OnNewNoteClick(object sender, RoutedEventArgs e) => NewNoteRequested?.Invoke(this, e);
-    private void OnAllNotesClick(object sender, RoutedEventArgs e) => AllNotesRequested?.Invoke(this, e);
     private void OnNewTaskClick(object sender, RoutedEventArgs e) => NewTaskRequested?.Invoke(this, e);
 
     // --- Toolbar action button hover (screen spec §2: "stepping to accent on hover with a
     // radius.sm background at accent 8%"). Every colour here is a static {ThemeResource ...}
     // reference in RootPage.xaml; this only ever toggles which pre-declared element is
-    // visible, never assigns a brush from code. ---
-
-    private void OnNewNotePointerEntered(object sender, PointerRoutedEventArgs e) => SetActionHover(NewNoteHoverBg, NewNoteIconOff, NewNoteIconOn, true);
-    private void OnNewNotePointerExited(object sender, PointerRoutedEventArgs e) => SetActionHover(NewNoteHoverBg, NewNoteIconOff, NewNoteIconOn, false);
-
-    private void OnAllNotesPointerEntered(object sender, PointerRoutedEventArgs e) => SetActionHover(AllNotesHoverBg, AllNotesIconOff, AllNotesIconOn, true);
-    private void OnAllNotesPointerExited(object sender, PointerRoutedEventArgs e) => SetActionHover(AllNotesHoverBg, AllNotesIconOff, AllNotesIconOn, false);
+    // visible, never assigns a brush from code. The Notes toolbar's own +/all-notes buttons
+    // moved to NotesTab (Task 12) along with this same pattern -- see NotesTab.xaml.cs.
 
     private void OnNewTaskPointerEntered(object sender, PointerRoutedEventArgs e) => SetActionHover(NewTaskHoverBg, NewTaskIconOff, NewTaskIconOn, true);
     private void OnNewTaskPointerExited(object sender, PointerRoutedEventArgs e) => SetActionHover(NewTaskHoverBg, NewTaskIconOff, NewTaskIconOn, false);

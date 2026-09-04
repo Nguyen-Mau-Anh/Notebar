@@ -36,6 +36,13 @@ internal sealed class PanelViewModel : INotifyPropertyChanged
         _isMaximized = panelController.IsMaximized;
     }
 
+    /// <summary>The PanelController this view model wraps. Task 12's Notes tab
+    /// needs it directly -- not through this view model's own thin surface --
+    /// for HasOpenOverlay (the all-notes menu's popover) and PanelHidden (the
+    /// note editor's flush-on-collapse), neither of which belongs on a view
+    /// model scoped to the rail's own pin/maximize/selection state.</summary>
+    internal PanelController Controller => _panelController;
+
     internal AppTab Selection
     {
         get => _selection;

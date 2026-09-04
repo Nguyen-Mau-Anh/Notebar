@@ -78,10 +78,18 @@ internal sealed partial class NoteEditorHost : UserControl
     private Task? _initialization;
     private volatile bool _hasFocus;
 
-    /// <summary>Raised after a change message has been persisted, with the
-    /// html that was saved and the plain-text shadow derived from it
-    /// (html, plain).</summary>
-    internal event Action<string, string>? ContentChanged;
+    /// <summary>Raised after a change message has been persisted, with the id
+    /// of the note that was saved, the html that was saved, and the
+    /// plain-text shadow derived from it (id, html, plain).</summary>
+    /// <remarks>
+    /// Carries the id explicitly rather than leaving the caller to infer
+    /// "whichever note is active right now": LoadAsync flushes the outgoing
+    /// note's pending save BEFORE switching this host's own notion of the
+    /// active note, so a Task 12 caller reacting to this event while a
+    /// switch is in flight would otherwise attribute the flushed note's
+    /// content to the note being switched to.
+    /// </remarks>
+    internal event Action<string, string, string>? ContentChanged;
 
     /// <summary>Raised when the user clicks a notebar:// link chip (url). The
     /// host (not the WebView) owns what happens next — switching tabs,
@@ -176,6 +184,15 @@ internal sealed partial class NoteEditorHost : UserControl
         await EnsureInitializedAsync();
         await CallAsync("notebar.setTheme", theme);
     }
+
+    /// <summary>Moves keyboard focus into the editor. Screen spec §4.1: a new
+    /// note gets text-input focus immediately, the zero-friction-capture
+    /// path the product exists for. Deliberately not called on every tab
+    /// switch — PanelWindow.ShowWithoutActivating's whole point is that
+    /// hovering the panel open never steals focus from whatever the user
+    /// was doing elsewhere, and forcing focus on a switch the user didn't
+    /// explicitly ask for would undercut that.</summary>
+    internal void FocusEditor() => WebView.Focus(FocusState.Programmatic);
 
     /// <summary>Reads the guest's current content directly and saves it
     /// immediately, bypassing editor.js's 400ms debounce.</summary>
@@ -333,7 +350,7 @@ internal sealed partial class NoteEditorHost : UserControl
         _noteRepository.Update(_note);
         _attachmentRepository.DeleteUnreferenced(ExtractAssetIds(html));
 
-        ContentChanged?.Invoke(html, plain);
+        ContentChanged?.Invoke(_note.Id, html, plain);
     }
 
     private static IReadOnlySet<string> ExtractAssetIds(string html)

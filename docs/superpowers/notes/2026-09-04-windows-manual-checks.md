@@ -77,3 +77,46 @@ this file rather than starting a new one.
 - [ ] Right-clicking in the editor does NOT show the browser context menu.
 - [ ] F12 does NOT open developer tools.
 - [ ] A pasted external link opens in the default browser, not inside the panel.
+
+## Notes tab
+
+- [ ] Clicking a tab switches to it on the first click, every time.
+- [ ] Every tab's close (x) sits on the LEFT of the title, not the right.
+- [ ] Hovering an inactive tab shows its close button; moving off hides it again unless that
+      tab is active (the active tab's close button stays visible either way).
+- [ ] Typing in a note's body does NOT change its tab's title.
+- [ ] Double-clicking a tab's title opens an inline rename field, pre-filled with the current
+      title.
+- [ ] Renaming a tab to something new updates the tab label immediately.
+- [ ] Renaming a tab to blank (clear the field, press Enter, or click away) reverts to the
+      previous title -- it never leaves an empty tab label.
+- [ ] Pressing Escape while renaming cancels without changing the title.
+- [ ] Closing a brand-new, still-untitled, still-empty tab deletes the note -- reopening the
+      all-notes menu does not show it.
+- [ ] Closing a tab that has a title, or body text, or both, KEEPS the note -- it still shows
+      in the all-notes menu afterward, and reopening it from there shows the same content.
+- [ ] Typing into a new note and closing its tab within a second or two (before the 400ms
+      autosave would obviously have settled) still keeps the note -- it must not be deleted
+      as if it were still empty.
+- [ ] Clicking the chevron/all-notes button opens a menu listing every note, not only open
+      ones, most recently updated first.
+- [ ] A note that already has an open tab shows a small accent dot next to its title in that
+      menu.
+- [ ] While the all-notes menu is open, moving the cursor off the panel does NOT collapse it.
+- [ ] Clicking a row in the all-notes menu opens that note (creating a tab for it if it did
+      not have one) and closes the menu.
+- [ ] Clicking away from the all-notes menu closes it, and the panel becomes collapsible
+      again afterward (it does not get stuck open).
+- [ ] Pressing Escape while the all-notes menu is open closes it the same way.
+- [ ] Clicking `+` creates a new untitled note tab, makes it active, and gives the editor
+      focus immediately so typing starts right away.
+- [ ] Open tabs (which ones, their order, and which is active) survive collapsing and
+      re-expanding the panel.
+- [ ] Open tabs survive quitting and relaunching the app -- the same tabs reopen in the same
+      order, with the same one active.
+- [ ] Switching tabs flushes the previous note's typing -- switch away immediately after
+      typing, then switch back: the text is there.
+- [ ] Collapsing the panel immediately after typing, then re-expanding: the text is there.
+- [ ] Type in a note and quit immediately (tray menu Quit, not just closing/collapsing): on
+      relaunch, the typed text is present -- it must not be lost to a save that lost the race
+      with the app exiting.
