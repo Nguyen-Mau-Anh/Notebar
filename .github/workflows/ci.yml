@@ -193,11 +193,16 @@ jobs:
       # zip above is the primary artifact). Every prior variant (default
       # target, csproj or sln, dotnet build or msbuild.exe, with the
       # AppxManifest/Manifest/Content item group present, across two
-      # WindowsAppSDK major versions) produced an empty package.map.txt with
-      # no AppxManifest.xml ever staged, because a plain /t:Build with
-      # GenerateAppxPackageOnBuild=true never runs the publish pipeline that
-      # _ComputeAppxPackagePayload depends on. /t:Publish plus an explicit
-      # publish profile drives that pipeline.
+      # WindowsAppSDK major versions, /t:Build vs /t:Publish) produced an
+      # empty package.map.txt with no AppxManifest.xml ever staged.
+      # /t:Publish + PublishProfile=win-x64 (previous attempt) turned out to
+      # never actually load the .pubxml: the build output path stayed
+      # RID-less (net9.0-windows10.0.22621.0\, not ...\win-x64\), and the
+      # log showed the Publish target running without ever invoking
+      # ComputeFilesToPublish or PublishItemsOutputGroup — the real .NET
+      # publish pipeline never engaged. Passing RuntimeIdentifier and
+      # SelfContained explicitly on the command line, rather than relying on
+      # profile auto-discovery, to force that pipeline to actually run.
       - name: Package MSIX
         id: package_msix
         continue-on-error: true
@@ -207,7 +212,8 @@ jobs:
           /t:Publish
           /p:Configuration=Release
           /p:Platform=x64
-          /p:PublishProfile=win-x64
+          /p:RuntimeIdentifier=win-x64
+          /p:SelfContained=true
           /p:GenerateAppxPackageOnBuild=true
           /p:AppxPackageSigningEnabled=false
           /p:UapAppxPackageBuildMode=SideloadOnly
