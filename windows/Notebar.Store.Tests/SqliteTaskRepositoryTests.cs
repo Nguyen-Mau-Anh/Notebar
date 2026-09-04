@@ -83,15 +83,28 @@ public class SqliteTaskRepositoryTests : IDisposable
         Assert.Null(moved.CompletedAt);
     }
 
-    /// Reordering within Done must not restamp — the completion time is when it
-    /// was finished, not when it was last dragged.
+    /// A completion time is when the work finished, not when the card was last
+    /// dragged — so reordering inside Done must not restamp it.
     [Fact]
     public void ReorderingWithinDoneKeepsTheOriginalCompletionTime()
     {
-        var a = _repo.Create("a", TaskSchema.DoneColumnId);
+        // `a` must ENTER Done by a move. Creating it there leaves CompletedAt
+        // null, and the final assertion then compares null to null and passes
+        // whatever Move does — which is exactly how this test shipped unable
+        // to fail.
+        var a = _repo.Create("a", TaskSchema.QueueColumnId);
         var b = _repo.Create("b", TaskSchema.DoneColumnId);
-        var stampedA = _repo.Move(a.Id, TaskSchema.DoneColumnId, null, b.Id);
-        var first = stampedA.CompletedAt;
+
+        var stamped = _repo.Move(a.Id, TaskSchema.DoneColumnId, null, b.Id);
+        var first = stamped.CompletedAt;
+        Assert.NotNull(first);
+
+        // Stored timestamps round-trip at millisecond precision (Sql.DateFormat).
+        // Two Move calls issued back to back can land in the same millisecond,
+        // which would make a restamping bug produce a value that happens to
+        // equal `first` anyway — this sleep is what makes a wrong Move actually
+        // fail here instead of passing by a timing coincidence.
+        Thread.Sleep(20);
 
         var again = _repo.Move(a.Id, TaskSchema.DoneColumnId, b.Id, null);
         Assert.Equal(first, again.CompletedAt);
