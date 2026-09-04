@@ -41,7 +41,7 @@ namespace Notebar.App.Features.Notes;
 /// collapse again is a defect that used to require quitting the app.
 /// </para>
 /// </remarks>
-public sealed partial class NoteEditorHost : UserControl
+internal sealed partial class NoteEditorHost : UserControl
 {
     private const string Origin = "https://notebar.local";
     private const string EditorUrl = Origin + "/editor.html";
@@ -77,7 +77,7 @@ public sealed partial class NoteEditorHost : UserControl
     /// sources, never a single stored flag.</summary>
     internal bool HasFocus => _hasFocus;
 
-    public NoteEditorHost(
+    internal NoteEditorHost(
         INoteRepository noteRepository,
         IAttachmentRepository attachmentRepository,
         PanelController panelController)
