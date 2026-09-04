@@ -146,6 +146,32 @@ public sealed partial class NoteEditorHost : UserControl
         await CallAsync("notebar.setTheme", theme);
     }
 
+    /// <summary>Reads the guest's current content directly and saves it
+    /// immediately, bypassing editor.js's 400ms debounce.</summary>
+    /// <remarks>
+    /// App.xaml.cs (Task 9) already carries a named seam,
+    /// <c>App.FlushPendingNoteSave</c>, specifically for this: a save still
+    /// waiting out its debounce when the user quits must not be lost, the
+    /// same rule the macOS build followed. Wiring that seam to this method
+    /// is not this task's to do — App.xaml.cs is outside Task 10's file
+    /// list, and nothing constructs a NoteEditorHost yet for it to wire to —
+    /// but this is the mechanism whichever task does that wiring needs. Note
+    /// for whoever does: <c>Quit()</c> currently calls
+    /// <c>Environment.Exit(0)</c> right after invoking the (synchronous)
+    /// <c>Action</c> seam, so it will need to become awaitable for a flush
+    /// through here to actually complete before the process ends.
+    /// </remarks>
+    internal async Task FlushPendingSaveAsync()
+    {
+        if (_initialization is not { IsCompletedSuccessfully: true }) return;
+
+        // ExecuteScriptAsync's result is always the JSON encoding of the JS
+        // expression's value; getContent() returns a string, so this is a
+        // JSON string literal that has to be decoded back to raw HTML.
+        string encoded = await WebView.CoreWebView2.ExecuteScriptAsync("notebar.getContent()");
+        SaveChange(JsonSerializer.Deserialize<string>(encoded) ?? "");
+    }
+
     // --- setup ---
 
     /// <summary>Coalesces overlapping callers onto the same initialization
