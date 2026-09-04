@@ -7,6 +7,19 @@ the macOS app has, built from scratch against the same design rather than shared
 sync.** A note written on one is not visible on the other. If you use both, treat them as
 two different notebooks, not one that follows you across machines.
 
+### Requirements
+
+- **Windows 11, version 22H2 or later, x64.** That's what this build was built and tested
+  against (`TargetPlatformMinVersion` 10.0.22621). Whether it actually refuses to start on
+  an older Windows has not been verified — this is what was targeted, not a guarantee of
+  what happens below it.
+- **The Microsoft Edge WebView2 Runtime.** The note editor is a WebView2 control, and
+  without the runtime installed, opening a note will fail to start. It ships preinstalled
+  with Windows 11 and current Windows 10, so most people already have it and don't need to
+  do anything. If Notebar fails the first time you open a note, install the
+  [Evergreen WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section)
+  from Microsoft and try again.
+
 ### Install: unzip and run
 
 Download `Notebar-portable-x64.zip` from this release, unzip it anywhere, and run

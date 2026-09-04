@@ -48,7 +48,19 @@ public partial class App : Application
     /// a named seam rather than a TODO for the time in between.</summary>
     internal Func<Task>? FlushPendingNoteSave { get; set; }
 
-    public App() => InitializeComponent();
+    public App()
+    {
+        InitializeComponent();
+
+        // A first release nobody has run yet: a crash that leaves no trace is the worst
+        // position to debug from. Recorded where Export Diagnostics can reach it (assuming
+        // the process survives long enough to reach Settings -- it may not), then left to
+        // proceed: deliberately NOT setting e.Handled = true. Swallowing an unhandled
+        // exception would leave the app alive in a state nothing here can reason about,
+        // which is worse than a crash the user can actually report.
+        UnhandledException += (_, e) =>
+            NotebarLog.Error($"Unhandled exception: {e.Exception}");
+    }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {

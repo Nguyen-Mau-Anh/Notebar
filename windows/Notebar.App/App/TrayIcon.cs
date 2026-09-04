@@ -117,7 +117,15 @@ internal sealed class TrayIcon : IDisposable
             switch ((uint)selected)
             {
                 case MenuIdShow:
-                    _panelController.Send(PanelEvent.ToggleRequested);
+                    // Unlike the icon's own left-click (OnTrayLeftClicked, above), which is
+                    // genuinely a toggle, this menu item is labelled "Show Notebar" -- if it
+                    // sent ToggleRequested unconditionally it would HIDE an already-open
+                    // panel, which reads as broken the first time anyone tries it while the
+                    // panel happens to be open. Only act when the panel is actually hidden,
+                    // the same guard App.ShowSettings already uses for the "Settings" item
+                    // right below.
+                    if (_panelController.State == PanelState.Hidden)
+                        _panelController.Send(PanelEvent.ToggleRequested);
                     break;
                 case MenuIdSettings:
                     _onShowSettings();

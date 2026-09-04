@@ -99,3 +99,8 @@ jobs:
           files: artifacts/*
           name: Notebar for Windows ${{ github.ref_name }}
           body_path: docs/release-notes-windows.md
+          # A first Windows build nobody has ever run must not become the repository's
+          # "Latest" release and shadow the shipped, actually-used macOS build on the front
+          # page. Marked prerelease until a human has actually run it and this can be
+          # promoted deliberately.
+          prerelease: true
