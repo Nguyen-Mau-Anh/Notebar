@@ -65,7 +65,9 @@
     <!-- The note editor's guest half (HTML/CSS/JS) is static content served
          by NoteEditorHost through a virtual host mapping, not compiled code —
          it must land next to the exe at run time. -->
-    <Content Include="Editor\**\*.*">
+    <!-- Exclude .cs: EditorBridge.cs lives in this folder and is compiled, so a
+         bare *.* glob shipped the source file itself in the release zip. -->
+    <Content Include="Editor\**\*.*" Exclude="Editor\**\*.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
