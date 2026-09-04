@@ -36,6 +36,14 @@ public static class LinkUrl
         if (type is null) return null;
 
         string id = rest[(slash + 1)..];
+
+        // Strip a query string or fragment. Build never emits one, but chip
+        // clicks arrive from a WebView2 context and browsers normalise URLs —
+        // Swift's URLComponents-based parser isolated the path, and the two
+        // codecs must agree.
+        int cut = id.IndexOfAny(['?', '#']);
+        if (cut >= 0) id = id[..cut];
+
         if (id.Length == 0) return null;
 
         return new LinkTarget(type.Value, id);

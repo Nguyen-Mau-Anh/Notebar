@@ -30,4 +30,19 @@ public class LinkUrlTests
     [InlineData("")]
     public void RejectsAnythingItDidNotBuild(string url) =>
         Assert.Null(LinkUrl.Parse(url));
+
+    [Theory]
+    [InlineData("notebar://note/abc?x=1", "abc")]
+    [InlineData("notebar://note/abc#frag", "abc")]
+    [InlineData("notebar://task/xyz?a=1#f", "xyz")]
+    public void StripsQueryAndFragment(string url, string expectedId)
+    {
+        var target = LinkUrl.Parse(url);
+        Assert.NotNull(target);
+        Assert.Equal(expectedId, target.Value.Id);
+    }
+
+    [Fact]
+    public void RejectsAnEmptyIdAfterStripping() =>
+        Assert.Null(LinkUrl.Parse("notebar://note/?x=1"));
 }

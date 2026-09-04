@@ -26,7 +26,7 @@ if grep -rEn "$FORBIDDEN" Notebar.Core --include='*.cs' --exclude-dir=bin --excl
 fi
 
 # 3. Fully-qualified use bypasses the using check, so catch the common ones too.
-QUALIFIED='(System\.IO\.File|System\.IO\.Directory|System\.Net\.|Microsoft\.UI\.|Windows\.UI\.)'
+QUALIFIED='(System\.IO\.File|System\.IO\.Directory|System\.Net\.|Microsoft\.UI\.|Windows\.UI\.|Microsoft\.Win32\.)'
 if grep -rEn "$QUALIFIED" Notebar.Core --include='*.cs' --exclude-dir=bin --exclude-dir=obj ; then
   echo "FAIL: fully-qualified platform type used in Notebar.Core (see above)."
   FAIL=1
@@ -47,6 +47,16 @@ fi
 if grep -qE '<Reference\s' Notebar.Core/Notebar.Core.csproj; then
   echo "FAIL: Notebar.Core.csproj declares a bare <Reference>. The core takes none."
   grep -nE '<Reference\s' Notebar.Core/Notebar.Core.csproj
+  FAIL=1
+fi
+
+# 6. `using static System.IO.Path;` slips checks 2-5: check 2 needs the
+#    namespace immediately after `using` and `static` intervenes; check 3 greps
+#    only File/Directory literals, so Path, Stream, StreamReader, BinaryWriter
+#    and friends pass unseen. Same hole as check 4, reached via static.
+USING_STATIC='^\s*(global\s+)?using\s+static\s+(Microsoft\.UI|Microsoft\.Win32|Microsoft\.Data|Windows\.|WinRT|System\.Drawing|System\.IO|System\.Net|System\.Windows)'
+if grep -rEn "$USING_STATIC" Notebar.Core --include='*.cs' --exclude-dir=bin --exclude-dir=obj; then
+  echo "FAIL: using static of a forbidden namespace in Notebar.Core (see above)."
   FAIL=1
 fi
 
