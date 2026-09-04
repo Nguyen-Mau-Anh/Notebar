@@ -113,4 +113,39 @@ public class PanelGeometryTests
         var dips = new PanelRect(10, 20, 30, 40);
         Assert.Equal(dips, PanelGeometry.ToPhysical(dips, scale: 1.0));
     }
+
+    /// Windows' common scale factors are 125%, 150% and 175%. Only 1.0, 1.5 and
+    /// 2.0 were covered, and a fractional scale is exactly where a rounding or
+    /// ordering mistake in the conversion would first show up.
+    [Theory]
+    [InlineData(1.25)]
+    [InlineData(1.75)]
+    public void ScalesCorrectlyAtFractionalDpi(double scale)
+    {
+        var dips = new PanelRect(100, 50, PanelTiming.PanelWidth, 700);
+        var physical = PanelGeometry.ToPhysical(dips, scale);
+
+        Assert.Equal(100 * scale, physical.X, precision: 6);
+        Assert.Equal(50 * scale, physical.Y, precision: 6);
+        Assert.Equal(PanelTiming.PanelWidth * scale, physical.Width, precision: 6);
+        Assert.Equal(700 * scale, physical.Height, precision: 6);
+
+        // And back again, losslessly.
+        var roundTripped = PanelGeometry.ToDips(new PanelPoint(physical.X, physical.Y), scale);
+        Assert.Equal(dips.X, roundTripped.X, precision: 6);
+        Assert.Equal(dips.Y, roundTripped.Y, precision: 6);
+    }
+
+    /// The boundary where clamping starts to matter: a work area exactly the
+    /// size of the panel. Clamping must be a no-op here, not an off-by-one.
+    [Fact]
+    public void AWorkAreaExactlyThePanelSizeIsNotClamped()
+    {
+        var exact = new PanelRect(0, 0, PanelTiming.PanelWidth, 1000);
+        var r = PanelGeometry.Expanded(exact);
+
+        Assert.Equal(PanelTiming.PanelWidth, r.Width, precision: 6);
+        Assert.Equal(exact.MinX, r.MinX, precision: 6);
+        Assert.Equal(exact.MaxX, r.MaxX, precision: 6);
+    }
 }
