@@ -153,29 +153,34 @@ jobs:
         shell: bash
         run: windows/scripts/check-core-purity.sh
 
-      - name: Build the WinUI app
-        run: dotnet build windows/Notebar.App/Notebar.App.csproj -c Release -p:Platform=x64
+      # Everything below builds against the .sln, not the .csproj directly,
+      # with restore as its own step — that's the exact pattern in
+      # Microsoft's own "Set up continuous integration for your WinUI app"
+      # doc (learn.microsoft.com/windows/apps/package-and-deploy/ci-for-winui3,
+      # current as of 2026-08-30). Building the .csproj alone reproduced
+      # "You must include a valid app package manifest file named
+      # AppxManifest.xml in the source" across four different fixes
+      # (RuntimeIdentifier, msbuild vs dotnet build, the AppxManifest/
+      # Manifest/Content item group); switching the packaging build's entry
+      # point to the solution, matching the documented example exactly, is
+      # the one variable that example and our prior attempts didn't share.
+      - name: Restore the solution
+        run: msbuild windows/Notebar.sln /t:Restore /p:Configuration=Release
 
-      # Packaging goes through msbuild.exe (not dotnet build) for the reason
-      # noted above. /restore because this is a separate MSBuild invocation
-      # from the dotnet-build step above, not guaranteed to see its restore
-      # output. AppxBundle=Never keeps the output a single .msix rather than
-      # a .msixbundle, matching what "Collect the package" looks for. No
-      # RuntimeIdentifier here on purpose: Microsoft's own single-project-MSIX
-      # CI example (github.com/andrewleader/WindowsAppSDKGallery) never sets
-      # one, and pinning it earlier put the build in a RID-suffixed output
-      # path (obj\...\win-x64\) that the single-project MSIX packaging
-      # targets never populated with a manifest.
+      - name: Build the WinUI app
+        run: msbuild windows/Notebar.sln /p:Configuration=Release /p:Platform=x64
+
+      # AppxBundle=Never keeps the output a single .msix rather than a
+      # .msixbundle, matching what "Collect the package" looks for.
       - name: Package MSIX
         run: >
-          msbuild windows/Notebar.App/Notebar.App.csproj
-          /restore
+          msbuild windows/Notebar.sln
           /p:Configuration=Release
           /p:Platform=x64
-          /p:GenerateAppxPackageOnBuild=true
+          /p:UapAppxPackageBuildMode=SideloadOnly
           /p:AppxBundle=Never
           /p:AppxPackageSigningEnabled=false
-          /p:UapAppxPackageBuildMode=SideloadOnly
+          /p:GenerateAppxPackageOnBuild=true
 
       - name: Collect the package
         shell: bash
