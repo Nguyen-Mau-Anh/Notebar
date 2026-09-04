@@ -119,6 +119,14 @@ struct SettingsTab: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        SettingsRow(title: "Quit") {
+                            Button("Quit Notebar", role: .destructive) {
+                                NSApp.terminate(nil)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.red)
+                            .accessibilityLabel("Quit Notebar")
+                        }
                         SettingsComingSoonRow(detail: "Launch at login.")
                     }
                 }
