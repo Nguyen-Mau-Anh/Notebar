@@ -5,8 +5,8 @@
 
     <!--
         What the panel shows at rest, flush to the right screen edge, once it has retreated
-        instead of vanishing (screen spec §2 "Collapsed handle"). Drawn by the same window --
-        PanelController simply resizes the window to this rect -- so this control only needs
+        instead of vanishing (screen spec §2 "Collapsed handle"). Drawn by the same window —
+        PanelController simply resizes the window to this rect — so this control only needs
         to fill whatever frame it is given; it does not size or position itself.
 
         Centred inside it is the current tab's icon, so the user can see what they will get

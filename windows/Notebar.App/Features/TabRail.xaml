@@ -10,14 +10,14 @@
 
         Every clickable cell below sets an explicit Background="Transparent" and stretches to
         fill its whole cell. A WinUI Button whose Background is left null hit-tests only its
-        glyph/text content, not the padding or the stretch area around it -- that is exactly
+        glyph/text content, not the padding or the stretch area around it — that is exactly
         what made tab switching on macOS take "a few clicks or somehow click not work" (task
         dispatch, defect row 1). Transparent is hit-testable; null is not.
 
         No brush is ever assigned from code-behind here. Every colour-bearing property is a
         static {ThemeResource ...} reference in this file; the code-behind only ever toggles
         Visibility between pre-declared elements. That is what keeps this live across a theme
-        switch without the "text stayed black in dark mode" failure mode -- a value captured
+        switch without the "text stayed black in dark mode" failure mode — a value captured
         once in C# would not re-resolve when RequestedTheme changes underneath it.
     -->
     <Grid x:Name="RailRoot" Background="{ThemeResource SurfaceRailBackgroundBrush}" Width="56">
@@ -173,7 +173,7 @@
 
         <!--
             Bottom-anchored collapse control (§2 "Collapse control"): dismisses the panel
-            without the cursor leaving it -- the mouse-reachable equivalent of Escape, and
+            without the cursor leaving it — the mouse-reachable equivalent of Escape, and
             the only in-panel way out when pinned.
         -->
         <Button x:Name="CollapseButton" Grid.Row="7" Click="OnCollapseClick"

@@ -8,7 +8,7 @@
         DesignSystem/Tokens.xaml is merged into Application.Resources in App.xaml, not here.
         TabRail, TabToolbar, and CollapsedHandle are each a separately-compiled UserControl
         whose own XAML resolves its own {StaticResource}/{ThemeResource} references while
-        THAT control's InitializeComponent runs -- which is not guaranteed to happen only
+        THAT control's InitializeComponent runs — which is not guaranteed to happen only
         after it is already attached under this page in the visual tree. Application-level
         resources are visible to every lookup regardless of that ordering, which is the
         conventional home for a shared token dictionary for exactly this reason.
@@ -39,7 +39,7 @@
                     </Grid.RowDefinitions>
 
                     <!--
-                        Left slot is a placeholder for the real, scrollable tab strip -- that
+                        Left slot is a placeholder for the real, scrollable tab strip — that
                         is Task 12's NoteTabStrip, built against Features/Notes/, which this
                         task does not touch. What matters here is the toolbar's fixed shape:
                         context on the left, + and the all-notes chevron fixed on the right,
@@ -88,7 +88,7 @@
                     <!--
                         Body placeholder. The real editor (Features/Notes/NoteEditorHost, plus
                         the tab strip and all-notes menu Task 12 builds) is out of scope for
-                        this task -- Features/Notes/ is being actively worked on elsewhere in
+                        this task — Features/Notes/ is being actively worked on elsewhere in
                         this tree. This happens to be the real §4.3 empty-state copy, since
                         with nothing wired up yet there genuinely are zero open notes.
                     -->
@@ -98,7 +98,7 @@
                                   HorizontalAlignment="Center"/>
                         <TextBlock Text="No notes open" Style="{StaticResource ChromeTitleTextStyle}"
                                    HorizontalAlignment="Center"/>
-                        <TextBlock Text="Notes you write stay ready here -- click + to start one."
+                        <TextBlock Text="Notes you write stay ready here — click + to start one."
                                    Style="{StaticResource ChromeCaptionTextStyle}" HorizontalAlignment="Center"
                                    TextAlignment="Center" TextWrapping="Wrap" MaxWidth="240"/>
                     </StackPanel>
@@ -138,7 +138,7 @@
                     </local:TabToolbar>
 
                     <!--
-                        Body placeholder -- Task 14 builds the real board against
+                        Body placeholder — Task 14 builds the real board against
                         Features/Tasks/. §5.4's own empty-state copy, for the same reason as
                         the Notes placeholder above.
                     -->
@@ -169,7 +169,7 @@
 
                     <!--
                         Body intentionally empty. Task 16 owns the real Settings tab
-                        (Features/Settings/SettingsTab) -- General/Activation/Data/About,
+                        (Features/Settings/SettingsTab) — General/Activation/Data/About,
                         wired to IAppStateRepository and IDiagnosticsRepository. Pre-building
                         that content here would only be replaced wholesale, so this task
                         stops at the toolbar the rail navigates to.

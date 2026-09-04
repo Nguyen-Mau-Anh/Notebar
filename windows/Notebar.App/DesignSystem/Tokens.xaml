@@ -1,7 +1,7 @@
 <!--
     Design tokens for the panel chrome (screen spec docs/design/2026-08-29-screen-spec.md
     §1). Every colour lives in ResourceDictionary.ThemeDictionaries under Light/Dark, never
-    as a bare literal a page could bake into content -- that is the one thing responsible
+    as a bare literal a page could bake into content — that is the one thing responsible
     for the macOS defect where note text stayed black in dark mode and never switched live:
     colour was read once and stored, instead of resolved from the theme each time it is
     needed. Everything here is read via {ThemeResource ...}, never {StaticResource ...}, for
@@ -17,7 +17,7 @@
 
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
-            <!-- §1.1 Color -- Light appearance -->
+            <!-- §1.1 Color — Light appearance -->
             <SolidColorBrush x:Key="SurfaceRailBackgroundBrush" Color="#F5F5F7"/>
             <SolidColorBrush x:Key="SurfacePanelBackgroundBrush" Color="#FBFBFD"/>
             <SolidColorBrush x:Key="SurfaceElevatedBackgroundBrush" Color="#FFFFFF"/>
@@ -30,7 +30,7 @@
             <SolidColorBrush x:Key="SuccessBrush" Color="#34C759"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
-            <!-- §1.2 Color -- Dark appearance -->
+            <!-- §1.2 Color — Dark appearance -->
             <SolidColorBrush x:Key="SurfaceRailBackgroundBrush" Color="#1E1E20"/>
             <SolidColorBrush x:Key="SurfacePanelBackgroundBrush" Color="#242426"/>
             <SolidColorBrush x:Key="SurfaceElevatedBackgroundBrush" Color="#2C2C2E"/>
@@ -45,7 +45,7 @@
     </ResourceDictionary.ThemeDictionaries>
 
     <!--
-        Accent: always the live system accent colour, never a hardcoded hex -- screen spec
+        Accent: always the live system accent colour, never a hardcoded hex — screen spec
         §1's rule for NSColor.controlAccentColor ("must always be read from ... never
         hardcoded"). SystemAccentColor is the WinUI/WinAppSDK equivalent, supplied by
         XamlControlsResources (merged in App.xaml) and already theme-aware on its own, so it
@@ -78,7 +78,7 @@
 
     <!--
         radius.md applied to the collapsed handle's left corners only, square on the right
-        (§2 "Collapsed handle" -- the edge flush against the physical screen boundary is
+        (§2 "Collapsed handle" — the edge flush against the physical screen boundary is
         never rounded).
     -->
     <CornerRadius x:Key="HandleCornerRadius">10,0,0,10</CornerRadius>
@@ -122,7 +122,7 @@
         sizes only. Anything that is also load-bearing for the window's own frame (handle
         width/height, the 340dip compact breakpoint, ...) lives in
         Notebar.Core.Panel.PanelTiming instead and must be read from there in code, never
-        duplicated here as a second literal -- see RootPage.
+        duplicated here as a second literal — see RootPage.
     -->
     <x:Double x:Key="RailItemHeight">48</x:Double>
     <x:Double x:Key="ControlToggleSize">24</x:Double>

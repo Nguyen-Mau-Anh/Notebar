@@ -6,7 +6,7 @@
     <!--
         The 36pt toolbar row every content tab opens with (screen spec §2 "Tab toolbar"):
         context on the left, primary action on the right, a hairline beneath. The shape is
-        fixed across tabs -- RootPage supplies different LeftContent/RightContent per tab,
+        fixed across tabs — RootPage supplies different LeftContent/RightContent per tab,
         never a different layout, so the primary action is always in the same place.
     -->
     <StackPanel>
