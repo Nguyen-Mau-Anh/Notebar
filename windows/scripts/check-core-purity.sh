@@ -32,6 +32,24 @@ if grep -rEn "$QUALIFIED" Notebar.Core --include='*.cs' --exclude-dir=bin --excl
   FAIL=1
 fi
 
+# 4. A using alias hides the aliased namespace from every check above:
+#    `using IO = System.IO;` puts IO after `using`, so check 2's namespace grep
+#    misses it, and code written against it never contains the literal
+#    `System.IO.File` check 3 looks for. One line defeated the whole guard.
+ALIAS='^\s*(global\s+)?using\s+[A-Za-z_][A-Za-z0-9_]*\s*='
+if grep -rEn "$ALIAS" Notebar.Core --include='*.cs' --exclude-dir=bin --exclude-dir=obj; then
+  echo "FAIL: using alias in Notebar.Core (see above). An alias hides the aliased"
+  echo "      namespace from every other check here; write the namespace out instead."
+  FAIL=1
+fi
+
+# 5. A bare assembly reference bypasses check 1's Package/Project grep entirely.
+if grep -qE '<Reference\s' Notebar.Core/Notebar.Core.csproj; then
+  echo "FAIL: Notebar.Core.csproj declares a bare <Reference>. The core takes none."
+  grep -nE '<Reference\s' Notebar.Core/Notebar.Core.csproj
+  FAIL=1
+fi
+
 if [ "$FAIL" -eq 0 ]; then
   echo "OK: Notebar.Core is pure."
 fi
