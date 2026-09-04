@@ -144,6 +144,16 @@ internal sealed partial class NoteEditorHost : UserControl
     /// WebView2 on first use.</summary>
     internal async Task LoadAsync(Note note)
     {
+        // Flush the outgoing note BEFORE switching. Clearing the guest's
+        // pending timer in setContent is what stops a stale save landing on
+        // the wrong note (fix round 1) — but on its own that just discards
+        // the last edits to the note being left, trading corruption for
+        // silent loss. Both halves are needed: flush what is pending, then
+        // invalidate anything still in flight. Reads _note, so it must run
+        // before _note is reassigned below. On the very first call
+        // _initialization hasn't started, so this is a guarded no-op.
+        await FlushPendingSaveAsync();
+
         _note = note;
         _generation++;
         await EnsureInitializedAsync();
@@ -186,11 +196,23 @@ internal sealed partial class NoteEditorHost : UserControl
     {
         if (_initialization is not { IsCompletedSuccessfully: true }) return;
 
-        // ExecuteScriptAsync's result is always the JSON encoding of the JS
-        // expression's value; getContent() returns a string, so this is a
-        // JSON string literal that has to be decoded back to raw HTML.
-        string encoded = await WebView.CoreWebView2.ExecuteScriptAsync("notebar.getContent()");
-        SaveChange(JsonSerializer.Deserialize<string>(encoded) ?? "");
+        try
+        {
+            // ExecuteScriptAsync's result is always the JSON encoding of the
+            // JS expression's value; getContent() returns a string, so this
+            // is a JSON string literal that has to be decoded back to raw
+            // HTML.
+            string encoded = await WebView.CoreWebView2.ExecuteScriptAsync("notebar.getContent()");
+            SaveChange(JsonSerializer.Deserialize<string>(encoded) ?? "");
+        }
+        catch (Exception)
+        {
+            // LoadAsync calls this on every note switch now (fix round 2),
+            // not only on quit — a renderer that just failed must not turn
+            // a tab switch into an unhandled exception. Best effort: skip
+            // the flush rather than crash. The generation guard already
+            // protects the note being switched to either way.
+        }
     }
 
     // --- setup ---
