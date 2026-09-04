@@ -148,7 +148,7 @@ struct MentionPopoverView: View {
         .frame(width: Tokens.Size.mentionPopoverWidth)
         .background(
             RoundedRectangle(cornerRadius: Tokens.Radius.md)
-                .fill(.regularMaterial)
+                .fill(Tokens.Surface.elevated.color)
         )
         .overlay(
             RoundedRectangle(cornerRadius: Tokens.Radius.md)

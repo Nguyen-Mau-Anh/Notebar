@@ -42,7 +42,7 @@ struct TabRail: View {
         .padding(.top, Tokens.Space.md)
         .frame(width: isCompact ? Tokens.Size.railWidthCompact : Tokens.Size.railWidth)
         .frame(maxHeight: .infinity)
-        .background(.ultraThinMaterial)
+        .notebarSurface(.rail)
     }
 }
 

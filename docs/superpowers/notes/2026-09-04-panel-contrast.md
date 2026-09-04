@@ -4,8 +4,8 @@ Reported with a screenshot of the shipped macOS build: with a white window behin
 the panel, the note tab labels and the formatting-bar icons are barely legible.
 The rail survives; everything on the panel surface does not.
 
-**To be fixed after the Windows milestone ships.** Diagnosis recorded now, while
-the evidence is in hand.
+**Fixed.** The diagnosis below was written first; the section at the end records what the
+arithmetic changed about the fix.
 
 ## macOS — the cause, confirmed in the code
 
@@ -82,3 +82,61 @@ smallest text in the app.
 
 That splits the tiers by what they paint rather than by how faint they look: text
 gets the text threshold, decoration gets the graphics threshold.
+
+
+---
+
+# What the arithmetic changed
+
+The fix above says "make the panel surface opaque," and the screen spec §1 says something
+subtly different: each surface is a flat tint composited **over** a material at a stated
+opacity — 88% for the panel, 80% for the rail — so the material still supplies some
+backdrop. That reads like the better answer: it keeps the vibrancy and bounds the drift.
+
+It does not survive contact with the numbers. Composited against the worst-case backdrops
+(pure white and pure black), `text.secondary` on the spec's own opacities lands at:
+
+| surface | over white | over black |
+|---|---|---|
+| light panel, 88% | 4.91 OK | **3.74** large-text only |
+| light rail, 80% | 4.74 OK | **2.91** fails AA |
+| dark panel, 78% | **2.63** fails AA | 5.93 OK |
+| dark rail, 70% | **2.12** fails AA | 6.36 OK |
+
+The reported case is the last row: dark appearance, white window behind the panel, 2.12:1.
+That is the screenshot.
+
+Solving for the alpha that holds 4.5:1 in the worst case gives **0.92 to 0.99** depending on
+the surface. At 0.99 the backdrop contributes one percent — there is no material left to
+see. A translucency that has to be 99% opaque to be legible is not translucency, so the
+material was dropped rather than kept as a decorative one percent.
+
+## The alternative that was rejected
+
+Keeping the material and raising every foreground from `text.secondary` to `text.primary`
+also passes, comfortably (5.60 to 16.28). It was rejected on design grounds rather than
+contrast: it flattens the secondary tier out of existence. An inactive tab would read
+exactly like an active one, and the formatting bar would lose its "quiet until it applies
+to your caret" affordance — the thing that makes a toolbar readable at a glance.
+
+Losing the blur costs less than losing the hierarchy.
+
+## What shipped
+
+`Notebar/DesignSystem/Surface.swift` — `Tokens.Surface` with three opaque, appearance-aware
+colours (rail, panel, elevated) taken from the spec's palette, resolved per appearance
+through a dynamic `NSColor` so a light/dark switch is followed live rather than captured
+once. All four material call sites now go through it, and no bare material remains in the
+app.
+
+Guaranteed contrast, independent of whatever is behind the panel:
+
+| surface | `text.secondary` |
+|---|---|
+| light panel | 4.91 |
+| light rail | 4.66 |
+| dark panel | 5.40 |
+| dark rail | 5.80 |
+
+The Windows port already had opaque surfaces with these same values, which is why it never
+had this defect — the two platforms now agree.

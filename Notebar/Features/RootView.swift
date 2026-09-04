@@ -48,7 +48,7 @@ struct RootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(.regularMaterial)
+        .notebarSurface(.panel)
         // Left corners rounded at the panel's own radius, right corners
         // square: the panel is flush to the screen's right edge, same
         // treatment as `CollapsedHandle` below but at `radius.panel` rather
@@ -81,7 +81,7 @@ private struct CollapsedHandle: View {
             bottomTrailingRadius: 0,
             topTrailingRadius: 0
         )
-        .fill(.regularMaterial)
+        .fill(Tokens.Surface.panel.color)
         .overlay {
             Image(systemName: tab.symbol)
                 .font(.system(size: 18))
