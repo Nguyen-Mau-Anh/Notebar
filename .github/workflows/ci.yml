@@ -146,13 +146,20 @@ jobs:
         run: windows/scripts/check-core-purity.sh
 
       - name: Build the WinUI app
-        run: dotnet build windows/Notebar.App/Notebar.App.csproj -c Release -p:Platform=x64
+        run: dotnet build windows/Notebar.App/Notebar.App.csproj -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64
 
+      # MSIX packaging stages an AppxManifest.xml into a RID-specific
+      # intermediate layout. -p:Platform=x64 alone doesn't pin a single
+      # RuntimeIdentifier out of the project's <RuntimeIdentifiers>
+      # win-x64;win-arm64> list, so without -p:RuntimeIdentifier here MakeAppx
+      # finds no manifest to package and fails with "You must include a valid
+      # app package manifest file named AppxManifest.xml in the source."
       - name: Package MSIX
         run: >
           dotnet build windows/Notebar.App/Notebar.App.csproj
           -c Release
           -p:Platform=x64
+          -p:RuntimeIdentifier=win-x64
           -p:GenerateAppxPackageOnBuild=true
           -p:AppxPackageSigningEnabled=false
           -p:UapAppxPackageBuildMode=SideloadOnly
