@@ -8,6 +8,12 @@
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
+    <!-- The publish step passes "self-contained true", but that only bundles the
+         .NET runtime. The Windows App SDK runtime is a separate opt-in; without
+         this, Notebar.App.exe fails to start on any machine that doesn't already
+         have the Windows App SDK runtime installed, which is nearly all of them —
+         silently, or with a missing-DLL dialog. -->
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <!-- Task 16, task-1-report.md's Lead #1: WindowsPackageType=MSIX is not part of the
          standard WinUI single-project MSIX template (which relies on EnableMsixTooling=true
          alone) and is the one property, across 13 prior CI runs, whose presence correlated

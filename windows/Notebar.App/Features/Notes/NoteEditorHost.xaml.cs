@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -70,11 +69,12 @@ internal sealed partial class NoteEditorHost : UserControl
     // note we have already navigated away from — most dangerously, a
     // debounced "change" save still in flight when the switch happened,
     // which would otherwise overwrite the new note's body with the old
-    // one's and then, via DeleteUnreferenced, delete every image the new
-    // note actually references because the stale html doesn't mention
-    // them. Cancelling the guest's save timer in setContent narrows this
-    // window; this closes it, because ExecuteScriptAsync is an async round
-    // trip and the guest's timer can fire before that call lands.
+    // one's and then, via DeleteOrphans, delete every image the new note
+    // actually references, because nothing in the database mentions them
+    // any more once the row is overwritten. Cancelling the guest's save
+    // timer in setContent narrows this window; this closes it, because
+    // ExecuteScriptAsync is an async round trip and the guest's timer can
+    // fire before that call lands.
     private int _generation;
     private Task? _initialization;
     private volatile bool _hasFocus;
@@ -471,21 +471,10 @@ internal sealed partial class NoteEditorHost : UserControl
         string plain = NoteHtml.ToPlainText(html);
         _note = _note with { BodyHtml = html, BodyPlain = plain };
         _noteRepository.UpdateBody(_note.Id, html, plain);
-        _attachmentRepository.DeleteUnreferenced(ExtractAssetIds(html));
+        _attachmentRepository.DeleteOrphans();
 
         ContentChanged?.Invoke(_note.Id, html, plain);
     }
-
-    private static IReadOnlySet<string> ExtractAssetIds(string html)
-    {
-        var ids = new HashSet<string>();
-        foreach (Match match in AssetUrlPattern().Matches(html))
-            ids.Add(match.Groups[1].Value);
-        return ids;
-    }
-
-    [GeneratedRegex(@"https://notebar\.local/asset/([A-Za-z0-9-]+)")]
-    private static partial Regex AssetUrlPattern();
 
     private async Task HandleImageAsync(string dataUrl)
     {

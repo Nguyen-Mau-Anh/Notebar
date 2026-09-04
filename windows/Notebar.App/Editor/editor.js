@@ -9,7 +9,7 @@
 // is the backstop for a debounced save that was still in flight, against
 // the note being switched away from, when the switch happened: cancelling
 // the timer in setContent narrows the window, this closes it. Without it, a
-// stale save can land on the wrong note and, via DeleteUnreferenced, delete
+// stale save can land on the wrong note and, via DeleteOrphans, delete
 // every image the new note actually references.
 let docGeneration = 0;
 function post(message) {

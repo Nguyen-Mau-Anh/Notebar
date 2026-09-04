@@ -35,13 +35,21 @@ public sealed record Note(
     /// note with a title or a body is the user's actual content, and closing a
     /// tab must never destroy that.</summary>
     /// <remarks>
-    /// Checks BodyPlain, not BodyHtml. An "empty" editor document still
-    /// serializes to markup like &lt;p&gt;&lt;br&gt;&lt;/p&gt;, so a check
-    /// against BodyHtml would never be true for a real note and this predicate
-    /// would quietly stop working the moment the editor landed. BodyPlain is
-    /// exactly the visible-text shadow that already answers "is there anything
-    /// here."
+    /// Checks BodyPlain, not BodyHtml, for text content. An "empty" editor
+    /// document still serializes to markup like &lt;p&gt;&lt;br&gt;&lt;/p&gt;, so a
+    /// check against BodyHtml would never be true for a real note and this
+    /// predicate would quietly stop working the moment the editor landed.
+    /// BodyPlain is exactly the visible-text shadow that already answers "is
+    /// there anything here."
+    ///
+    /// Also checks for an image. BodyPlain is empty for a note whose only content
+    /// is a pasted screenshot, because an img contributes no text — so without this
+    /// clause, closing that tab would delete the note outright. macOS never hit
+    /// this: it embedded images in the note body itself, so an image-only note was
+    /// never textually empty. Here the image is a row in another table.
     /// </remarks>
     public bool IsEmptyAndUntitled =>
-        DisplayTitle == "Untitled" && string.IsNullOrWhiteSpace(BodyPlain);
+        DisplayTitle == "Untitled"
+        && string.IsNullOrWhiteSpace(BodyPlain)
+        && !BodyHtml.Contains("<img", StringComparison.OrdinalIgnoreCase);
 }

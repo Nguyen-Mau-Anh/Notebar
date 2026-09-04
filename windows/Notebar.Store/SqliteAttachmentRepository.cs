@@ -42,24 +42,18 @@ public sealed class SqliteAttachmentRepository(NotebarDatabase db) : IAttachment
             reader.GetInt32(3), reader.GetInt32(4), Sql.FromText(reader.GetString(5)));
     }
 
-    /// <summary>Deletes every attachment row whose id is not in
-    /// <paramref name="referencedIds"/>. Called after a note body save, so an
-    /// image the user deleted from a note stops occupying the database.</summary>
-    public void DeleteUnreferenced(IReadOnlySet<string> referencedIds)
+    /// <summary>Deletes every attachment row no note's body still references. See
+    /// <see cref="IAttachmentRepository.DeleteOrphans"/> for why this takes no
+    /// argument.</summary>
+    public void DeleteOrphans()
     {
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = "SELECT id FROM attachment";
-        var allIds = new List<string>();
-        using (var reader = cmd.ExecuteReader())
-            while (reader.Read()) allIds.Add(reader.GetString(0));
-
-        foreach (var id in allIds)
-        {
-            if (referencedIds.Contains(id)) continue;
-            using var delete = db.Connection.CreateCommand();
-            delete.CommandText = "DELETE FROM attachment WHERE id = $id";
-            delete.Parameters.AddWithValue("$id", id);
-            delete.ExecuteNonQuery();
-        }
+        cmd.CommandText = """
+            DELETE FROM attachment
+            WHERE NOT EXISTS (
+                SELECT 1 FROM note
+                WHERE note.body_html LIKE '%/asset/' || attachment.id || '%')
+            """;
+        cmd.ExecuteNonQuery();
     }
 }

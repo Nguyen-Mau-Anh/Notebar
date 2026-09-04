@@ -31,6 +31,20 @@ public class NoteTests
     public void HtmlBodyWithNoVisibleTextIsStillEmpty() =>
         Assert.True((Fresh() with { BodyHtml = "<p><br></p>", BodyPlain = "" }).IsEmptyAndUntitled);
 
+    /// A note whose only content is a pasted image is NOT empty — closing its tab
+    /// must not delete it. BodyPlain is "" for an img, which is what made this the
+    /// one kind of real content that read as disposable.
+    [Fact]
+    public void ANoteContainingOnlyAnImageIsNotEmpty()
+    {
+        var note = Fresh() with
+        {
+            BodyHtml = "<p><img src=\"https://notebar.local/asset/abc\"></p>",
+            BodyPlain = "",
+        };
+        Assert.False(note.IsEmptyAndUntitled);
+    }
+
     /// The rename UI refuses to commit a blank title, so this branch is
     /// defensive — but the tab strip renders it, so it must not quietly become
     /// an empty tab label.
