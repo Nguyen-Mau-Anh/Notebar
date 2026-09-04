@@ -20,6 +20,14 @@ internal sealed partial class TaskDetailPane : UserControl
     private PanelController? _panelController;
     private string? _taskId;
 
+    // CalendarView raises SelectedDatesChanged for programmatic mutation too, not just
+    // user clicks, so populating the picker from a task in Show() would otherwise write
+    // that same date straight back to the database and re-enter Show() by way of
+    // DueDateChanged -> TasksViewModel.UpdateDueDate -> WriteField -> SelectionChanged.
+    // Guarded with try/finally in Show() so an exception mid-set can never leave this
+    // stuck true, which would silently stop the user's own date edits from saving.
+    private bool _settingDueDate;
+
     internal event Action<string, string>? TitleCommitted;
     internal event Action<string, string>? DetailCommitted;
     internal event Action<string, int>? PriorityChanged;
@@ -59,15 +67,23 @@ internal sealed partial class TaskDetailPane : UserControl
         int priority = Math.Clamp(task.Priority, 0, PriorityLabels.Length - 1);
         PriorityButton.Content = "Priority: " + PriorityLabels[priority];
 
-        DueDateCalendar.SelectedDates.Clear();
-        if (task.DueAt is { } due)
+        _settingDueDate = true;
+        try
         {
-            DueDateButton.Content = "Due " + due.ToLocalTime().ToString("MMM d, yyyy", CultureInfo.InvariantCulture);
-            DueDateCalendar.SelectedDates.Add(due);
+            DueDateCalendar.SelectedDates.Clear();
+            if (task.DueAt is { } due)
+            {
+                DueDateButton.Content = "Due " + due.ToLocalTime().ToString("MMM d, yyyy", CultureInfo.InvariantCulture);
+                DueDateCalendar.SelectedDates.Add(due);
+            }
+            else
+            {
+                DueDateButton.Content = "Set due date";
+            }
         }
-        else
+        finally
         {
-            DueDateButton.Content = "Set due date";
+            _settingDueDate = false;
         }
 
         string meta = "Updated " + RelativeTime.Format(task.UpdatedAt);
@@ -127,6 +143,7 @@ internal sealed partial class TaskDetailPane : UserControl
 
     private void OnDueDateSelected(CalendarView sender, CalendarViewSelectedDatesChangedEventArgs args)
     {
+        if (_settingDueDate) return;
         if (_taskId is not { } id) return;
         if (args.AddedDates.Count == 0) return;
 

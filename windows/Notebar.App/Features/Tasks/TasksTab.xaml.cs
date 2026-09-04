@@ -48,6 +48,7 @@ internal sealed partial class TasksTab : UserControl
         _viewModel = viewModel;
         viewModel.BoardChanged += OnBoardChanged;
         viewModel.SelectionChanged += OnSelectionChanged;
+        viewModel.TaskChanged += RefreshCard;
 
         QueueList.ItemsSource = _queueItems;
         WorkingList.ItemsSource = _workingItems;
@@ -114,6 +115,34 @@ internal sealed partial class TasksTab : UserControl
         QueueCountLabel.Text = _queueItems.Count.ToString();
         WorkingCountLabel.Text = _workingItems.Count.ToString();
         DoneCountLabel.Text = _doneItems.Count.ToString();
+    }
+
+    /// <summary>Replaces the rendered card for one task. TaskCardVm is an immutable record
+    /// with no change notification, so mutating the underlying TaskItem in TasksViewModel
+    /// does not by itself repaint anything -- the instance already sitting in whichever
+    /// ObservableCollection holds it has to be swapped for a Replace notification to fire
+    /// at all. Without this, the board kept showing a task's old title, priority flag, and
+    /// overdue-due-date styling until something else forced a full BoardChanged rebuild --
+    /// the stale-copy bug class one layer up from TasksViewModel.WriteField's own
+    /// defence.</summary>
+    private void RefreshCard(string id)
+    {
+        if (_viewModel is null) return;
+        TaskItem? task = _viewModel.Find(id);
+        if (task is null) return;
+
+        TaskCardVm vm = TaskCardVm.From(task);
+        if (TryReplaceCard(_queueItems, vm)) return;
+        if (TryReplaceCard(_workingItems, vm)) return;
+        TryReplaceCard(_doneItems, vm);
+    }
+
+    private static bool TryReplaceCard(ObservableCollection<TaskCardVm> items, TaskCardVm vm)
+    {
+        int index = IndexOf(items, vm.Id);
+        if (index < 0) return false;
+        items[index] = vm;
+        return true;
     }
 
     // --- selection / detail pane ---
@@ -231,8 +260,9 @@ internal sealed partial class TasksTab : UserControl
         if (_viewModel is null) return;
 
         // DropResult is None for a drag released outside every valid target (cancelled by
-        // construction, per product spec §6.3) as well as for a plain click that never
-        // became a drag -- neither one moved anything, so there is nothing to persist.
+        // construction, per product spec §6.3) -- nothing moved, so there is nothing to
+        // persist. A plain click never reaches this handler at all: DragItemsStarting (and
+        // therefore this, DragItemsCompleted) only fires once a real drag gesture begins.
         if (args.DropResult != DataPackageOperation.Move) return;
         if (args.Items.Count == 0 || args.Items[0] is not TaskCardVm dragged) return;
 

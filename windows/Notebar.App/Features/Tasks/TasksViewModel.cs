@@ -22,6 +22,17 @@ namespace Notebar.App.Features.Tasks;
 /// it raises carries only the one changed field, so it can never round-trip a stale ColumnId
 /// or SortOrder back through <see cref="ITaskRepository.Update"/>.
 /// </para>
+/// <para>
+/// <b>The rendered board is a second copy of this same fact.</b> TasksTab's three
+/// <c>ObservableCollection&lt;TaskCardVm&gt;</c> hold an immutable, no-notification
+/// snapshot of each task, taken once by <see cref="TaskCardVm.From"/>. This class being
+/// canonical does nothing for a stale *card* on its own -- <see cref="TaskChanged"/> is
+/// what tells TasksTab which id to re-project and swap into its collection in place.
+/// Fired from every path that mutates a row already sitting on the board (<see
+/// cref="WriteField"/>, <see cref="MoveTask"/>), never from <see cref="CreateTask"/> or
+/// <see cref="DeleteTask"/> (already covered by <see cref="BoardChanged"/>'s full
+/// rebuild).
+/// </para>
 /// </remarks>
 internal sealed class TasksViewModel
 {
@@ -43,10 +54,20 @@ internal sealed class TasksViewModel
     /// in its title/detail fields).</summary>
     internal event Action? SelectionChanged;
 
+    /// <summary>Raised with a task's id whenever that task's own row changes in place --
+    /// a field edit or a drag-move -- so TasksTab can re-project and swap just that one
+    /// card. See the class remarks on why the canonical copy alone does not keep the
+    /// board's rendered cards current.</summary>
+    internal event Action<string>? TaskChanged;
+
     internal IReadOnlyList<BoardColumn> Columns => _columns;
     internal int TotalTaskCount => _allTasks.Count;
     internal string? SelectedTaskId { get; private set; }
-    internal TaskItem? SelectedTask => SelectedTaskId is { } id ? _allTasks.Find(t => t.Id == id) : null;
+    internal TaskItem? SelectedTask => SelectedTaskId is { } id ? Find(id) : null;
+
+    /// <summary>Looks up any task by id, not only the selected one -- TasksTab.RefreshCard
+    /// uses this to re-project a task that <see cref="TaskChanged"/> just named.</summary>
+    internal TaskItem? Find(string id) => _allTasks.Find(t => t.Id == id);
 
     internal TasksViewModel(ITaskRepository tasks) => _tasks = tasks;
 
@@ -128,6 +149,7 @@ internal sealed class TasksViewModel
         TaskItem moved = _tasks.Move(id, columnId, beforeId, afterId);
         int index = _allTasks.FindIndex(t => t.Id == id);
         if (index >= 0) _allTasks[index] = moved;
+        TaskChanged?.Invoke(id);
         if (SelectedTaskId == id) SelectionChanged?.Invoke();
     }
 
@@ -145,6 +167,7 @@ internal sealed class TasksViewModel
         TaskItem updated = apply(_allTasks[index]);
         _tasks.Update(updated);
         _allTasks[index] = updated;
+        TaskChanged?.Invoke(id);
         if (SelectedTaskId == id) SelectionChanged?.Invoke();
     }
 }

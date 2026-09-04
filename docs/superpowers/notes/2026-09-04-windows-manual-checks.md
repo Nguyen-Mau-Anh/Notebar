@@ -195,6 +195,14 @@ this file rather than starting a new one.
       after every create, delete, and drag.
 - [ ] The board's empty state ("No tasks yet") shows only when all three columns are empty,
       and disappears the moment the first task is created.
+- [ ] Rename a task in the detail pane, go back -- the card on the board shows the new name
+      immediately, without needing to reopen the detail pane to confirm the rename stuck.
+- [ ] Change a task's priority in the detail pane, go back -- the card's flag (or lack of
+      one) on the board reflects the new priority immediately.
+- [ ] Drag a card with a past due date into Done, then drag it back out -- the card's
+      due-date styling updates (stops, then resumes, showing overdue-red) on the board
+      itself, without opening its detail pane.
+- [ ] Start dragging a card -- the detail pane does not flash open as the drag begins.
 
 ## Linking
 
