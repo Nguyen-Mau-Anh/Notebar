@@ -130,7 +130,11 @@ excluded from `body_plain` for the same reason they are on macOS: they are edito
 not text the user wrote.
 
 Images are stored in an `attachment` table keyed by id and referenced from the HTML as
-`<img src="notebar-asset://<id>">`, rather than embedded as data URIs. macOS embeds them in
+`<img src="https://notebar.local/asset/<id>">`, rather than embedded as data URIs. That URL
+form rather than a custom `notebar-asset://` scheme because WebView2 serves it through
+`AddWebResourceRequestedFilter` + `WebResourceRequested`, which hands the host a plain
+request/response pair; registering a genuinely custom scheme requires far more ceremony for
+the same result. macOS embeds them in
 the RTFD blob and had to add a `summaries()` query to avoid loading them for list views; doing
 it properly here costs nothing extra at the start.
 
@@ -146,10 +150,13 @@ Database location: `%LOCALAPPDATA%\Notebar\notebar.sqlite`.
 350 ms close dwell, 24 pt edge tolerance, 180/140 ms animations — and are user-adjustable in
 Settings with the same clamping applied on read.
 
-`EdgeZone` ports exactly, with one correction: Windows screen coordinates are top-left origin
-with y increasing **downward**, the opposite of Cocoa. The geometry is otherwise identical;
-the port must flip that and the ported tests must be updated to match, deliberately rather
-than by accident.
+`EdgeZone` ports **verbatim, with no coordinate flip and no changed test numbers.** Windows
+screen coordinates are top-left origin with y increasing downward, the opposite of Cocoa —
+but every expression in `EdgeZone` is written in terms of a rect's min and max on each axis
+(`MaxX - cursor.X`, `MinY <= cursor.Y <= MaxY`), and both coordinate systems have MinY..MaxY
+spanning the screen. Only the *meaning* of MinY changes, from "bottom" to "top"; no arithmetic
+does. The doc comment must be rewritten to say so, because the reason it ports cleanly is
+non-obvious and the next reader will otherwise assume a flip was forgotten.
 
 Panel geometry: 340 dip wide, 70% of the work area's height, vertically centred, flush to the
 right edge, collapsing to a 30×56 handle. Maximize takes it to half the work-area width at
