@@ -49,12 +49,32 @@ internal sealed partial class NoteEditorHost : UserControl
     private const uint MaxImageEdge = 2000;
     private static readonly TimeSpan FocusPollInterval = TimeSpan.FromMilliseconds(250);
 
+    // A stored attachment's mime_type is trusted enough to read back and
+    // downscale, but not enough to interpolate verbatim into a response
+    // header: restrict it to what this editor ever writes there, and fall
+    // back rather than let a malformed stored value inject a header.
+    private static readonly HashSet<string> AllowedAttachmentMimeTypes =
+        new(StringComparer.OrdinalIgnoreCase) { "image/png", "image/jpeg", "image/gif", "image/webp" };
+
     private readonly INoteRepository _noteRepository;
     private readonly IAttachmentRepository _attachmentRepository;
     private readonly PanelController _panelController;
     private readonly DispatcherQueueTimer _focusPollTimer;
 
     private Note? _note;
+
+    // Bumped in LoadAsync, before the guest is told to load the new note,
+    // and stamped by editor.js on every message it posts back. A message
+    // whose generation doesn't match this is one the guest built against a
+    // note we have already navigated away from — most dangerously, a
+    // debounced "change" save still in flight when the switch happened,
+    // which would otherwise overwrite the new note's body with the old
+    // one's and then, via DeleteUnreferenced, delete every image the new
+    // note actually references because the stale html doesn't mention
+    // them. Cancelling the guest's save timer in setContent narrows this
+    // window; this closes it, because ExecuteScriptAsync is an async round
+    // trip and the guest's timer can fire before that call lands.
+    private int _generation;
     private Task? _initialization;
     private volatile bool _hasFocus;
 
@@ -125,8 +145,9 @@ internal sealed partial class NoteEditorHost : UserControl
     internal async Task LoadAsync(Note note)
     {
         _note = note;
+        _generation++;
         await EnsureInitializedAsync();
-        await CallAsync("notebar.setContent", note.BodyHtml);
+        await CallAsync("notebar.setContent", note.BodyHtml, _generation);
     }
 
     /// <summary>Runs a rich-text command (bold, insertUnorderedList, formatBlock
@@ -242,6 +263,14 @@ internal sealed partial class NoteEditorHost : UserControl
 
         EditorMessage? message = EditorMessage.Parse(raw);
         if (message is null) return;
+
+        // See _generation's remarks: a message built against a note we have
+        // already navigated away from must never be acted on, above all a
+        // stale "change" or "image" that would otherwise save or attach
+        // content onto the wrong note. int? != int is false only when both
+        // sides match, so a missing generation (message.Generation is null)
+        // is treated the same as a mismatch.
+        if (message.Generation != _generation) return;
 
         switch (message.Type)
         {
@@ -363,15 +392,23 @@ internal sealed partial class NoteEditorHost : UserControl
     // --- host -> guest ---
 
     /// <summary>Builds and runs <c>notebar.&lt;function&gt;(arg1, arg2, ...)</c>,
-    /// JSON-encoding every argument so a note body containing a quote or a
-    /// backslash can never break out of the generated script.</summary>
-    private async Task CallAsync(string function, params string?[] args)
+    /// JSON-encoding every string argument so a note body containing a quote
+    /// or a backslash can never break out of the generated script. Ints
+    /// (e.g. the generation stamp) are emitted as raw numeric literals, not
+    /// quoted — the guest reads them back as numbers, not strings.</summary>
+    private async Task CallAsync(string function, params object?[] args)
     {
         string call = $"{function}({string.Join(", ", args.Select(EncodeArg))})";
         await WebView.CoreWebView2.ExecuteScriptAsync(call);
     }
 
-    private static string EncodeArg(string? arg) => arg is null ? "null" : JsonSerializer.Serialize(arg);
+    private static string EncodeArg(object? arg) => arg switch
+    {
+        null => "null",
+        int i => i.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        string s => JsonSerializer.Serialize(s),
+        _ => JsonSerializer.Serialize(arg),
+    };
 
     private async Task RefreshFocusAsync()
     {
@@ -404,9 +441,16 @@ internal sealed partial class NoteEditorHost : UserControl
             return;
         }
 
+        // The stored value is trusted enough to read back, not enough to
+        // interpolate verbatim into a response header: a malformed row
+        // (however it got that way) must not be able to inject one.
+        string mime = AllowedAttachmentMimeTypes.Contains(attachment.MimeType)
+            ? attachment.MimeType
+            : "application/octet-stream";
+
         IRandomAccessStream stream = new MemoryStream(attachment.Data).AsRandomAccessStream();
         e.Response = sender.Environment.CreateWebResourceResponse(
-            stream, 200, "OK", $"Content-Type: {attachment.MimeType}");
+            stream, 200, "OK", $"Content-Type: {mime}");
     }
 
     private static void OnNewWindowRequested(CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs e)

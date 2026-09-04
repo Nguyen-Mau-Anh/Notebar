@@ -3,8 +3,17 @@
 // for the host side that parses what post() sends and drives window.notebar.
 
 // Guest → host. Every message is {type, ...}; the host switches on type.
+// Every message also carries the document generation it was produced
+// against (see setContent below) — the host drops anything whose
+// generation does not match the note it currently thinks is loaded. That
+// is the backstop for a debounced save that was still in flight, against
+// the note being switched away from, when the switch happened: cancelling
+// the timer in setContent narrows the window, this closes it. Without it, a
+// stale save can land on the wrong note and, via DeleteUnreferenced, delete
+// every image the new note actually references.
+let docGeneration = 0;
 function post(message) {
-  window.chrome.webview.postMessage(JSON.stringify(message));
+  window.chrome.webview.postMessage(JSON.stringify({ ...message, generation: docGeneration }));
 }
 
 const doc = document.getElementById('doc');
@@ -16,11 +25,23 @@ doc.addEventListener('focus', () => post({ type: 'focus', focused: true }));
 doc.addEventListener('blur',  () => post({ type: 'focus', focused: false }));
 doc.addEventListener('keydown', () => post({ type: 'keystroke' }));
 
+// The html actually captured for a save: a clone with tombstone styling
+// stripped. markTombstones toggles that class on the live DOM, and this
+// same DOM's innerHTML is what a save would otherwise capture verbatim —
+// tombstone-ness is derived from which link targets still exist and must
+// never round-trip through storage, the same rule that keeps color out of
+// stored content.
+function contentForSave() {
+  const clone = doc.cloneNode(true);
+  clone.querySelectorAll('a.tombstone').forEach(a => a.classList.remove('tombstone'));
+  return clone.innerHTML;
+}
+
 // Debounced content change. 400 ms matches the macOS editor's save debounce.
 let saveTimer = null;
 doc.addEventListener('input', () => {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => post({ type: 'change', html: doc.innerHTML }), 400);
+  saveTimer = setTimeout(() => post({ type: 'change', html: contentForSave() }), 400);
 });
 
 // A link chip is a navigation the host handles, never one the WebView performs.
@@ -37,7 +58,7 @@ doc.addEventListener('click', (e) => {
 doc.addEventListener('change', (e) => {
   if (e.target.matches('input[type="checkbox"]')) {
     e.target.toggleAttribute('checked', e.target.checked);
-    post({ type: 'change', html: doc.innerHTML });
+    post({ type: 'change', html: contentForSave() });
   }
 });
 
@@ -54,8 +75,16 @@ doc.addEventListener('paste', (e) => {
 
 // Host → guest.
 window.notebar = {
-  setContent(html)      { doc.innerHTML = html; },
-  getContent()          { return doc.innerHTML; },
+  setContent(html, generation) {
+    // Replacing the document invalidates any save still waiting out its
+    // debounce: it describes the note we are navigating away from, not
+    // the one about to be shown.
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    docGeneration = generation;
+    doc.innerHTML = html;
+  },
+  getContent()          { return contentForSave(); },
   hasFocus()            { return document.activeElement === doc; },
   setTheme(theme)       { document.documentElement.dataset.theme = theme; },
   exec(command, value)  { doc.focus(); document.execCommand(command, false, value ?? null); },

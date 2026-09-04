@@ -37,6 +37,17 @@ internal sealed record EditorMessage(
     [JsonPropertyName("focused")]
     public bool? Focused { get; init; }
 
+    /// <summary>The guest document's generation at the moment this message
+    /// was posted (editor.js stamps every outgoing message with it). The
+    /// host compares this against the generation it bumped when it last
+    /// told the guest to load a note, and drops anything that doesn't
+    /// match — see NoteEditorHost.OnWebMessageReceived. A message that
+    /// never went through post() (i.e. this is null) is treated the same
+    /// as a mismatch: if in doubt, it describes a note that is no longer
+    /// current.</summary>
+    [JsonPropertyName("generation")]
+    public int? Generation { get; init; }
+
     /// <summary>Null for anything that is not a well-formed EditorMessage —
     /// a malformed message from the guest is a bridge bug, not something
     /// worth taking the host down over.</summary>
