@@ -106,9 +106,18 @@ jobs:
 
           ls -la artifacts
 
-      - name: Fail if the portable zip is missing
+      # Checks the zip is a runnable app, not merely that a file exists. v0.1.0
+      # shipped a zip containing Notebar.App.dll and all 591 dependencies but no
+      # executable — the project was building as a library — and the old guard
+      # passed it, because it only asked whether the file was there.
+      - name: Fail if the portable zip has no launcher
         shell: bash
-        run: test -f artifacts/Notebar-portable-x64.zip
+        run: |
+          test -f artifacts/Notebar-portable-x64.zip
+          unzip -l artifacts/Notebar-portable-x64.zip | grep -q 'Notebar\.App\.exe' \
+            || { echo "::error::the portable zip contains no Notebar.App.exe"; exit 1; }
+          unzip -l artifacts/Notebar-portable-x64.zip | grep -q 'Editor/editor\.js' \
+            || { echo "::error::the portable zip is missing the editor's guest files"; exit 1; }
 
       - uses: softprops/action-gh-release@v2
         with:
