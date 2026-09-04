@@ -381,13 +381,29 @@ Expected: `Passed! - Failed: 0, Passed: 2`.
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="$WASDK" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="$SDKBUILDTOOLS" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Notebar.Core/Notebar.Core.csproj" />
   </ItemGroup>
+  <!-- Single-project MSIX: the manifest and the tile assets must be declared as
+       items. Nothing generates them, and without the AppxManifest item MakeAppx
+       is handed a package directory with no manifest and fails with 0x80080203,
+       "You must include a valid app package manifest file named AppxManifest.xml
+       in the source" — with no earlier error to explain it. -->
+  <ItemGroup>
+    <AppxManifest Include="Package.appxmanifest">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+    <Manifest Include="$(ApplicationManifest)" />
+    <Content Include="Assets\**\*.png" />
+  </ItemGroup>
 </Project>
 ```
+
+`$SDKBUILDTOOLS` is discovered the same way as `$WASDK` — the Windows App SDK's own
+dependency chain sets a floor, and pinning below it produces an NU1605 downgrade error rather
+than a helpful message.
 
 `windows/Notebar.App/app.manifest` — PerMonitorV2 matters: without it every geometry
 calculation is wrong on a scaled display, silently, and only on the user's machine.
@@ -708,6 +724,27 @@ Append a fourth job to `.github/workflows/ci.yml`, alongside the existing `core`
 
 `if-no-files-found: error` is deliberate. A packaging step that produces nothing while
 reporting success is exactly the failure this whole task exists to rule out.
+
+**The portable zip is the primary artifact and its step must not depend on MSIX succeeding.**
+An unsigned MSIX cannot be installed by double-click — it needs an `Add-AppxPackage` incantation
+— while the zip needs no installation ceremony at all. Publish and upload it in its own step,
+before the MSIX step, so a packaging problem can never leave the pipeline with nothing
+distributable:
+
+```yaml
+      - name: Publish the portable build
+        run: >
+          dotnet publish windows/Notebar.App/Notebar.App.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:Platform=x64 -p:WindowsPackageType=None
+          -o publish/portable
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notebar-windows-portable
+          path: publish/portable/
+          if-no-files-found: error
+```
 
 - [ ] **Step 13: Commit and push, then watch CI**
 
