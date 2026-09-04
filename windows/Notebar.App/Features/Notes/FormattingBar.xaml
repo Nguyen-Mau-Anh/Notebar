@@ -190,12 +190,22 @@
                                 Background="{ThemeResource AccentHover08Brush}" Visibility="Collapsed"/>
                         <Border x:Name="ChecklistActiveBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
                                 Background="{ThemeResource AccentSelected12Brush}" Visibility="Collapsed"/>
-                        <TextBlock x:Name="ChecklistTextOff" Text="&#x2611;" FontSize="15"
-                                   Foreground="{ThemeResource TextSecondaryBrush}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="ChecklistTextOn" Text="&#x2611;" FontSize="15"
-                                   Foreground="{ThemeResource AccentBrush}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        <!-- FontIcon, not a plain Unicode glyph: U+2611 (☑) sits in the same
+                             Unicode block as U+2610 (☐), one of the six glyphs that shipped
+                             invisible on macOS — "probably covered by font fallback" is
+                             exactly the risk that caused that defect. Segoe Fluent Icons
+                             ships with Windows 11 itself (this app's TargetPlatformMinVersion
+                             is 10.0.22621), so E73A (CheckboxComposite) is present by
+                             construction rather than by fallback — unlike the ASCII glyphs
+                             on the other seven buttons, which need no such guarantee. -->
+                        <FontIcon x:Name="ChecklistTextOff" FontFamily="Segoe Fluent Icons"
+                                  Glyph="&#xE73A;" FontSize="15"
+                                  Foreground="{ThemeResource TextSecondaryBrush}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <FontIcon x:Name="ChecklistTextOn" FontFamily="Segoe Fluent Icons"
+                                  Glyph="&#xE73A;" FontSize="15"
+                                  Foreground="{ThemeResource AccentBrush}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
                     </Grid>
                 </Button>
 
