@@ -5647,6 +5647,30 @@ In `Notebar.App.csproj`:
 
 ---
 
+### Interaction defects to avoid — Tasks 11–15
+
+Every item below is a defect the macOS app shipped and then had to fix, found by the user driving
+the app rather than by review or tests. None of them appear in any spec, which is exactly why they
+are written down here: Tasks 11–15 cover the same surface, and a reviewer reading a diff will not
+catch any of them.
+
+| macOS defect | What went wrong | Windows equivalent |
+|---|---|---|
+| Tab switching took several clicks | The hit target was the glyph, not the cell | Give every rail and toolbar button a stretched, **non-null** background brush. A `null` Background is not hit-testable in WinUI; `Transparent` is. |
+| The pin toggle was one click behind | Observation fired before the mutation | Bind `IsChecked` two-way and set the controller flag in the property **setter**, not a `Click` handler. |
+| A tab's `×` was mis-clicked constantly | It sat on the right, where the next tab's label begins | Put the close affordance on the **left** of the title. |
+| Typing renamed the tab | The title tracked the body | `Title` is a stored, user-edited column. Typing in a note must never change its tab label. |
+| Text stayed black in dark mode, and did not switch live | Colour was baked into stored content, and no appearance hook existed | Theme via `ResourceDictionary.ThemeDictionaries`; never store a colour in content. Setting `RequestedTheme` on the root must re-resolve everything **live**. |
+| A checkbox lost its "checked" look on reopen | Styling was stored rather than derived | Derive appearance from `input.checked` and from whether a link target still exists — never from a stored class a round-trip can drop. |
+| List markers were invisible on empty lines | TextKit will not draw an `NSTextList` marker, so macOS synthesised them as real text | The browser draws them natively. **Do not port that workaround.** |
+| Six Unicode glyphs rendered as nothing | They were absent from the system font and shipped invisible | Use real elements (`<input type="checkbox">`), not glyph characters. |
+| An empty task column could not be dropped into | The group shrink-wrapped to its header | Each column's `ListView` must stretch to fill its column and carry a `MinHeight`. |
+| A new task appeared as "New Task" with no way to rename it | Creation and editing were separate flows | Create inline and immediately editable. |
+| The panel collapsed out from under an open menu | No overlay suppression | Set `PanelController.HasOpenOverlay = true` while any flyout, menu or dialog is open. |
+| Closing a tab destroyed real content | Emptiness was judged by the wrong field | `Note.IsEmptyAndUntitled` is the only test. It checks `BodyPlain`, never markup. |
+
+---
+
 ### Task 11: Shell chrome — tab rail, toolbar, handle, pin, maximize, collapse
 
 Everything in `docs/design/2026-08-29-screen-spec.md` that is not a tab's contents. That
