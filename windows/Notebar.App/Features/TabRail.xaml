@@ -20,7 +20,8 @@
         switch without the "text stayed black in dark mode" failure mode — a value captured
         once in C# would not re-resolve when RequestedTheme changes underneath it.
     -->
-    <Grid x:Name="RailRoot" Background="{ThemeResource SurfaceRailBackgroundBrush}" Width="56">
+    <Grid x:Name="RailRoot" Background="{ThemeResource SurfaceRailBackgroundBrush}"
+          Width="{StaticResource RailWidth}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -32,8 +33,9 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- space.md (16pt) top clearance before the control row (§2 "Safe margins"). -->
-        <Grid Grid.Row="0" Margin="0,16,0,0" Height="32">
+        <!-- space.xs (8pt) top clearance before the control row (§2 "Safe margins"). -->
+        <Grid Grid.Row="0" Margin="{StaticResource ControlRowTopMargin}"
+              Height="{StaticResource ControlRowHeight}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
@@ -46,7 +48,7 @@
                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                           Checked="OnPinToggled" Unchecked="OnPinToggled"
                           AutomationProperties.Name="Pin panel">
-                <Grid Width="24" Height="24">
+                <Grid Width="{StaticResource ControlToggleSize}" Height="{StaticResource ControlToggleSize}">
                     <Border x:Name="PinOnBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
                             Background="{ThemeResource AccentToggleOn10Brush}" Visibility="Collapsed"/>
                     <FontIcon x:Name="PinIconOff" Glyph="&#xE718;" FontSize="15"
@@ -63,7 +65,7 @@
                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                           Checked="OnMaximizeToggled" Unchecked="OnMaximizeToggled"
                           AutomationProperties.Name="Maximize panel">
-                <Grid Width="24" Height="24">
+                <Grid Width="{StaticResource ControlToggleSize}" Height="{StaticResource ControlToggleSize}">
                     <Border x:Name="MaximizeOnBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
                             Background="{ThemeResource AccentToggleOn10Brush}" Visibility="Collapsed"/>
                     <FontIcon x:Name="MaximizeIconOff" Glyph="&#xE740;" FontSize="15"
@@ -74,14 +76,15 @@
             </ToggleButton>
         </Grid>
 
-        <Border Grid.Row="1" Height="1" Margin="8,4,8,4" Background="{ThemeResource BorderSeparatorBrush}"/>
+        <Border Grid.Row="1" Height="{StaticResource HairlineThickness}" Margin="{StaticResource RailHairlineMargin}"
+                Background="{ThemeResource BorderSeparatorBrush}"/>
 
         <!-- Notes -->
         <Button x:Name="NotesButton" Grid.Row="2" Click="OnNotesClick"
                 Background="Transparent" BorderThickness="0" Padding="0"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                 VerticalContentAlignment="Stretch"
-                Margin="8,0,8,0" Height="48"
+                Margin="{StaticResource RailTabMargin}" Height="{StaticResource RailItemHeight}"
                 PointerEntered="OnNotesPointerEntered" PointerExited="OnNotesPointerExited"
                 AutomationProperties.Name="Notes">
             <Grid>
@@ -89,7 +92,8 @@
                         Background="{ThemeResource AccentHover04Brush}" Visibility="Collapsed"/>
                 <Border x:Name="NotesSelectedBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
                         Background="{ThemeResource AccentSelected12Brush}" Visibility="Collapsed"/>
-                <Rectangle x:Name="NotesIndicator" Width="2.5" Height="24" RadiusX="1.25" RadiusY="1.25"
+                <Rectangle x:Name="NotesIndicator" Width="{StaticResource RailIndicatorWidth}" Height="{StaticResource RailIndicatorHeight}"
+                           RadiusX="{StaticResource RailIndicatorRadius}" RadiusY="{StaticResource RailIndicatorRadius}"
                            HorizontalAlignment="Right" VerticalAlignment="Center"
                            Fill="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
                 <StackPanel Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -112,7 +116,7 @@
                 Background="Transparent" BorderThickness="0" Padding="0"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                 VerticalContentAlignment="Stretch"
-                Margin="8,0,8,0" Height="48"
+                Margin="{StaticResource RailTabMargin}" Height="{StaticResource RailItemHeight}"
                 PointerEntered="OnTasksPointerEntered" PointerExited="OnTasksPointerExited"
                 AutomationProperties.Name="Tasks">
             <Grid>
@@ -120,7 +124,8 @@
                         Background="{ThemeResource AccentHover04Brush}" Visibility="Collapsed"/>
                 <Border x:Name="TasksSelectedBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
                         Background="{ThemeResource AccentSelected12Brush}" Visibility="Collapsed"/>
-                <Rectangle x:Name="TasksIndicator" Width="2.5" Height="24" RadiusX="1.25" RadiusY="1.25"
+                <Rectangle x:Name="TasksIndicator" Width="{StaticResource RailIndicatorWidth}" Height="{StaticResource RailIndicatorHeight}"
+                           RadiusX="{StaticResource RailIndicatorRadius}" RadiusY="{StaticResource RailIndicatorRadius}"
                            HorizontalAlignment="Right" VerticalAlignment="Center"
                            Fill="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
                 <StackPanel Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -143,7 +148,7 @@
                 Background="Transparent" BorderThickness="0" Padding="0"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                 VerticalContentAlignment="Stretch"
-                Margin="8,0,8,0" Height="48"
+                Margin="{StaticResource RailTabMargin}" Height="{StaticResource RailItemHeight}"
                 PointerEntered="OnSettingsPointerEntered" PointerExited="OnSettingsPointerExited"
                 AutomationProperties.Name="Settings">
             <Grid>
@@ -151,7 +156,8 @@
                         Background="{ThemeResource AccentHover04Brush}" Visibility="Collapsed"/>
                 <Border x:Name="SettingsSelectedBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
                         Background="{ThemeResource AccentSelected12Brush}" Visibility="Collapsed"/>
-                <Rectangle x:Name="SettingsIndicator" Width="2.5" Height="24" RadiusX="1.25" RadiusY="1.25"
+                <Rectangle x:Name="SettingsIndicator" Width="{StaticResource RailIndicatorWidth}" Height="{StaticResource RailIndicatorHeight}"
+                           RadiusX="{StaticResource RailIndicatorRadius}" RadiusY="{StaticResource RailIndicatorRadius}"
                            HorizontalAlignment="Right" VerticalAlignment="Center"
                            Fill="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
                 <StackPanel Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -169,7 +175,8 @@
             </Grid>
         </Button>
 
-        <Border Grid.Row="6" Height="1" Margin="8,4,8,4" Background="{ThemeResource BorderSeparatorBrush}"/>
+        <Border Grid.Row="6" Height="{StaticResource HairlineThickness}" Margin="{StaticResource RailHairlineMargin}"
+                Background="{ThemeResource BorderSeparatorBrush}"/>
 
         <!--
             Bottom-anchored collapse control (§2 "Collapse control"): dismisses the panel
@@ -180,7 +187,7 @@
                 Background="Transparent" BorderThickness="0" Padding="0"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                 VerticalContentAlignment="Stretch"
-                Margin="0,0,0,8" Height="32"
+                Margin="{StaticResource CollapseButtonMargin}" Height="{StaticResource ControlRowHeight}"
                 PointerEntered="OnCollapsePointerEntered" PointerExited="OnCollapsePointerExited"
                 AutomationProperties.Name="Collapse panel">
             <Grid>

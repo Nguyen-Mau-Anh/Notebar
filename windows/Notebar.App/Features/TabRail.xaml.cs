@@ -46,7 +46,7 @@ internal sealed partial class TabRail : UserControl
     }
 
     /// <summary>Screen spec §2 breakpoints: below the panel's default width the rail narrows
-    /// to 44pt icon-only, labels dropped. RootPage computes isCompact from the window's
+    /// to compact, icon-only, labels dropped. RootPage computes isCompact from the window's
     /// actual width against Notebar.Core.Panel.PanelTiming.PanelWidth (never a duplicated
     /// literal) and calls this on every resize.</summary>
     internal void SetCompact(bool isCompact)
@@ -54,8 +54,12 @@ internal sealed partial class TabRail : UserControl
         if (_isCompact == isCompact) return;
         _isCompact = isCompact;
 
-        RailRoot.Width = isCompact ? 44 : 56;
-        double itemHeight = isCompact ? 44 : 48;
+        // Read from the same Tokens.xaml resources the XAML above binds its default (wide)
+        // values from, rather than a second hardcoded 56/44/48/44 pair here -- two literals
+        // for the same measurement is exactly how the rail width drifted out of the token
+        // system the first time.
+        RailRoot.Width = isCompact ? DoubleResource("RailWidthCompact") : DoubleResource("RailWidth");
+        double itemHeight = isCompact ? DoubleResource("RailItemHeightCompact") : DoubleResource("RailItemHeight");
         NotesButton.Height = itemHeight;
         TasksButton.Height = itemHeight;
         SettingsButton.Height = itemHeight;
@@ -78,6 +82,13 @@ internal sealed partial class TabRail : UserControl
             UpdateSelectionVisuals();
         }
     }
+
+    /// <summary>Looks up a Tokens.xaml `x:Double` resource by key. Application.Current.Resources
+    /// is where Tokens.xaml is merged (App.xaml), so this is the same dictionary XAML's own
+    /// {StaticResource} lookups resolve against -- the C# side of "one number, one place" for
+    /// the pair SetCompact needs, since a size that varies by state (compact vs. default) has
+    /// no single {StaticResource} it could bind to directly in markup.</summary>
+    private static double DoubleResource(string key) => (double)Application.Current.Resources[key];
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

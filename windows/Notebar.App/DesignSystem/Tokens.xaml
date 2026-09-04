@@ -124,7 +124,30 @@
         Notebar.Core.Panel.PanelTiming instead and must be read from there in code, never
         duplicated here as a second literal — see RootPage.
     -->
+    <x:Double x:Key="RailWidth">56</x:Double>
+    <x:Double x:Key="RailWidthCompact">44</x:Double>
     <x:Double x:Key="RailItemHeight">48</x:Double>
+    <x:Double x:Key="RailItemHeightCompact">44</x:Double>
     <x:Double x:Key="ControlToggleSize">24</x:Double>
+    <x:Double x:Key="ControlRowHeight">32</x:Double>
     <x:Double x:Key="ToolbarActionSize">28</x:Double>
+    <x:Double x:Key="ToolbarHeight">36</x:Double>
+    <x:Double x:Key="HairlineThickness">1</x:Double>
+    <x:Double x:Key="RailIndicatorWidth">2.5</x:Double>
+    <x:Double x:Key="RailIndicatorHeight">24</x:Double>
+    <x:Double x:Key="RailIndicatorRadius">1.25</x:Double>
+
+    <!--
+        Margins tied to specific chrome rows, built from the spacing scale above rather than
+        re-deriving a Thickness from a plain double at each use site (StaticResource needs an
+        object of the target property's own type — a Thickness resource, not a double, for
+        anything assigned to Margin/Padding). Screen spec §2 "Safe margins": space.xs (8pt)
+        clearance before the first row of chrome and around each hairline, not space.md.
+    -->
+    <Thickness x:Key="ControlRowTopMargin">0,8,0,0</Thickness>
+    <Thickness x:Key="RailHairlineMargin">8,8,8,8</Thickness>
+    <Thickness x:Key="RailTabMargin">8,0,8,0</Thickness>
+    <Thickness x:Key="CollapseButtonMargin">0,0,0,8</Thickness>
+    <Thickness x:Key="ToolbarLeftContentMargin">16,0,12,0</Thickness>
+    <Thickness x:Key="ToolbarRightContentMargin">0,0,16,0</Thickness>
 </ResourceDictionary>
