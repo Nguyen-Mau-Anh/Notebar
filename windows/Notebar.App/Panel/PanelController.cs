@@ -136,6 +136,20 @@ internal sealed class PanelController
         AfterAnimation(PanelTiming.ExpandDuration, generation);
     }
 
+    /// <summary>Re-applies the current frame immediately if the panel is on screen, without
+    /// waiting for the next cursor-driven Send. Maximize/restore must feel instantaneous:
+    /// IsMaximized is a plain property, and nothing about setting it alone moves the window
+    /// -- the frame is only ever computed inside ShowPanel/HidePanel, which run on a
+    /// PanelEvent, not on this property changing. Task 11's PanelViewModel calls this from
+    /// its IsMaximized setter, in the same call that flips the property, so the resize never
+    /// waits on the mouse moving again.</summary>
+    internal void ReapplyFrame()
+    {
+        if (_state is not (PanelState.Expanded or PanelState.Expanding)) return;
+        var (dips, scale) = TargetFrame(IsMaximized ? FrameKind.Maximized : FrameKind.Expanded);
+        _window.ApplyFrame(dips, scale);
+    }
+
     private void HidePanel()
     {
         long generation = ++_animationGeneration;

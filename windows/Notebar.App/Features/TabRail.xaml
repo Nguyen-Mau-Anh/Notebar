@@ -1,0 +1,198 @@
+<UserControl
+    x:Class="Notebar.App.Features.TabRail"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        The vertical rail on the panel's left edge (screen spec §2/§3), top to bottom: the
+        pin+maximize control row, a hairline, Notes/Tasks/Settings, a spacer, a hairline, and
+        the bottom-anchored collapse control.
+
+        Every clickable cell below sets an explicit Background="Transparent" and stretches to
+        fill its whole cell. A WinUI Button whose Background is left null hit-tests only its
+        glyph/text content, not the padding or the stretch area around it -- that is exactly
+        what made tab switching on macOS take "a few clicks or somehow click not work" (task
+        dispatch, defect row 1). Transparent is hit-testable; null is not.
+
+        No brush is ever assigned from code-behind here. Every colour-bearing property is a
+        static {ThemeResource ...} reference in this file; the code-behind only ever toggles
+        Visibility between pre-declared elements. That is what keeps this live across a theme
+        switch without the "text stayed black in dark mode" failure mode -- a value captured
+        once in C# would not re-resolve when RequestedTheme changes underneath it.
+    -->
+    <Grid x:Name="RailRoot" Background="{ThemeResource SurfaceRailBackgroundBrush}" Width="56">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- space.md (16pt) top clearance before the control row (§2 "Safe margins"). -->
+        <Grid Grid.Row="0" Margin="0,16,0,0" Height="32">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <ToggleButton x:Name="PinToggle" Grid.Column="0"
+                          Padding="0" BorderThickness="0"
+                          Background="Transparent"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                          Checked="OnPinToggled" Unchecked="OnPinToggled"
+                          AutomationProperties.Name="Pin panel">
+                <Grid Width="24" Height="24">
+                    <Border x:Name="PinOnBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                            Background="{ThemeResource AccentToggleOn10Brush}" Visibility="Collapsed"/>
+                    <FontIcon x:Name="PinIconOff" Glyph="&#xE718;" FontSize="15"
+                              Foreground="{ThemeResource TextSecondaryBrush}"/>
+                    <FontIcon x:Name="PinIconOn" Glyph="&#xE718;" FontSize="15"
+                              Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                </Grid>
+            </ToggleButton>
+
+            <ToggleButton x:Name="MaximizeToggle" Grid.Column="1"
+                          Padding="0" BorderThickness="0"
+                          Background="Transparent"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                          Checked="OnMaximizeToggled" Unchecked="OnMaximizeToggled"
+                          AutomationProperties.Name="Maximize panel">
+                <Grid Width="24" Height="24">
+                    <Border x:Name="MaximizeOnBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                            Background="{ThemeResource AccentToggleOn10Brush}" Visibility="Collapsed"/>
+                    <FontIcon x:Name="MaximizeIconOff" Glyph="&#xE740;" FontSize="15"
+                              Foreground="{ThemeResource TextSecondaryBrush}"/>
+                    <FontIcon x:Name="MaximizeIconOn" Glyph="&#xE73F;" FontSize="15"
+                              Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                </Grid>
+            </ToggleButton>
+        </Grid>
+
+        <Border Grid.Row="1" Height="1" Margin="8,4,8,4" Background="{ThemeResource BorderSeparatorBrush}"/>
+
+        <!-- Notes -->
+        <Button x:Name="NotesButton" Grid.Row="2" Click="OnNotesClick"
+                Background="Transparent" BorderThickness="0" Padding="0"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch"
+                Margin="8,0,8,0" Height="48"
+                PointerEntered="OnNotesPointerEntered" PointerExited="OnNotesPointerExited"
+                AutomationProperties.Name="Notes">
+            <Grid>
+                <Border x:Name="NotesHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                        Background="{ThemeResource AccentHover04Brush}" Visibility="Collapsed"/>
+                <Border x:Name="NotesSelectedBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                        Background="{ThemeResource AccentSelected12Brush}" Visibility="Collapsed"/>
+                <Rectangle x:Name="NotesIndicator" Width="2.5" Height="24" RadiusX="1.25" RadiusY="1.25"
+                           HorizontalAlignment="Right" VerticalAlignment="Center"
+                           Fill="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                <StackPanel Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <FontIcon x:Name="NotesIconOff" Glyph="&#xE8A5;" FontSize="16" HorizontalAlignment="Center"
+                              Foreground="{ThemeResource TextSecondaryBrush}"/>
+                    <FontIcon x:Name="NotesIconOn" Glyph="&#xE8A5;" FontSize="16" FontWeight="SemiBold"
+                              HorizontalAlignment="Center" Foreground="{ThemeResource AccentBrush}"
+                              Visibility="Collapsed"/>
+                    <TextBlock x:Name="NotesLabelOff" Text="Notes" Style="{StaticResource ChromeLabelTextStyle}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="NotesLabelOn" Text="Notes" Style="{StaticResource ChromeLabelTextStyle}"
+                               Foreground="{ThemeResource AccentBrush}" HorizontalAlignment="Center"
+                               Visibility="Collapsed"/>
+                </StackPanel>
+            </Grid>
+        </Button>
+
+        <!-- Tasks -->
+        <Button x:Name="TasksButton" Grid.Row="3" Click="OnTasksClick"
+                Background="Transparent" BorderThickness="0" Padding="0"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch"
+                Margin="8,0,8,0" Height="48"
+                PointerEntered="OnTasksPointerEntered" PointerExited="OnTasksPointerExited"
+                AutomationProperties.Name="Tasks">
+            <Grid>
+                <Border x:Name="TasksHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                        Background="{ThemeResource AccentHover04Brush}" Visibility="Collapsed"/>
+                <Border x:Name="TasksSelectedBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                        Background="{ThemeResource AccentSelected12Brush}" Visibility="Collapsed"/>
+                <Rectangle x:Name="TasksIndicator" Width="2.5" Height="24" RadiusX="1.25" RadiusY="1.25"
+                           HorizontalAlignment="Right" VerticalAlignment="Center"
+                           Fill="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                <StackPanel Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <FontIcon x:Name="TasksIconOff" Glyph="&#xE9D5;" FontSize="16" HorizontalAlignment="Center"
+                              Foreground="{ThemeResource TextSecondaryBrush}"/>
+                    <FontIcon x:Name="TasksIconOn" Glyph="&#xE9D5;" FontSize="16" FontWeight="SemiBold"
+                              HorizontalAlignment="Center" Foreground="{ThemeResource AccentBrush}"
+                              Visibility="Collapsed"/>
+                    <TextBlock x:Name="TasksLabelOff" Text="Tasks" Style="{StaticResource ChromeLabelTextStyle}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="TasksLabelOn" Text="Tasks" Style="{StaticResource ChromeLabelTextStyle}"
+                               Foreground="{ThemeResource AccentBrush}" HorizontalAlignment="Center"
+                               Visibility="Collapsed"/>
+                </StackPanel>
+            </Grid>
+        </Button>
+
+        <!-- Settings -->
+        <Button x:Name="SettingsButton" Grid.Row="4" Click="OnSettingsClick"
+                Background="Transparent" BorderThickness="0" Padding="0"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch"
+                Margin="8,0,8,0" Height="48"
+                PointerEntered="OnSettingsPointerEntered" PointerExited="OnSettingsPointerExited"
+                AutomationProperties.Name="Settings">
+            <Grid>
+                <Border x:Name="SettingsHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                        Background="{ThemeResource AccentHover04Brush}" Visibility="Collapsed"/>
+                <Border x:Name="SettingsSelectedBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                        Background="{ThemeResource AccentSelected12Brush}" Visibility="Collapsed"/>
+                <Rectangle x:Name="SettingsIndicator" Width="2.5" Height="24" RadiusX="1.25" RadiusY="1.25"
+                           HorizontalAlignment="Right" VerticalAlignment="Center"
+                           Fill="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                <StackPanel Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <FontIcon x:Name="SettingsIconOff" Glyph="&#xE713;" FontSize="16" HorizontalAlignment="Center"
+                              Foreground="{ThemeResource TextSecondaryBrush}"/>
+                    <FontIcon x:Name="SettingsIconOn" Glyph="&#xE713;" FontSize="16" FontWeight="SemiBold"
+                              HorizontalAlignment="Center" Foreground="{ThemeResource AccentBrush}"
+                              Visibility="Collapsed"/>
+                    <TextBlock x:Name="SettingsLabelOff" Text="Settings" Style="{StaticResource ChromeLabelTextStyle}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="SettingsLabelOn" Text="Settings" Style="{StaticResource ChromeLabelTextStyle}"
+                               Foreground="{ThemeResource AccentBrush}" HorizontalAlignment="Center"
+                               Visibility="Collapsed"/>
+                </StackPanel>
+            </Grid>
+        </Button>
+
+        <Border Grid.Row="6" Height="1" Margin="8,4,8,4" Background="{ThemeResource BorderSeparatorBrush}"/>
+
+        <!--
+            Bottom-anchored collapse control (§2 "Collapse control"): dismisses the panel
+            without the cursor leaving it -- the mouse-reachable equivalent of Escape, and
+            the only in-panel way out when pinned.
+        -->
+        <Button x:Name="CollapseButton" Grid.Row="7" Click="OnCollapseClick"
+                Background="Transparent" BorderThickness="0" Padding="0"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch"
+                Margin="0,0,0,8" Height="32"
+                PointerEntered="OnCollapsePointerEntered" PointerExited="OnCollapsePointerExited"
+                AutomationProperties.Name="Collapse panel">
+            <Grid>
+                <Border x:Name="CollapseHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                        Background="{ThemeResource AccentHover08Brush}" Visibility="Collapsed"/>
+                <TextBlock x:Name="CollapseGlyphOff" Text="&#x00BB;" FontSize="15"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextSecondaryBrush}"/>
+                <TextBlock x:Name="CollapseGlyphOn" Text="&#x00BB;" FontSize="15"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+            </Grid>
+        </Button>
+    </Grid>
+</UserControl>

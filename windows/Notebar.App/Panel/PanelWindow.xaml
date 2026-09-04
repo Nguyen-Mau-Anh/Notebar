@@ -1,8 +1,7 @@
 <Window
     x:Class="Notebar.App.PanelWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <TextBlock x:Name="Placeholder" HorizontalAlignment="Center" VerticalAlignment="Center" />
-    </Grid>
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:features="using:Notebar.App.Features">
+    <features:RootPage x:Name="Root" />
 </Window>

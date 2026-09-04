@@ -1,11 +1,17 @@
 <Application
     x:Class="Notebar.App.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:design="using:Notebar.App.DesignSystem">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <!-- Task 11's shell-chrome design tokens (colours, spacing, radii, type
+                     scale). Merged at the application root so every {StaticResource}/
+                     {ThemeResource} lookup can find them regardless of which control's own
+                     InitializeComponent is resolving it, or when. -->
+                <design:Tokens/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

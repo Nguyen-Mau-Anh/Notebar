@@ -1,6 +1,7 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Notebar.App.Interop;
+using Notebar.App.Panel;
 using Notebar.Core.Geometry;
 
 namespace Notebar.App;
@@ -14,7 +15,6 @@ public sealed partial class PanelWindow : Window
     {
         InitializeComponent();
         Title = "Notebar";
-        Placeholder.Text = $"Notebar — panel width {Notebar.Core.Panel.PanelTiming.PanelWidth}";
 
         _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         _appWindow = AppWindow.GetFromWindowId(
@@ -38,6 +38,12 @@ public sealed partial class PanelWindow : Window
     }
 
     internal IntPtr Handle => _hwnd;
+
+    /// <summary>Hands the page its PanelController seam. Called once from App.xaml.cs after
+    /// PanelController exists -- the controller wraps this window, so it cannot exist before
+    /// this constructor has already run and RootPage has already been built by
+    /// InitializeComponent above.</summary>
+    internal void AttachController(PanelController panelController) => Root.AttachController(panelController);
 
     /// <summary>Places the window from a rect in device-independent pixels
     /// relative to the given monitor's work area.</summary>

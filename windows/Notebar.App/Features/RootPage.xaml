@@ -1,0 +1,184 @@
+<Page
+    x:Class="Notebar.App.Features.RootPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Notebar.App.Features">
+
+    <!--
+        DesignSystem/Tokens.xaml is merged into Application.Resources in App.xaml, not here.
+        TabRail, TabToolbar, and CollapsedHandle are each a separately-compiled UserControl
+        whose own XAML resolves its own {StaticResource}/{ThemeResource} references while
+        THAT control's InitializeComponent runs -- which is not guaranteed to happen only
+        after it is already attached under this page in the visual tree. Application-level
+        resources are visible to every lookup regardless of that ordering, which is the
+        conventional home for a shared token dictionary for exactly this reason.
+    -->
+    <Grid x:Name="RootGrid">
+        <!--
+            The full chrome: rail + divider + the active tab's toolbar and body. Screen spec
+            §2 "Corner treatment": rounded on the left (desktop-facing) corners, square on
+            the right (flush against the physical screen edge).
+        -->
+        <Grid x:Name="ChromeRoot" Background="{ThemeResource SurfacePanelBackgroundBrush}"
+              CornerRadius="{StaticResource PanelCornerRadius}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <local:TabRail x:Name="Rail" Grid.Column="0"/>
+            <Border Grid.Column="1" Width="1" Background="{ThemeResource BorderSeparatorBrush}"/>
+
+            <Grid Grid.Column="2">
+                <!-- Notes -->
+                <Grid x:Name="NotesTabRoot" Visibility="Visible">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!--
+                        Left slot is a placeholder for the real, scrollable tab strip -- that
+                        is Task 12's NoteTabStrip, built against Features/Notes/, which this
+                        task does not touch. What matters here is the toolbar's fixed shape:
+                        context on the left, + and the all-notes chevron fixed on the right,
+                        on every tab, regardless of what the left slot ends up holding.
+                    -->
+                    <local:TabToolbar Grid.Row="0">
+                        <local:TabToolbar.LeftContent>
+                            <TextBlock Text="Notes" Style="{StaticResource ChromeBodyTextStyle}"/>
+                        </local:TabToolbar.LeftContent>
+                        <local:TabToolbar.RightContent>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Button x:Name="NewNoteButton" Width="28" Height="28" Padding="0"
+                                        BorderThickness="0" Background="Transparent"
+                                        CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                                        Click="OnNewNoteClick"
+                                        PointerEntered="OnNewNotePointerEntered" PointerExited="OnNewNotePointerExited"
+                                        AutomationProperties.Name="New Note">
+                                    <Grid>
+                                        <Border x:Name="NewNoteHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                                                Background="{ThemeResource AccentHover08Brush}" Visibility="Collapsed"/>
+                                        <FontIcon x:Name="NewNoteIconOff" Glyph="&#xE710;" FontSize="15"
+                                                  Foreground="{ThemeResource TextSecondaryBrush}"/>
+                                        <FontIcon x:Name="NewNoteIconOn" Glyph="&#xE710;" FontSize="15"
+                                                  Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                                    </Grid>
+                                </Button>
+                                <Button x:Name="AllNotesButton" Width="28" Height="28" Padding="0"
+                                        BorderThickness="0" Background="Transparent"
+                                        CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                                        Click="OnAllNotesClick"
+                                        PointerEntered="OnAllNotesPointerEntered" PointerExited="OnAllNotesPointerExited"
+                                        AutomationProperties.Name="All Notes">
+                                    <Grid>
+                                        <Border x:Name="AllNotesHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                                                Background="{ThemeResource AccentHover08Brush}" Visibility="Collapsed"/>
+                                        <FontIcon x:Name="AllNotesIconOff" Glyph="&#xE70D;" FontSize="15"
+                                                  Foreground="{ThemeResource TextSecondaryBrush}"/>
+                                        <FontIcon x:Name="AllNotesIconOn" Glyph="&#xE70D;" FontSize="15"
+                                                  Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                                    </Grid>
+                                </Button>
+                            </StackPanel>
+                        </local:TabToolbar.RightContent>
+                    </local:TabToolbar>
+
+                    <!--
+                        Body placeholder. The real editor (Features/Notes/NoteEditorHost, plus
+                        the tab strip and all-notes menu Task 12 builds) is out of scope for
+                        this task -- Features/Notes/ is being actively worked on elsewhere in
+                        this tree. This happens to be the real §4.3 empty-state copy, since
+                        with nothing wired up yet there genuinely are zero open notes.
+                    -->
+                    <StackPanel Grid.Row="1" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Padding="24">
+                        <FontIcon Glyph="&#xE8A5;" FontSize="32" Foreground="{ThemeResource TextTertiaryBrush}"
+                                  HorizontalAlignment="Center"/>
+                        <TextBlock Text="No notes open" Style="{StaticResource ChromeTitleTextStyle}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="Notes you write stay ready here -- click + to start one."
+                                   Style="{StaticResource ChromeCaptionTextStyle}" HorizontalAlignment="Center"
+                                   TextAlignment="Center" TextWrapping="Wrap" MaxWidth="240"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Tasks -->
+                <Grid x:Name="TasksTabRoot" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <local:TabToolbar Grid.Row="0">
+                        <local:TabToolbar.LeftContent>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Tasks" Style="{StaticResource ChromeBodyTextStyle}"/>
+                                <TextBlock x:Name="TaskCountLabel" Text="0" Style="{StaticResource ChromeMicroTextStyle}"/>
+                            </StackPanel>
+                        </local:TabToolbar.LeftContent>
+                        <local:TabToolbar.RightContent>
+                            <Button x:Name="NewTaskButton" Width="28" Height="28" Padding="0"
+                                    BorderThickness="0" Background="Transparent"
+                                    CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                                    Click="OnNewTaskClick"
+                                    PointerEntered="OnNewTaskPointerEntered" PointerExited="OnNewTaskPointerExited"
+                                    AutomationProperties.Name="New Task">
+                                <Grid>
+                                    <Border x:Name="NewTaskHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                                            Background="{ThemeResource AccentHover08Brush}" Visibility="Collapsed"/>
+                                    <FontIcon x:Name="NewTaskIconOff" Glyph="&#xE710;" FontSize="15"
+                                              Foreground="{ThemeResource TextSecondaryBrush}"/>
+                                    <FontIcon x:Name="NewTaskIconOn" Glyph="&#xE710;" FontSize="15"
+                                              Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                                </Grid>
+                            </Button>
+                        </local:TabToolbar.RightContent>
+                    </local:TabToolbar>
+
+                    <!--
+                        Body placeholder -- Task 14 builds the real board against
+                        Features/Tasks/. §5.4's own empty-state copy, for the same reason as
+                        the Notes placeholder above.
+                    -->
+                    <StackPanel Grid.Row="1" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Padding="24">
+                        <FontIcon Glyph="&#xE9D5;" FontSize="32" Foreground="{ThemeResource TextTertiaryBrush}"
+                                  HorizontalAlignment="Center"/>
+                        <TextBlock Text="No tasks yet" Style="{StaticResource ChromeTitleTextStyle}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="Turn a note into a task, or add one directly to Queue."
+                                   Style="{StaticResource ChromeCaptionTextStyle}" HorizontalAlignment="Center"
+                                   TextAlignment="Center" TextWrapping="Wrap" MaxWidth="240"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Settings -->
+                <Grid x:Name="SettingsTabRoot" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <local:TabToolbar Grid.Row="0">
+                        <local:TabToolbar.LeftContent>
+                            <TextBlock Text="Settings" Style="{StaticResource ChromeBodyTextStyle}"/>
+                        </local:TabToolbar.LeftContent>
+                    </local:TabToolbar>
+
+                    <!--
+                        Body intentionally empty. Task 16 owns the real Settings tab
+                        (Features/Settings/SettingsTab) -- General/Activation/Data/About,
+                        wired to IAppStateRepository and IDiagnosticsRepository. Pre-building
+                        that content here would only be replaced wholesale, so this task
+                        stops at the toolbar the rail navigates to.
+                    -->
+                    <Grid Grid.Row="1"/>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <local:CollapsedHandle x:Name="Handle" Visibility="Collapsed"/>
+    </Grid>
+</Page>

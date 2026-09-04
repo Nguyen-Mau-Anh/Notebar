@@ -60,6 +60,15 @@ public partial class App : Application
         _panelController = panelController;
         cursorMonitor.Start();
 
+        // Task 11's shell chrome (RootPage/TabRail/TabToolbar) needs a live PanelController
+        // to build PanelViewModel against -- e.g. the pin and maximize toggles write straight
+        // into it from their own property setters (see PanelViewModel's remarks on why that
+        // ordering is what fixes the one-click-behind defect the macOS pin toggle shipped
+        // with). RootPage exists already (PanelWindow's constructor built it via
+        // InitializeComponent above), but the controller wrapping this same window could not
+        // exist before this point, so this is the earliest this wiring can happen.
+        window.AttachController(panelController);
+
         // One hidden window backs both the tray callback and the global
         // hotkey — see MessageWindow's remarks for why a second window
         // would be redundant. Local variables throughout this block, not the
