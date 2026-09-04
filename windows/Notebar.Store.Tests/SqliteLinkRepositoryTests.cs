@@ -89,8 +89,16 @@ public class SqliteLinkRepositoryTests : IDisposable
         Assert.Single(_links.Outgoing(new LinkTarget(LinkEntityType.Note, note.Id)));
     }
 
+    /// Pins ordering, not atomicity: the note-existence check is the first
+    /// write CreateSavingNoteBody attempts, so it is the only way this method
+    /// can throw, and the link insert is never reached on this path. True
+    /// rollback — an error surfacing *after* the link write has already been
+    /// attempted — is not covered here, because INSERT OR IGNORE swallows
+    /// constraint violations and there is no other reachable failure after
+    /// the note check. CreateSavingNoteBodyWritesBothOrNeither is what proves
+    /// the "both" half of the atomicity guarantee this method exists for.
     [Fact]
-    public void CreateSavingNoteBodyRollsBackIfTheNoteIsGone()
+    public void ThrowsAndWritesNothingWhenTheNoteIsGone()
     {
         var task = _tasks.Create("t", TaskSchema.QueueColumnId);
         var link = Link.New(new LinkTarget(LinkEntityType.Note, "no-such-note"),
@@ -124,12 +132,18 @@ public class SqliteLinkRepositoryTests : IDisposable
     {
         var note = _notes.Create();
         var task = _tasks.Create("t", TaskSchema.QueueColumnId);
+        // note→task exercises the trigger's dst_type clause; task→note
+        // exercises its src_type clause. One direction alone leaves the
+        // other half of CascadeOnTaskDelete unverified.
         _links.Create(Link.New(new LinkTarget(LinkEntityType.Note, note.Id),
                                new LinkTarget(LinkEntityType.Task, task.Id)));
+        _links.Create(Link.New(new LinkTarget(LinkEntityType.Task, task.Id),
+                               new LinkTarget(LinkEntityType.Note, note.Id)));
 
         _tasks.Delete(task.Id);
 
         Assert.Empty(_links.Outgoing(new LinkTarget(LinkEntityType.Note, note.Id)));
+        Assert.Empty(_links.Incoming(new LinkTarget(LinkEntityType.Note, note.Id)));
     }
 
     /// One query per note load, not one per chip — this is what makes the
