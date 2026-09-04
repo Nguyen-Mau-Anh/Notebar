@@ -3,4 +3,9 @@
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>Notebar.Core</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>Notebar.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>
