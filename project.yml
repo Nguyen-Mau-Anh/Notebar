@@ -47,4 +47,5 @@ targets:
         LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
         # Menu-bar-only app: no Dock icon, no app menu.
         LSUIElement: true
+        CFBundleIconFile: AppIcon
         NSHumanReadableCopyright: ""
