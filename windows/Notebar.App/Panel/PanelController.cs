@@ -202,6 +202,12 @@ internal sealed class PanelController
     /// </remarks>
     private void OnCursorMoved(PanelPoint physicalCursor)
     {
+        // Every tick, in every state. The collapsed handle is the thing that has
+        // to stay hoverable, and it is exactly what a fullscreen app or a
+        // virtual-desktop switch knocks out of the topmost band — so gating this
+        // on Expanded protected only the case that was already visible.
+        _window.ReassertTopmost();
+
         var workAreaPhysical = MonitorInfo.WorkAreaContaining(physicalCursor, out double scale);
         var workArea = new PanelRect(
             workAreaPhysical.X / scale, workAreaPhysical.Y / scale,
@@ -211,12 +217,22 @@ internal sealed class PanelController
         if (_state is PanelState.Hidden)
         {
             var handle = PanelGeometry.Collapsed(workArea);
-            bool inside = handle.Contains(cursor);
+            var zone = new EdgeZone(PanelTiming.TriggerWidth, PanelTiming.ProximityWidth);
+            var proximity = zone.Classify(cursor, handle);
+
+            bool inside = proximity == EdgeProximity.Inside;
             if (inside != _insideTrigger)
             {
                 _insideTrigger = inside;
                 Send(inside ? PanelEvent.CursorEnteredTrigger : PanelEvent.CursorLeftTrigger);
             }
+
+            // Speed up while merely approaching, before the dwell arms, so the
+            // dwell measures from when the cursor actually arrived rather than
+            // from whenever the next 10Hz tick happened to notice. The reducer
+            // still owns the rate for state transitions; this is the monitor's
+            // own pre-ramp, exactly as the macOS CursorMonitor does it.
+            _cursor.SetRate(proximity == EdgeProximity.Away ? PollRate.Idle : PollRate.Active);
             return;
         }
 
@@ -227,9 +243,5 @@ internal sealed class PanelController
             _insidePanel = !outside;
             Send(outside ? PanelEvent.CursorLeftPanel : PanelEvent.CursorEnteredPanel);
         }
-
-        // Cheap insurance against another app's fullscreen transition knocking
-        // the panel out of the topmost band.
-        if (_state is PanelState.Expanded) _window.ReassertTopmost();
     }
 }

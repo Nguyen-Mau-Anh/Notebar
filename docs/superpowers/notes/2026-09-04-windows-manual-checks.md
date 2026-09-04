@@ -9,7 +9,7 @@ this file rather than starting a new one.
 - [ ] The panel draws over a maximized window.
 - [ ] The panel draws over a borderless-fullscreen video.
 - [ ] Expanding the panel does NOT take focus from the app you were typing in.
-- [ ] Clicking into the panel DOES give it keyboard focus.
+- [ ] Clicking into the note editor DOES give it keyboard focus.
 - [ ] No taskbar button and no Alt-Tab entry.
 - [ ] Switching virtual desktops and back: the panel still appears on hover.
 - [ ] On a 150%-scaled display the panel is the same visual size as on a 100% one.
