@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Notebar.Store</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.19" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Notebar.Core/Notebar.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -149,6 +149,9 @@ jobs:
       - name: Test Notebar.Core
         run: dotnet test windows/Notebar.Core.Tests/Notebar.Core.Tests.csproj -c Release
 
+      - name: Test Notebar.Store
+        run: dotnet test windows/Notebar.Store.Tests/Notebar.Store.Tests.csproj -c Release
+
       - name: Core purity guard
         shell: bash
         run: windows/scripts/check-core-purity.sh
