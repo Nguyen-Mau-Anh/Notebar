@@ -141,6 +141,15 @@ internal sealed class PanelController
         long generation = ++_animationGeneration;
         var (dips, scale) = TargetFrame(FrameKind.Collapsed);
         _window.ApplyFrame(dips, scale);
+
+        // Escape bypasses ShouldCollapse entirely, so a menu can still be open
+        // at the instant the panel is forced shut — and the content that owned
+        // it is torn down with the panel, so nothing will ever set this back.
+        // Left true, it makes ShouldCollapse return false forever and the panel
+        // can never auto-collapse again. Reconcile here, the one teardown path
+        // that no other signal covers.
+        HasOpenOverlay = false;
+
         AfterAnimation(PanelTiming.CollapseDuration, generation);
     }
 
