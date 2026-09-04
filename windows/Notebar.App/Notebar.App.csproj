@@ -18,4 +18,11 @@
   <ItemGroup>
     <ProjectReference Include="../Notebar.Core/Notebar.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="Package.appxmanifest">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+    <Manifest Include="$(ApplicationManifest)" />
+    <Content Include="Assets\**\*.png" />
+  </ItemGroup>
 </Project>
