@@ -47,10 +47,19 @@
          from here too. -->
     <ProjectReference Include="../Notebar.Store/Notebar.Store.csproj" />
   </ItemGroup>
-  <ItemGroup>
+  <!-- Packaged builds only. The portable publish passes WindowsPackageType=None,
+       and the Windows App SDK's packaging targets reject "WindowsPackageType is
+       set to None, but a AppxManifest is specified" — which is what broke the
+       unpackaged build the moment OutputType=WinExe made those targets engage.
+       Everything in the group below stays unconditional: the app manifest carries
+       PerMonitorV2 DPI awareness, and the editor's HTML/JS has to sit next to the
+       exe at run time whether the app is packaged or not. -->
+  <ItemGroup Condition="'$(WindowsPackageType)' != 'None'">
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
+  </ItemGroup>
+  <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
     <Content Include="Assets\**\*.png" />
     <!-- The note editor's guest half (HTML/CSS/JS) is static content served
