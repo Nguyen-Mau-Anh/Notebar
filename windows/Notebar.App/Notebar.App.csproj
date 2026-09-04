@@ -1,5 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!-- Without this the project builds as a LIBRARY: no apphost, so no
+         Notebar.App.exe. windows-v0.1.0 shipped a portable zip containing
+         Notebar.App.dll and every dependency but nothing to launch, and MSIX
+         packaging failed fifteen times with an empty package.map.txt for the
+         same reason — a package needs an executable to package. The standard
+         WinUI single-project template sets this; ours never did. -->
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
     <RootNamespace>Notebar.App</RootNamespace>
