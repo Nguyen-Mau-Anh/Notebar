@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Notebar.Store;
 using Xunit;
 
@@ -19,8 +20,30 @@ public class SqliteDiagnosticsRepositoryTests : IDisposable
     {
         _fixture.Dispose();
         if (_diskPath is null) return;
+
+        // Microsoft.Data.Sqlite pools connections, and on Windows the native
+        // file handle outlives Dispose() — POSIX would let us unlink an open
+        // file, Windows will not. Drain the pool, then retry: a temp file left
+        // behind is not worth failing a test over.
+        SqliteConnection.ClearAllPools();
         foreach (var candidate in new[] { _diskPath, _diskPath + "-wal", _diskPath + "-shm" })
-            if (File.Exists(candidate)) File.Delete(candidate);
+            TryDelete(candidate);
+    }
+
+    private static void TryDelete(string path)
+    {
+        for (int attempt = 0; attempt < 10; attempt++)
+        {
+            try
+            {
+                if (File.Exists(path)) File.Delete(path);
+                return;
+            }
+            catch (IOException)
+            {
+                Thread.Sleep(50);
+            }
+        }
     }
 
     /// The in-memory database (used here and by the app's degrade-to-in-memory
