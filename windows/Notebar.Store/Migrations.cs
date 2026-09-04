@@ -29,6 +29,26 @@ public static class Migrations
         [
             OpenTabSchema.CreateOpenTabTable,
         ]),
+        new(TaskSchema.MigrationName,
+        [
+            TaskSchema.CreateBoardTable,
+            TaskSchema.CreateBoardColumnTable,
+            TaskSchema.CreateTaskTable,
+            TaskSchema.CreateTaskFtsTable,
+            .. SplitStatements(TaskSchema.TaskFtsTriggers),
+            TaskSchema.SeedBoard,
+            TaskSchema.SeedColumns,
+        ]),
+        new(AppStateSchema.MigrationName, [AppStateSchema.CreateAppStateTable]),
+        new(LinkSchema.MigrationName,
+        [
+            LinkSchema.CreateLinkTable,
+            LinkSchema.CreateSrcIndex,
+            LinkSchema.CreateDstIndex,
+            LinkSchema.CascadeOnNoteDelete,
+            LinkSchema.CascadeOnTaskDelete,
+        ]),
+        new(AttachmentSchema.MigrationName, [AttachmentSchema.CreateAttachmentTable]),
     ];
 
     /// <summary>Splits a script into individual statements on "END;" and ";"

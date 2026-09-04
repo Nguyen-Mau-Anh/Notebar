@@ -26,7 +26,15 @@ public class MigrationTests
     {
         using var db = NotebarDatabase.OpenInMemory();
         Assert.Equal(
-            new[] { NoteSchema.MigrationName, OpenTabSchema.MigrationName },
+            new[]
+            {
+                NoteSchema.MigrationName,
+                OpenTabSchema.MigrationName,
+                TaskSchema.MigrationName,
+                AppStateSchema.MigrationName,
+                LinkSchema.MigrationName,
+                AttachmentSchema.MigrationName,
+            },
             db.AppliedMigrations);
     }
 
