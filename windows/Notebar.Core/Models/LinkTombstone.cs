@@ -10,6 +10,14 @@ namespace Notebar.Core.Models;
 ///
 /// Split out from the styling that actually paints a tombstone so the decision
 /// is unit-testable without a WebView.
+///
+/// <b>Unused by the Windows app (Task 15).</b> The host sends one set of surviving
+/// chip URLs per note load and editor.js does local membership checks
+/// (<c>!alive.has(href)</c>) on the anchors it is already walking, which is cheaper
+/// than a call per chip — see NoteEditorHost.LoadAsync and editor.js's
+/// markTombstones. This type stays for parity with the Swift core, where
+/// NoteChipStyling calls it, and for any future host-side caller that needs the
+/// predicate itself rather than a set to check membership against.
 /// </remarks>
 public static class LinkTombstone
 {
