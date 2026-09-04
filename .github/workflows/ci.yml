@@ -138,10 +138,10 @@ jobs:
 
       # dotnet build alone won't drive single-project MSIX packaging: it
       # repeatedly produced "You must include a valid app package manifest
-      # file named AppxManifest.xml in the source" even with the RID pinned,
-      # because the Appx packaging targets that generate AppxManifest.xml
-      # from Package.appxmanifest are only reliably invoked through full
-      # desktop MSBuild, not the dotnet SDK CLI's build driver.
+      # file named AppxManifest.xml in the source" because the Appx packaging
+      # targets that generate AppxManifest.xml from Package.appxmanifest are
+      # only reliably invoked through full desktop MSBuild, not the dotnet
+      # SDK CLI's build driver.
       - uses: microsoft/setup-msbuild@v2
 
       # The cross-platform half. These carry the behaviour, so they run first
@@ -154,20 +154,24 @@ jobs:
         run: windows/scripts/check-core-purity.sh
 
       - name: Build the WinUI app
-        run: dotnet build windows/Notebar.App/Notebar.App.csproj -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64
+        run: dotnet build windows/Notebar.App/Notebar.App.csproj -c Release -p:Platform=x64
 
       # Packaging goes through msbuild.exe (not dotnet build) for the reason
       # noted above. /restore because this is a separate MSBuild invocation
       # from the dotnet-build step above, not guaranteed to see its restore
       # output. AppxBundle=Never keeps the output a single .msix rather than
-      # a .msixbundle, matching what "Collect the package" looks for.
+      # a .msixbundle, matching what "Collect the package" looks for. No
+      # RuntimeIdentifier here on purpose: Microsoft's own single-project-MSIX
+      # CI example (github.com/andrewleader/WindowsAppSDKGallery) never sets
+      # one, and pinning it earlier put the build in a RID-suffixed output
+      # path (obj\...\win-x64\) that the single-project MSIX packaging
+      # targets never populated with a manifest.
       - name: Package MSIX
         run: >
           msbuild windows/Notebar.App/Notebar.App.csproj
           /restore
           /p:Configuration=Release
           /p:Platform=x64
-          /p:RuntimeIdentifier=win-x64
           /p:GenerateAppxPackageOnBuild=true
           /p:AppxBundle=Never
           /p:AppxPackageSigningEnabled=false
