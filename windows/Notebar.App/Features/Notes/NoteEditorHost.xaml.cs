@@ -59,17 +59,19 @@ public sealed partial class NoteEditorHost : UserControl
     private volatile bool _hasFocus;
 
     /// <summary>Raised after a change message has been persisted, with the
-    /// html that was saved and the plain-text shadow derived from it.</summary>
-    internal event Action<string html, string plain>? ContentChanged;
+    /// html that was saved and the plain-text shadow derived from it
+    /// (html, plain).</summary>
+    internal event Action<string, string>? ContentChanged;
 
-    /// <summary>Raised when the user clicks a notebar:// link chip. The host
-    /// (not the WebView) owns what happens next — switching tabs, opening the
-    /// task sheet — which is exactly why the guest never navigates itself.</summary>
-    internal event Action<string url>? ChipClicked;
+    /// <summary>Raised when the user clicks a notebar:// link chip (url). The
+    /// host (not the WebView) owns what happens next — switching tabs,
+    /// opening the task sheet — which is exactly why the guest never
+    /// navigates itself.</summary>
+    internal event Action<string>? ChipClicked;
 
     /// <summary>Raised after a pasted image has been stored as an attachment
-    /// and substituted into the document.</summary>
-    internal event Action<byte[] data, string mime>? ImagePasted;
+    /// and substituted into the document (data, mime).</summary>
+    internal event Action<byte[], string>? ImagePasted;
 
     /// <summary>See the class remarks: re-derived from three independent
     /// sources, never a single stored flag.</summary>
