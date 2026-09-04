@@ -17,10 +17,19 @@ a non-Apple platform the manifest exposes just `NotebarCore` + `NotebarCoreTests
 a dropped test is visible. macOS is unaffected — all four targets and all 153 tests still
 build and run exactly as before; only the manifest gained a conditional.
 
+The Windows job passed on its first run — swift-testing runs there without modification
+(`import Testing`, no XCTest translation needed) — and reported "Test run with 46 tests in
+6 suites passed." 46, not 153, is correct and expected: the 153 figure is NotebarCoreTests
+(46) plus NotebarStoreTests (107 — RTF/RTFD migration, GRDB repositories, FTS search, image
+downscaling, note-list markers), and NotebarStoreTests is exactly what the
+`#if canImport(Darwin)` gate excludes on Windows. Confirmed by running
+`swift test --filter NotebarCoreTests` on macOS, which also reports 46 tests in 6 suites —
+the Windows count matches the macOS subset exactly, not a partial or silently-skipped run.
+
 **What this proves:** the 1,426 lines of `NotebarCore` — `PanelMachine`, `EdgeZone`,
-`NoteListMarkers`, `PanelTiming`, the models, the repository protocols — compile under Swift
-for Windows and their 153 tests pass there, not just on macOS. That was previously only
-inferred from an import grep; it is now a fact a machine checks on every push.
+`PanelTiming`, the models, the repository protocols — compile under Swift for Windows and
+their 46 tests pass there, not just on macOS. That was previously only inferred from an
+import grep; it is now a fact a machine checks on every push.
 
 **What this does not prove, and never will by itself:** the two real blockers below are
 untouched. GRDB has no Windows target, so `NotebarStore` stays Apple-only regardless of what

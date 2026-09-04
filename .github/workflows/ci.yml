@@ -116,4 +116,8 @@ jobs:
         run: swift test
         # swift-testing's own reporter prints "Test run with N tests in M
         # suites passed" — that count is the signal a regression dropped
-        # tests rather than just failing to compile them.
+        # tests rather than just failing to compile them. N is 46 here, not
+        # the 153 the `core` job above reports: this manifest only declares
+        # NotebarCoreTests on non-Apple platforms (NotebarStoreTests, the
+        # other 107, needs GRDB and AppKit — see the job comment above). A
+        # drop below 46 is the regression to watch for, not a drop below 153.
