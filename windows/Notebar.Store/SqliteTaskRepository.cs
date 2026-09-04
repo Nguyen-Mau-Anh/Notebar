@@ -120,7 +120,13 @@ public sealed class SqliteTaskRepository(NotebarDatabase db) : ITaskRepository
         cmd.Parameters.AddWithValue("$id", id);
         cmd.ExecuteNonQuery();
 
-        return moved;
+        // Not `moved` itself: UpdatedAt (and CompletedAt, when this call is the
+        // one stamping it) come from DateTimeOffset.UtcNow at tick precision,
+        // but Sql.ToText/ToDb round-trips through the database at millisecond
+        // precision — the same reason SqliteNoteRepository.Create and this
+        // repository's own Create re-fetch instead of returning the
+        // constructed value.
+        return Fetch(id)!;
     }
 
     public IReadOnlyList<TaskItem> Search(string query)
