@@ -75,6 +75,8 @@
     <x:Double x:Key="RadiusLg">14</x:Double>
     <x:Double x:Key="RadiusPanel">12</x:Double>
     <CornerRadius x:Key="RadiusSmCornerRadius">6</CornerRadius>
+    <!-- radius.md as a CornerRadius object — Task 14's task cards (screen spec §5.1). -->
+    <CornerRadius x:Key="RadiusMdCornerRadius">10</CornerRadius>
 
     <!--
         radius.md applied to the collapsed handle's left corners only, square on the right
@@ -154,4 +156,20 @@
     <Thickness x:Key="CollapseButtonMargin">0,0,0,8</Thickness>
     <Thickness x:Key="ToolbarLeftContentMargin">16,0,12,0</Thickness>
     <Thickness x:Key="ToolbarRightContentMargin">0,0,16,0</Thickness>
+
+    <!--
+        Task 14 — the tasks board. space.sm (12pt) card padding per screen spec §5.1;
+        space.xs (8pt) below each card so the next one clears it; a 6pt half-gutter either
+        side of the 1px inter-column separator, which totals ~13pt of clearance between two
+        cards in adjacent columns — the closest a fixed-Thickness resource gets to the
+        spec's 12pt gutter figure without a third, single-purpose token.
+    -->
+    <Thickness x:Key="TaskCardPadding">12,12,12,12</Thickness>
+    <Thickness x:Key="TaskCardMargin">0,0,0,8</Thickness>
+    <Thickness x:Key="TaskColumnSeparatorMargin">6,0,6,0</Thickness>
+    <!-- Screen spec §5.1's "Drop a task here" empty-column placeholder is board-shaped
+         chrome, not a fixed pixel value, so it stays a plain double rather than a second
+         Thickness — see TasksTab.xaml's own remarks on why a MinHeight alone (not the
+         dashed-outline caption) is what this task treats as load-bearing. -->
+    <x:Double x:Key="TaskColumnMinHeight">120</x:Double>
 </ResourceDictionary>

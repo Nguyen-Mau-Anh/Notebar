@@ -1,0 +1,212 @@
+<UserControl
+    x:Class="Notebar.App.Features.Tasks.TasksTab"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:chrome="using:Notebar.App.Features"
+    xmlns:local="using:Notebar.App.Features.Tasks">
+
+    <UserControl.Resources>
+        <Style x:Key="TaskListViewItemStyle" TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="{StaticResource TaskCardMargin}"/>
+        </Style>
+
+        <!-- Shared by all three columns' ListViews so the card visuals live in exactly one
+             place — screen spec §5.1. Priority flag: shown only for High/Urgent (two
+             mutually-exclusive FontIcons, one per level, matching the two-TextBlock
+             visibility-toggle pattern NoteTabStrip already uses for IsActive/IsInactive).
+             Due-date chip: switches to DangerBrush when overdue, same toggle shape. -->
+        <DataTemplate x:Key="TaskCardTemplate" x:DataType="local:TaskCardVm">
+            <Grid Background="{ThemeResource SurfaceElevatedBackgroundBrush}"
+                  BorderBrush="{ThemeResource BorderSeparatorBrush}" BorderThickness="1"
+                  CornerRadius="{StaticResource RadiusMdCornerRadius}"
+                  Padding="{StaticResource TaskCardPadding}">
+                <StackPanel Spacing="{StaticResource SpaceXxs}">
+                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource ChromeBodyTextStyle}"
+                               TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxLines="2"/>
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXxs}">
+                        <FontIcon Glyph="&#xE7C1;" FontSize="10" Foreground="{ThemeResource WarningBrush}"
+                                  Visibility="{x:Bind ShowHighFlag}"/>
+                        <FontIcon Glyph="&#xE7C1;" FontSize="10" Foreground="{ThemeResource DangerBrush}"
+                                  Visibility="{x:Bind ShowUrgentFlag}"/>
+                        <TextBlock Text="{x:Bind DueLabel}" Style="{StaticResource ChromeMicroTextStyle}"
+                                   Foreground="{ThemeResource TextSecondaryBrush}"
+                                   Visibility="{x:Bind ShowDueNormal}"/>
+                        <TextBlock Text="{x:Bind DueLabel}" Style="{StaticResource ChromeMicroTextStyle}"
+                                   Foreground="{ThemeResource DangerBrush}"
+                                   Visibility="{x:Bind ShowDueOverdue}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <!--
+        The Tasks tab's whole surface (task 14 brief): its own toolbar (title, count, +) and
+        body — either the §5.4 empty state, or the board-plus-detail-pane pair. Mirrors
+        NotesTab's split: this control owns everything Tasks needs, RootPage just switches
+        its Visibility.
+
+        Board and detail pane are siblings inside SlideHost, side by side (board in column 0,
+        detail in column 1, each exactly the viewport's own width) rather than one replacing
+        the other. Opening a task translates SlideHost by -viewportWidth so the detail pane
+        slides fully into view and the board slides fully out of it — never destroyed,
+        never replaced — which is what lets switching from one task's detail to another's
+        skip back through the board first: SelectTask on an already-open pane just calls
+        Detail.Show again in place. SlideViewport clips to its own bounds so the half not
+        currently in view never paints outside the tab body.
+    -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <chrome:TabToolbar Grid.Row="0">
+            <chrome:TabToolbar.LeftContent>
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                    <TextBlock Text="Tasks" Style="{StaticResource ChromeBodyTextStyle}"/>
+                    <TextBlock x:Name="TaskCountLabel" Text="0" Style="{StaticResource ChromeMicroTextStyle}"/>
+                </StackPanel>
+            </chrome:TabToolbar.LeftContent>
+            <chrome:TabToolbar.RightContent>
+                <Button x:Name="NewTaskButton" Width="{StaticResource ToolbarActionSize}"
+                        Height="{StaticResource ToolbarActionSize}" Padding="0"
+                        BorderThickness="0" Background="Transparent"
+                        CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                        Click="OnNewTaskClick"
+                        PointerEntered="OnNewTaskPointerEntered" PointerExited="OnNewTaskPointerExited"
+                        AutomationProperties.Name="New task">
+                    <Grid>
+                        <Border x:Name="NewTaskHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                                Background="{ThemeResource AccentHover08Brush}" Visibility="Collapsed"/>
+                        <FontIcon x:Name="NewTaskIconOff" Glyph="&#xE710;" FontSize="15"
+                                  Foreground="{ThemeResource TextSecondaryBrush}"/>
+                        <FontIcon x:Name="NewTaskIconOn" Glyph="&#xE710;" FontSize="15"
+                                  Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
+                    </Grid>
+                </Button>
+            </chrome:TabToolbar.RightContent>
+        </chrome:TabToolbar>
+
+        <Grid Grid.Row="1">
+            <!-- §5.4 empty state — every column has zero tasks. -->
+            <StackPanel x:Name="EmptyState" Spacing="8"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24">
+                <FontIcon Glyph="&#xE9D5;" FontSize="32" Foreground="{ThemeResource TextTertiaryBrush}"
+                          HorizontalAlignment="Center"/>
+                <TextBlock Text="No tasks yet" Style="{StaticResource ChromeTitleTextStyle}"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="Turn a note into a task, or add one directly to Queue."
+                           Style="{StaticResource ChromeCaptionTextStyle}" HorizontalAlignment="Center"
+                           TextAlignment="Center" TextWrapping="Wrap" MaxWidth="240"/>
+            </StackPanel>
+
+            <Grid x:Name="SlideViewport" Visibility="Collapsed" SizeChanged="OnSlideViewportSizeChanged">
+                <Grid x:Name="SlideHost" HorizontalAlignment="Left" VerticalAlignment="Stretch">
+                    <Grid.RenderTransform>
+                        <TranslateTransform x:Name="SlideTransform" X="0"/>
+                    </Grid.RenderTransform>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- The board: three columns, each ListView carrying its own drag/drop
+                         wiring. Each column's ListView stretches to fill it and carries
+                         TaskColumnMinHeight, so an empty column is still a real drop target
+                         rather than shrink-wrapping to just its header row — the macOS
+                         defect this task must not repeat. -->
+                    <Grid x:Name="BoardHost" Grid.Column="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.Column="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="{StaticResource SpaceXxs}"
+                                        VerticalAlignment="Center">
+                                <TextBlock x:Name="QueueHeaderName" Text="Queue" Style="{StaticResource ChromeTitleTextStyle}"/>
+                                <TextBlock x:Name="QueueCountLabel" Text="0" Style="{StaticResource ChromeMicroTextStyle}"/>
+                            </StackPanel>
+                            <ListView x:Name="QueueList" Grid.Row="1"
+                                      ItemTemplate="{StaticResource TaskCardTemplate}"
+                                      ItemContainerStyle="{StaticResource TaskListViewItemStyle}"
+                                      SelectionMode="Single" CanDragItems="True" AllowDrop="True" CanReorderItems="True"
+                                      Background="Transparent"
+                                      MinHeight="{StaticResource TaskColumnMinHeight}"
+                                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                      SelectionChanged="OnListSelectionChanged"
+                                      DragItemsStarting="OnDragItemsStarting"
+                                      DragItemsCompleted="OnDragItemsCompleted"/>
+                        </Grid>
+
+                        <Border Grid.Column="1" Width="{StaticResource HairlineThickness}"
+                                Margin="{StaticResource TaskColumnSeparatorMargin}"
+                                Background="{ThemeResource BorderSeparatorBrush}"/>
+
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="{StaticResource SpaceXxs}"
+                                        VerticalAlignment="Center">
+                                <TextBlock x:Name="WorkingHeaderName" Text="Working" Style="{StaticResource ChromeTitleTextStyle}"/>
+                                <TextBlock x:Name="WorkingCountLabel" Text="0" Style="{StaticResource ChromeMicroTextStyle}"/>
+                            </StackPanel>
+                            <ListView x:Name="WorkingList" Grid.Row="1"
+                                      ItemTemplate="{StaticResource TaskCardTemplate}"
+                                      ItemContainerStyle="{StaticResource TaskListViewItemStyle}"
+                                      SelectionMode="Single" CanDragItems="True" AllowDrop="True" CanReorderItems="True"
+                                      Background="Transparent"
+                                      MinHeight="{StaticResource TaskColumnMinHeight}"
+                                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                      SelectionChanged="OnListSelectionChanged"
+                                      DragItemsStarting="OnDragItemsStarting"
+                                      DragItemsCompleted="OnDragItemsCompleted"/>
+                        </Grid>
+
+                        <Border Grid.Column="3" Width="{StaticResource HairlineThickness}"
+                                Margin="{StaticResource TaskColumnSeparatorMargin}"
+                                Background="{ThemeResource BorderSeparatorBrush}"/>
+
+                        <Grid Grid.Column="4">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="{StaticResource SpaceXxs}"
+                                        VerticalAlignment="Center">
+                                <TextBlock x:Name="DoneHeaderName" Text="Done" Style="{StaticResource ChromeTitleTextStyle}"/>
+                                <TextBlock x:Name="DoneCountLabel" Text="0" Style="{StaticResource ChromeMicroTextStyle}"/>
+                            </StackPanel>
+                            <ListView x:Name="DoneList" Grid.Row="1"
+                                      ItemTemplate="{StaticResource TaskCardTemplate}"
+                                      ItemContainerStyle="{StaticResource TaskListViewItemStyle}"
+                                      SelectionMode="Single" CanDragItems="True" AllowDrop="True" CanReorderItems="True"
+                                      Background="Transparent"
+                                      MinHeight="{StaticResource TaskColumnMinHeight}"
+                                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                      SelectionChanged="OnListSelectionChanged"
+                                      DragItemsStarting="OnDragItemsStarting"
+                                      DragItemsCompleted="OnDragItemsCompleted"/>
+                        </Grid>
+                    </Grid>
+
+                    <Grid x:Name="DetailHost" Grid.Column="1">
+                        <local:TaskDetailPane x:Name="Detail"/>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

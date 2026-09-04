@@ -159,3 +159,39 @@ this file rather than starting a new one.
       eventually removed by `IAttachmentRepository.DeleteUnreferenced` (not directly
       observable in the UI, but a note re-opened after this should not reference a
       dangling asset id, and the app should not error loading it).
+
+## Tasks board
+
+- [ ] Dragging a card from Queue to Working moves it; dragging Working to Done moves it;
+      dragging Done back to Queue or Working moves it -- every pairwise combination of the
+      three columns, not just adjacent ones.
+- [ ] Dropping a card into an EMPTY column (drag the last card out of Working, then drag a
+      different card back in) succeeds -- the empty column is a real drop target, not just
+      its header row.
+- [ ] Starting a drag and, mid-drag, checking that the panel does not collapse even if the
+      cursor briefly leaves the panel bounds while still holding the mouse button.
+- [ ] Dragging a card off the panel's edge and releasing there: the drag cancels (the card
+      stays in its original column/position) rather than the panel collapsing out from under
+      it.
+- [ ] Clicking `+` creates a new task in Queue, opens straight into its detail pane, and the
+      title field is already focused -- typing immediately replaces "New Task" with no extra
+      click needed to start editing.
+- [ ] Opening a card's detail pane, then clicking a different card without clicking Back
+      first: the pane updates in place to the new task -- the board does not need to be
+      revisited between the two.
+- [ ] Clicking Back from the detail pane returns to the board, and clicking the same card
+      again reopens its detail pane (selection was cleared, not left stuck).
+- [ ] Dragging a card into Done stamps a Completed time (visible in its detail pane's meta
+      line); dragging it back out to Queue or Working clears that Completed time.
+- [ ] Reordering a card within Done (drag it above or below another Done card, without
+      leaving the column) does NOT change its Completed time -- only entering/leaving Done
+      does.
+- [ ] Editing a task's priority or due date from its detail pane's flyouts, then opening a
+      DIFFERENT task's detail pane and switching back: the first task's edits are still
+      there (not reverted or overwritten by the second task's data).
+- [ ] Deleting a task from its open detail pane returns to the board with the card gone and
+      the column counts updated.
+- [ ] Column count badges (next to Queue/Working/Done) match the actual number of cards
+      after every create, delete, and drag.
+- [ ] The board's empty state ("No tasks yet") shows only when all three columns are empty,
+      and disappears the moment the first task is created.

@@ -3,7 +3,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Notebar.App.Features"
-    xmlns:notes="using:Notebar.App.Features.Notes">
+    xmlns:notes="using:Notebar.App.Features.Notes"
+    xmlns:tasks="using:Notebar.App.Features.Tasks">
 
     <!--
         DesignSystem/Tokens.xaml is merged into Application.Resources in App.xaml, not here.
@@ -44,54 +45,13 @@
                     <notes:NotesTab x:Name="NotesTabControl"/>
                 </Grid>
 
-                <!-- Tasks -->
+                <!--
+                    Tasks. Task 14's TasksTab owns the whole surface (its own toolbar plus
+                    the three-column board and detail pane) the same way NotesTab does above
+                    — see TasksTab.xaml's own remarks.
+                -->
                 <Grid x:Name="TasksTabRoot" Visibility="Collapsed">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <local:TabToolbar Grid.Row="0">
-                        <local:TabToolbar.LeftContent>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Tasks" Style="{StaticResource ChromeBodyTextStyle}"/>
-                                <TextBlock x:Name="TaskCountLabel" Text="0" Style="{StaticResource ChromeMicroTextStyle}"/>
-                            </StackPanel>
-                        </local:TabToolbar.LeftContent>
-                        <local:TabToolbar.RightContent>
-                            <Button x:Name="NewTaskButton" Width="28" Height="28" Padding="0"
-                                    BorderThickness="0" Background="Transparent"
-                                    CornerRadius="{StaticResource RadiusSmCornerRadius}"
-                                    Click="OnNewTaskClick"
-                                    PointerEntered="OnNewTaskPointerEntered" PointerExited="OnNewTaskPointerExited"
-                                    AutomationProperties.Name="New Task">
-                                <Grid>
-                                    <Border x:Name="NewTaskHoverBg" CornerRadius="{StaticResource RadiusSmCornerRadius}"
-                                            Background="{ThemeResource AccentHover08Brush}" Visibility="Collapsed"/>
-                                    <FontIcon x:Name="NewTaskIconOff" Glyph="&#xE710;" FontSize="15"
-                                              Foreground="{ThemeResource TextSecondaryBrush}"/>
-                                    <FontIcon x:Name="NewTaskIconOn" Glyph="&#xE710;" FontSize="15"
-                                              Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
-                                </Grid>
-                            </Button>
-                        </local:TabToolbar.RightContent>
-                    </local:TabToolbar>
-
-                    <!--
-                        Body placeholder — Task 14 builds the real board against
-                        Features/Tasks/. §5.4's own empty-state copy, for the same reason as
-                        the Notes placeholder above.
-                    -->
-                    <StackPanel Grid.Row="1" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Padding="24">
-                        <FontIcon Glyph="&#xE9D5;" FontSize="32" Foreground="{ThemeResource TextTertiaryBrush}"
-                                  HorizontalAlignment="Center"/>
-                        <TextBlock Text="No tasks yet" Style="{StaticResource ChromeTitleTextStyle}"
-                                   HorizontalAlignment="Center"/>
-                        <TextBlock Text="Turn a note into a task, or add one directly to Queue."
-                                   Style="{StaticResource ChromeCaptionTextStyle}" HorizontalAlignment="Center"
-                                   TextAlignment="Center" TextWrapping="Wrap" MaxWidth="240"/>
-                    </StackPanel>
+                    <tasks:TasksTab x:Name="TasksTabControl"/>
                 </Grid>
 
                 <!-- Settings -->

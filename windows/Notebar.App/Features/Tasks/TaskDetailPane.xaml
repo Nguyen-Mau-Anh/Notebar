@@ -1,0 +1,110 @@
+<UserControl
+    x:Class="Notebar.App.Features.Tasks.TaskDetailPane"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        The task detail pane (task 14 brief / product spec §6.4): title, detail, priority,
+        and due date, all editable here. Owns none of the slide-open animation itself —
+        TasksTab treats this as a plain child control it shows or hides by translating the
+        Grid that hosts both it and the board, the "board slides aside" requirement — this
+        control only ever renders whatever TaskItem Show() was last called with and raises
+        one event per field committed.
+
+        Every clickable element below gets an explicit non-null Background (Transparent
+        counts) — a null Background is not hit-testable in WinUI, and "the hit target was
+        the glyph, not the cell" is one of the named defects this task must not
+        reproduce.
+    -->
+    <Grid Background="{ThemeResource SurfacePanelBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Height="{StaticResource ToolbarHeight}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="BackButton" Grid.Column="0"
+                    Width="{StaticResource ToolbarActionSize}" Height="{StaticResource ToolbarActionSize}"
+                    Margin="{StaticResource ToolbarLeftContentMargin}" Padding="0"
+                    BorderThickness="0" Background="Transparent"
+                    CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                    Click="OnBackClick"
+                    AutomationProperties.Name="Back to board">
+                <FontIcon Glyph="&#xE72B;" FontSize="14" Foreground="{ThemeResource TextSecondaryBrush}"/>
+            </Button>
+
+            <TextBlock Grid.Column="1" Text="Task" Style="{StaticResource ChromeBodyTextStyle}"
+                       VerticalAlignment="Center"/>
+
+            <Button x:Name="DeleteButton" Grid.Column="2"
+                    Width="{StaticResource ToolbarActionSize}" Height="{StaticResource ToolbarActionSize}"
+                    Margin="{StaticResource ToolbarRightContentMargin}" Padding="0"
+                    BorderThickness="0" Background="Transparent"
+                    CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                    Click="OnDeleteClick"
+                    AutomationProperties.Name="Delete task">
+                <FontIcon Glyph="&#xE74D;" FontSize="14" Foreground="{ThemeResource TextSecondaryBrush}"/>
+            </Button>
+        </Grid>
+        <Border Grid.Row="0" VerticalAlignment="Bottom" Height="{StaticResource HairlineThickness}"
+                Background="{ThemeResource BorderSeparatorBrush}"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="{StaticResource SpaceSm}" Padding="{StaticResource SpaceMd}">
+                <TextBox x:Name="TitleBox"
+                         PlaceholderText="Untitled task"
+                         FontSize="15" FontWeight="SemiBold"
+                         BorderThickness="0" Background="Transparent" Padding="0"
+                         TextWrapping="Wrap"
+                         LostFocus="OnTitleLostFocus" KeyDown="OnTitleKeyDown"/>
+
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                    <Button x:Name="PriorityButton" Content="Priority: None"
+                            Padding="8,4,8,4" BorderThickness="0"
+                            Background="{ThemeResource AccentHover08Brush}"
+                            CornerRadius="{StaticResource RadiusSmCornerRadius}">
+                        <Button.Flyout>
+                            <MenuFlyout x:Name="PriorityFlyout">
+                                <MenuFlyoutItem Text="None" Click="OnPriorityNoneClick"/>
+                                <MenuFlyoutItem Text="Low" Click="OnPriorityLowClick"/>
+                                <MenuFlyoutItem Text="High" Click="OnPriorityHighClick"/>
+                                <MenuFlyoutItem Text="Urgent" Click="OnPriorityUrgentClick"/>
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <Button x:Name="DueDateButton" Content="Set due date"
+                            Padding="8,4,8,4" BorderThickness="0"
+                            Background="{ThemeResource AccentHover08Brush}"
+                            CornerRadius="{StaticResource RadiusSmCornerRadius}">
+                        <Button.Flyout>
+                            <Flyout x:Name="DueDateFlyout">
+                                <StackPanel Spacing="{StaticResource SpaceXs}">
+                                    <CalendarView x:Name="DueDateCalendar" SelectionMode="Single"
+                                                  SelectedDatesChanged="OnDueDateSelected"/>
+                                    <Button Content="Clear due date" HorizontalAlignment="Stretch"
+                                            Click="OnClearDueDateClick"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+
+                <TextBox x:Name="DetailBox"
+                         PlaceholderText="Add detail…"
+                         AcceptsReturn="True" TextWrapping="Wrap"
+                         MinHeight="160"
+                         BorderThickness="0" Background="Transparent" Padding="0"
+                         LostFocus="OnDetailLostFocus"/>
+
+                <TextBlock x:Name="MetaLabel" Style="{StaticResource ChromeCaptionTextStyle}"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

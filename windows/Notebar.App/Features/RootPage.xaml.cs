@@ -29,10 +29,6 @@ internal sealed partial class RootPage : Page
 
     private PanelViewModel? _viewModel;
 
-    /// <summary>Raised by the Tasks toolbar's + button. Unwired for now -- Task 14 owns the
-    /// task repository plumbing this needs.</summary>
-    internal event RoutedEventHandler? NewTaskRequested;
-
     internal RootPage()
     {
         InitializeComponent();
@@ -42,13 +38,15 @@ internal sealed partial class RootPage : Page
     /// <summary>Called once by PanelWindow after both this page and the PanelController it
     /// needs exist. The controller cannot exist before the window does -- App.xaml.cs
     /// constructs PanelWindow first and PanelController second, wrapping the window it just
-    /// built -- so it cannot be handed in through this page's own constructor. The three
-    /// repositories are Task 12's -- NotesTabControl is the only thing that needs them.</summary>
+    /// built -- so it cannot be handed in through this page's own constructor. The note
+    /// repositories are Task 12's, for NotesTabControl; taskRepository is Task 14's, for
+    /// TasksTabControl.</summary>
     internal void AttachController(
         PanelController panelController,
         INoteRepository noteRepository,
         IOpenTabRepository openTabRepository,
-        IAttachmentRepository attachmentRepository)
+        IAttachmentRepository attachmentRepository,
+        ITaskRepository taskRepository)
     {
         _viewModel = new PanelViewModel(panelController);
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -57,6 +55,7 @@ internal sealed partial class RootPage : Page
         UpdateActiveTab();
 
         NotesTabControl.Attach(noteRepository, openTabRepository, attachmentRepository, panelController);
+        TasksTabControl.Attach(taskRepository, panelController);
 
         // Task 12's data-loss fix: App.FlushPendingNoteSave is the seam Task 9
         // named but nothing could assign until a NoteEditorHost existed to
@@ -93,23 +92,5 @@ internal sealed partial class RootPage : Page
             bool isCompact = e.NewSize.Width < PanelTiming.PanelWidth;
             Rail.SetCompact(isCompact);
         }
-    }
-
-    private void OnNewTaskClick(object sender, RoutedEventArgs e) => NewTaskRequested?.Invoke(this, e);
-
-    // --- Toolbar action button hover (screen spec §2: "stepping to accent on hover with a
-    // radius.sm background at accent 8%"). Every colour here is a static {ThemeResource ...}
-    // reference in RootPage.xaml; this only ever toggles which pre-declared element is
-    // visible, never assigns a brush from code. The Notes toolbar's own +/all-notes buttons
-    // moved to NotesTab (Task 12) along with this same pattern -- see NotesTab.xaml.cs.
-
-    private void OnNewTaskPointerEntered(object sender, PointerRoutedEventArgs e) => SetActionHover(NewTaskHoverBg, NewTaskIconOff, NewTaskIconOn, true);
-    private void OnNewTaskPointerExited(object sender, PointerRoutedEventArgs e) => SetActionHover(NewTaskHoverBg, NewTaskIconOff, NewTaskIconOn, false);
-
-    private static void SetActionHover(Border hoverBg, FontIcon iconOff, FontIcon iconOn, bool isHovering)
-    {
-        hoverBg.Visibility = isHovering ? Visibility.Visible : Visibility.Collapsed;
-        iconOff.Visibility = isHovering ? Visibility.Collapsed : Visibility.Visible;
-        iconOn.Visibility = isHovering ? Visibility.Visible : Visibility.Collapsed;
     }
 }
