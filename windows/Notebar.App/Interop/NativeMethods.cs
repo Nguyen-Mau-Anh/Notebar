@@ -91,6 +91,13 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     internal static partial IntPtr GetForegroundWindow();
 
+    /// <summary>The backstop that clears IsDragging when a drag ends outside
+    /// the panel and no drop event ever reaches us. Polls the physical button
+    /// state rather than tracking press/release, which is why it works
+    /// regardless of what started the drag.</summary>
+    [LibraryImport("user32.dll")]
+    internal static partial short GetAsyncKeyState(int vKey);
+
     // --- hotkey ---
 
     internal const uint MOD_CONTROL = 0x0002;
