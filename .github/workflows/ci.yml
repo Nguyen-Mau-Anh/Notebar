@@ -136,6 +136,14 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
+      # dotnet build alone won't drive single-project MSIX packaging: it
+      # repeatedly produced "You must include a valid app package manifest
+      # file named AppxManifest.xml in the source" even with the RID pinned,
+      # because the Appx packaging targets that generate AppxManifest.xml
+      # from Package.appxmanifest are only reliably invoked through full
+      # desktop MSBuild, not the dotnet SDK CLI's build driver.
+      - uses: microsoft/setup-msbuild@v2
+
       # The cross-platform half. These carry the behaviour, so they run first
       # and a failure here stops the build before the slow MSIX step.
       - name: Test Notebar.Core
@@ -148,21 +156,22 @@ jobs:
       - name: Build the WinUI app
         run: dotnet build windows/Notebar.App/Notebar.App.csproj -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64
 
-      # MSIX packaging stages an AppxManifest.xml into a RID-specific
-      # intermediate layout. -p:Platform=x64 alone doesn't pin a single
-      # RuntimeIdentifier out of the project's <RuntimeIdentifiers>
-      # win-x64;win-arm64> list, so without -p:RuntimeIdentifier here MakeAppx
-      # finds no manifest to package and fails with "You must include a valid
-      # app package manifest file named AppxManifest.xml in the source."
+      # Packaging goes through msbuild.exe (not dotnet build) for the reason
+      # noted above. /restore because this is a separate MSBuild invocation
+      # from the dotnet-build step above, not guaranteed to see its restore
+      # output. AppxBundle=Never keeps the output a single .msix rather than
+      # a .msixbundle, matching what "Collect the package" looks for.
       - name: Package MSIX
         run: >
-          dotnet build windows/Notebar.App/Notebar.App.csproj
-          -c Release
-          -p:Platform=x64
-          -p:RuntimeIdentifier=win-x64
-          -p:GenerateAppxPackageOnBuild=true
-          -p:AppxPackageSigningEnabled=false
-          -p:UapAppxPackageBuildMode=SideloadOnly
+          msbuild windows/Notebar.App/Notebar.App.csproj
+          /restore
+          /p:Configuration=Release
+          /p:Platform=x64
+          /p:RuntimeIdentifier=win-x64
+          /p:GenerateAppxPackageOnBuild=true
+          /p:AppxBundle=Never
+          /p:AppxPackageSigningEnabled=false
+          /p:UapAppxPackageBuildMode=SideloadOnly
 
       - name: Collect the package
         shell: bash
