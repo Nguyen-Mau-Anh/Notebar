@@ -101,10 +101,23 @@ public enum PanelMachine {
         // Hard invariants — never collapse under these.
         if context.isPinned || context.hasOpenOverlay || context.isDragging { return false }
 
-        // A focused editor holds the panel open. Losing what you are typing because
-        // the mouse drifted is the worst failure this panel can have, and clicking
-        // into another app clears focus anyway, so this cannot strand the panel open.
-        if context.isEditorFocused { return false }
+        // A focused editor holds the panel open, but not indefinitely. The original
+        // version returned false on focus alone, reasoning that "clicking into
+        // another app clears focus anyway". It does not: `firstResponder` is a
+        // per-window property that survives both the app deactivating and the user
+        // simply looking away. So a note clicked into once kept the panel open
+        // until the app quit, which is what this fix is for.
+        //
+        // Focus still earns a longer reprieve than a bare keystroke does —
+        // `focusedIdleGrace` rather than `typingGrace` — because losing your place
+        // mid-thought is the worse failure. But the cursor has already left the
+        // panel by the time this is asked, which is good evidence the user is done.
+        // Pin is the way to keep it open for as long as you like.
+        if context.isEditorFocused,
+           let ms = context.msSinceLastKeystroke,
+           Double(ms) / 1000 <= PanelTiming.focusedIdleGrace {
+            return false
+        }
 
         // Recently typed, even if focus has since gone: still working.
         if let ms = context.msSinceLastKeystroke,

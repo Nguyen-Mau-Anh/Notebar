@@ -48,6 +48,17 @@ public enum PanelTiming {
     /// Deliberately faster than expanding — reads as responsive, not sluggish.
     public static let collapseDuration: TimeInterval = 0.140
 
+    /// How long a *focused* editor keeps the panel open after the last
+    /// keystroke. Longer than `typingGrace` because losing your place
+    /// mid-thought is worse than a few extra seconds of panel — but finite,
+    /// unlike the original design, which treated focus as absolute. That was
+    /// wrong twice over: `firstResponder` is per-window and does not clear
+    /// when the user looks away or the app deactivates, so a note clicked once
+    /// held the panel open until the app quit. The cursor having already left
+    /// the panel is itself decent evidence the user is done; to keep it open
+    /// indefinitely, pin it.
+    public static let focusedIdleGrace: TimeInterval = 10.0
+
     /// How long after the last keystroke the panel still counts as "in use".
     /// Referenced by `PanelMachine.shouldCollapse`.
     public static let typingGrace: TimeInterval = 2.0

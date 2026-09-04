@@ -39,16 +39,38 @@ struct CollapsePolicyInvariantTests {
         #expect(state == .expanded)
     }
 
-    @Test("a focused editor does not collapse, even with no keystrokes recorded")
-    func focusedEditorNeverCollapsesWithNoKeystrokes() {
+    @Test("a focused editor with no keystrokes at all collapses")
+    func focusedEditorWithNoKeystrokesCollapses() {
+        // Clicking into a note and walking away without typing must not pin the
+        // panel open. `firstResponder` never clears on its own, so treating this
+        // as "in use" kept the panel open until the app quit.
         let context = PanelContext(isEditorFocused: true, msSinceLastKeystroke: nil)
+        #expect(PanelMachine.shouldCollapse(context) == true)
+    }
+
+    @Test("a focused editor collapses once idle past its own grace period")
+    func focusedEditorCollapsesOnceIdlePastItsGrace() {
+        // A minute since the last keystroke: focused or not, the user is done.
+        let context = PanelContext(isEditorFocused: true, msSinceLastKeystroke: 60_000)
+        #expect(PanelMachine.shouldCollapse(context) == true)
+    }
+
+    @Test("a focused editor typed in a moment ago does not collapse")
+    func focusedEditorRecentlyTypedDoesNotCollapse() {
+        let context = PanelContext(isEditorFocused: true, msSinceLastKeystroke: 500)
         #expect(PanelMachine.shouldCollapse(context) == false)
     }
 
-    @Test("a focused editor does not collapse even when the last keystroke is far older than the grace period")
-    func focusedEditorNeverCollapsesRegardlessOfKeystrokeAge() {
-        let context = PanelContext(isEditorFocused: true, msSinceLastKeystroke: 60_000)
-        #expect(PanelMachine.shouldCollapse(context) == false)
+    @Test("focus earns a longer reprieve than a bare keystroke does")
+    func focusOutlastsTypingGraceButNotForever() {
+        let past = Int(PanelTiming.typingGrace * 1000) + 500
+        #expect(Double(past) / 1000 < PanelTiming.focusedIdleGrace)
+        // Beyond typingGrace, so an unfocused editor would collapse here...
+        #expect(PanelMachine.shouldCollapse(
+            PanelContext(isEditorFocused: false, msSinceLastKeystroke: past)) == true)
+        // ...but a focused one is still within focusedIdleGrace.
+        #expect(PanelMachine.shouldCollapse(
+            PanelContext(isEditorFocused: true, msSinceLastKeystroke: past)) == false)
     }
 
     @Test("an unfocused editor typed in 500ms ago does not collapse")
@@ -69,9 +91,11 @@ struct CollapsePolicyInvariantTests {
         #expect(PanelMachine.shouldCollapse(context) == true)
     }
 
-    @Test("a focused editor survives a full exit-dwell cycle")
+    @Test("an editor being typed in survives a full exit-dwell cycle")
     func focusedEditorSurvivesExitDwell() {
-        let context = PanelContext(isEditorFocused: true)
+        // A recent keystroke is what makes this "in use". Focus with no typing
+        // behind it no longer holds the panel open — see focusedIdleGrace.
+        let context = PanelContext(isEditorFocused: true, msSinceLastKeystroke: 200)
         let (state, effects) = PanelMachine.reduce(.expanded, .exitDwellElapsed, context)
         #expect(state == .expanded)
         #expect(!effects.contains(.hidePanel))
