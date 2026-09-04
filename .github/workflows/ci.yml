@@ -193,16 +193,16 @@ jobs:
       # zip above is the primary artifact). Every prior variant (default
       # target, csproj or sln, dotnet build or msbuild.exe, with the
       # AppxManifest/Manifest/Content item group present, across two
-      # WindowsAppSDK major versions, /t:Build vs /t:Publish) produced an
-      # empty package.map.txt with no AppxManifest.xml ever staged.
-      # /t:Publish + PublishProfile=win-x64 (previous attempt) turned out to
-      # never actually load the .pubxml: the build output path stayed
-      # RID-less (net9.0-windows10.0.22621.0\, not ...\win-x64\), and the
-      # log showed the Publish target running without ever invoking
-      # ComputeFilesToPublish or PublishItemsOutputGroup — the real .NET
-      # publish pipeline never engaged. Passing RuntimeIdentifier and
-      # SelfContained explicitly on the command line, rather than relying on
-      # profile auto-discovery, to force that pipeline to actually run.
+      # WindowsAppSDK major versions, /t:Build vs /t:Publish, with or without
+      # an explicit RuntimeIdentifier or SelfContained) produced an empty
+      # package.map.txt with no AppxManifest.xml ever staged — including
+      # /t:Publish against the .csproj directly with RuntimeIdentifier and
+      # SelfContained=true both set explicitly, which still left the build
+      # output path RID-less. Trying once more without SelfContained=true:
+      # an MSIX package is framework-dependent (the WindowsAppSDK bootstrapper
+      # handles the runtime), so forcing a self-contained publish alongside
+      # GenerateAppxPackageOnBuild may itself be what's derailing the target
+      # graph. continue-on-error below means this costs nothing if it isn't.
       - name: Package MSIX
         id: package_msix
         continue-on-error: true
@@ -213,7 +213,6 @@ jobs:
           /p:Configuration=Release
           /p:Platform=x64
           /p:RuntimeIdentifier=win-x64
-          /p:SelfContained=true
           /p:GenerateAppxPackageOnBuild=true
           /p:AppxPackageSigningEnabled=false
           /p:UapAppxPackageBuildMode=SideloadOnly
@@ -250,6 +249,7 @@ jobs:
       # be silently empty; this one is allowed to come up empty while it's
       # still an open follow-up.
       - name: Collect the package
+        continue-on-error: true
         shell: bash
         run: |
           mkdir -p artifacts
