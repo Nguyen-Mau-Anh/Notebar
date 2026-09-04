@@ -50,9 +50,11 @@ internal static class MonitorInfo
         return new PanelRect(w.Left, w.Top, w.Right - w.Left, w.Bottom - w.Top);
     }
 
-    /// <summary>One line per display, plain text, for diagnostics. Never anything
-    /// but geometry.</summary>
-    internal static IReadOnlyList<string> DescribeAll()
+    /// <summary>One line describing the cursor's monitor, plain text, for
+    /// diagnostics. Never anything but geometry. This is the cursor's monitor
+    /// only, not every display — enumerating all of them needs
+    /// EnumDisplayMonitors, which nothing here calls.</summary>
+    internal static IReadOnlyList<string> DescribeCursorMonitor()
     {
         // Enumerating every monitor needs EnumDisplayMonitors; the cursor's
         // monitor is what actually matters for a bug report about the panel,

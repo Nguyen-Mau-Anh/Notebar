@@ -67,9 +67,6 @@ public sealed partial class PanelWindow : Window
     internal void HideWindow() =>
         NativeMethods.ShowWindow(_hwnd, NativeMethods.SW_HIDE);
 
-    private const uint SWP_NOSIZE = 0x0001;
-    private const uint SWP_NOMOVE = 0x0002;
-
     /// <summary>Re-asserts topmost without moving or resizing. Another app going
     /// fullscreen, or the user switching virtual desktops, can knock the panel out
     /// of the topmost band; the cursor monitor calls this on its idle tick, which
@@ -77,5 +74,5 @@ public sealed partial class PanelWindow : Window
     /// appearing" reports.</summary>
     internal void ReassertTopmost() =>
         NativeMethods.SetWindowPos(_hwnd, NativeMethods.HWND_TOPMOST, 0, 0, 0, 0,
-            SWP_NOSIZE | SWP_NOMOVE | NativeMethods.SWP_NOACTIVATE);
+            NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOACTIVATE);
 }
