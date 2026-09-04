@@ -10,6 +10,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>MSIX</WindowsPackageType>
     <ApplicationIcon>Assets/Notebar.ico</ApplicationIcon>
+    <!-- The LibraryImport source generator emits function-pointer marshalling
+         for some P/Invoke signatures in NativeMethods.cs (e.g. out-parameter
+         structs), which the compiler classifies as unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.260224002" />
