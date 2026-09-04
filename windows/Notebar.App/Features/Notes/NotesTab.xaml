@@ -22,8 +22,11 @@
                 <notes:NoteTabStrip x:Name="TabStrip"/>
             </chrome:TabToolbar.LeftContent>
             <chrome:TabToolbar.RightContent>
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Button x:Name="NewNoteButton" Width="28" Height="28" Padding="0"
+                <!-- space.xs between the two actions, matching the macOS build's own
+                     HStack(spacing: Tokens.Space.xs) for this exact row. -->
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                    <Button x:Name="NewNoteButton" Width="{StaticResource ToolbarActionSize}"
+                            Height="{StaticResource ToolbarActionSize}" Padding="0"
                             BorderThickness="0" Background="Transparent"
                             CornerRadius="{StaticResource RadiusSmCornerRadius}"
                             Click="OnNewNoteClick"
@@ -38,7 +41,8 @@
                                       Foreground="{ThemeResource AccentBrush}" Visibility="Collapsed"/>
                         </Grid>
                     </Button>
-                    <Button x:Name="AllNotesButton" Width="28" Height="28" Padding="0"
+                    <Button x:Name="AllNotesButton" Width="{StaticResource ToolbarActionSize}"
+                            Height="{StaticResource ToolbarActionSize}" Padding="0"
                             BorderThickness="0" Background="Transparent"
                             CornerRadius="{StaticResource RadiusSmCornerRadius}"
                             Click="OnAllNotesClick"

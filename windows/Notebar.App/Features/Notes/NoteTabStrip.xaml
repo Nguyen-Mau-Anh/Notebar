@@ -50,8 +50,12 @@
 
                         <!-- Visible on hover or while active — the Visibility set here is
                              only the INITIAL value; OnTabPointerEntered/Exited below own it
-                             afterwards. -->
-                        <Button x:Name="CloseButton" Grid.Column="0" Width="20" Height="20" Padding="0"
+                             afterwards. 24x24 hit target per screen spec §4.1 ("Close:
+                             xmark, 10pt glyph in a 24×24 hit target"), which is exactly
+                             ControlToggleSize. -->
+                        <Button x:Name="CloseButton" Grid.Column="0"
+                                Width="{StaticResource ControlToggleSize}"
+                                Height="{StaticResource ControlToggleSize}" Padding="0"
                                 Margin="0,0,4,0" BorderThickness="0" Background="Transparent"
                                 Visibility="{x:Bind IsActive}"
                                 Click="OnCloseButtonClick"

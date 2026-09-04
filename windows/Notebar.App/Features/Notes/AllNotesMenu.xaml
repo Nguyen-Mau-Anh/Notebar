@@ -29,7 +29,7 @@
                         <Button Background="Transparent" BorderThickness="0" Padding="12,8,12,8"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                                 Click="OnRowClick">
-                            <Grid ColumnSpacing="8">
+                            <Grid ColumnSpacing="{StaticResource SpaceXs}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
