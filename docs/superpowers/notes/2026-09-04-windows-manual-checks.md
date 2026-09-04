@@ -285,3 +285,9 @@ this file rather than starting a new one.
       (e.g. writing a note), then switching back to Settings without leaving the app: Size on
       disk reflects the change rather than showing a stale number from when the tab was first
       opened.
+
+## Release artifacts
+
+- [ ] Any .msix attached to a release actually contains Notebar.App.exe
+      (`unzip -l` it). 0.1.0 shipped the Windows App SDK's own framework package
+      under our filename because a bare *.msix glob matched it.

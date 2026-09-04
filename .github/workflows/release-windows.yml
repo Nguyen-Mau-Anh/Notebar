@@ -87,7 +87,23 @@ jobs:
         run: |
           mkdir -p artifacts
           cd publish/portable && 7z a -tzip ../../artifacts/Notebar-portable-x64.zip . && cd ../..
-          find windows/Notebar.App -name '*.msix' -exec cp {} artifacts/Notebar-x64.msix \;
+
+          # windows-v0.1.0 shipped the Windows App SDK's own framework package to users
+          # under this exact filename: a bare *.msix glob also matches whatever NuGet
+          # restores into windows/Notebar.App (Microsoft.WindowsAppRuntime, push-notification
+          # helper packages, ...), and one of those happened to look right by name alone.
+          # Restrict the path to where MakeAppx actually writes OUR package, restrict the
+          # name to one that starts with Notebar, and -- because path and name together are
+          # still guessable-past -- verify the CONTENTS contain Notebar.App.exe before ever
+          # copying it into artifacts/.
+          msix=$(find windows/Notebar.App -path '*AppPackages*' -name 'Notebar*.msix' | head -1)
+          if [ -n "$msix" ] && unzip -l "$msix" | grep -q 'Notebar\.App\.exe'; then
+            cp "$msix" artifacts/Notebar-x64.msix
+            echo "Notebar MSIX found: $msix"
+          else
+            echo "No Notebar MSIX produced -- shipping the portable zip only."
+          fi
+
           ls -la artifacts
 
       - name: Fail if the portable zip is missing
