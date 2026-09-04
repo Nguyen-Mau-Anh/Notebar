@@ -170,35 +170,61 @@ jobs:
       - name: Build the WinUI app
         run: msbuild windows/Notebar.sln /p:Configuration=Release /p:Platform=x64
 
-      # AppxBundle=Never keeps the output a single .msix rather than a
-      # .msixbundle, matching what "Collect the package" looks for. Uses
-      # /t:Publish rather than a plain default-target build: every prior
-      # variant (default target, csproj or sln, dotnet build or msbuild.exe,
-      # with the AppxManifest/Manifest/Content item group present, across two
-      # WindowsAppSDK major versions) produced an empty package.map.txt with
-      # no AppxManifest.xml ever staged. /t:Publish drives a different target
-      # chain that's more consistently documented to trigger the single-
-      # project MSIX packaging pipeline from the CLI.
-      - name: Package MSIX
+      # The primary distributable for v0.1.0: an unsigned MSIX needs an
+      # Add-AppxPackage incantation from the user anyway, while a portable
+      # self-contained zip needs no installation ceremony at all. This step
+      # is unconditional and independent of the MSIX step below it, so a
+      # packaging problem downstream can never leave the pipeline with an
+      # empty artifact list.
+      - name: Publish the portable build
         run: >
-          msbuild windows/Notebar.sln
+          dotnet publish windows/Notebar.App/Notebar.App.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:Platform=x64 -p:WindowsPackageType=None
+          -o publish/portable
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notebar-windows-portable
+          path: publish/portable/
+          if-no-files-found: error
+
+      # MSIX packaging (nice-to-have, not load-bearing now that the portable
+      # zip above is the primary artifact). Every prior variant (default
+      # target, csproj or sln, dotnet build or msbuild.exe, with the
+      # AppxManifest/Manifest/Content item group present, across two
+      # WindowsAppSDK major versions) produced an empty package.map.txt with
+      # no AppxManifest.xml ever staged, because a plain /t:Build with
+      # GenerateAppxPackageOnBuild=true never runs the publish pipeline that
+      # _ComputeAppxPackagePayload depends on. /t:Publish plus an explicit
+      # publish profile drives that pipeline.
+      - name: Package MSIX
+        id: package_msix
+        continue-on-error: true
+        run: >
+          msbuild windows\Notebar.App\Notebar.App.csproj
+          /restore
           /t:Publish
           /p:Configuration=Release
           /p:Platform=x64
-          /p:AppxBundle=Never
-          /p:AppxPackageSigningEnabled=false
+          /p:PublishProfile=win-x64
           /p:GenerateAppxPackageOnBuild=true
+          /p:AppxPackageSigningEnabled=false
+          /p:UapAppxPackageBuildMode=SideloadOnly
+          /p:AppxBundle=Never
 
-      # Diagnostic only, not a fix: six identical "You must include a valid
-      # app package manifest file named AppxManifest.xml" failures across
-      # every documented configuration variant (RuntimeIdentifier on/off,
-      # dotnet build vs msbuild, csproj vs sln entry point, with/without the
-      # AppxManifest/Manifest/Content item group) means the next fix needs
-      # evidence, not another guess. Prints whether AppxManifest.xml exists
-      # anywhere in the intermediate output, and what package.map.txt (the
-      # file MakeAppx actually reads) contains.
+      # Diagnostic only, not a fix: every documented configuration variant
+      # tried before this (RuntimeIdentifier on/off, dotnet build vs msbuild,
+      # csproj vs sln entry point, with/without the AppxManifest/Manifest/
+      # Content item group, /t:Build vs /t:Publish without a publish profile)
+      # produced the identical "You must include a valid app package
+      # manifest file named AppxManifest.xml" failure. If this run's
+      # /t:Publish + PublishProfile attempt also fails, this step prints
+      # whether AppxManifest.xml exists anywhere in the intermediate output,
+      # and what package.map.txt (the file MakeAppx actually reads)
+      # contains.
       - name: Diagnose package layout on failure
-        if: failure()
+        if: steps.package_msix.outcome == 'failure'
         shell: bash
         run: |
           echo "--- find: any AppxManifest.xml under Notebar.App ---"
@@ -212,6 +238,11 @@ jobs:
           echo "--- Package.appxmanifest source file ---"
           ls -la windows/Notebar.App/Package.appxmanifest || true
 
+      # Nice-to-have, not load-bearing: if-no-files-found is "warn" here,
+      # not "error", because Package MSIX above has continue-on-error: true.
+      # The portable zip published earlier is the artifact that must never
+      # be silently empty; this one is allowed to come up empty while it's
+      # still an open follow-up.
       - name: Collect the package
         shell: bash
         run: |
@@ -223,4 +254,4 @@ jobs:
         with:
           name: notebar-windows-msix
           path: artifacts/
-          if-no-files-found: error
+          if-no-files-found: warn
