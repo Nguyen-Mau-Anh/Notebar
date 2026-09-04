@@ -14,6 +14,8 @@ this file rather than starting a new one.
 - [ ] Switching virtual desktops and back: the panel still appears on hover.
 - [ ] On a 150%-scaled display the panel is the same visual size as on a 100% one.
 - [ ] With the taskbar docked left or top, the panel does not sit under it.
+- [ ] On a multi-monitor setup, hovering the edge of a NON-primary monitor expands the
+      panel on that monitor, sized to its own work area -- not the primary monitor's.
 
 ## Panel behaviour
 
@@ -239,3 +241,47 @@ this file rather than starting a new one.
 - [ ] Restoring the situation (create a new note, link to it, confirm the chip renders
       normally, not tombstoned) after a tombstone check, to confirm tombstoning is specific
       to the deleted target and not stuck on for the whole session.
+
+## Settings
+
+- [ ] General -> Theme: choosing Light/Dark/System changes the panel's own colours
+      immediately, with the panel still open -- no relaunch, no flicker of the old colours
+      anywhere in the rail, toolbar, or Settings tab itself.
+- [ ] Restarting the app after choosing Light or Dark opens directly into that appearance,
+      not System.
+- [ ] Activation's three sliders (Open delay, Close delay, Edge tolerance) show the
+      currently-saved values on open, not defaults, if a non-default value was set in an
+      earlier session.
+- [ ] Dragging a slider updates its own value label live as it moves.
+- [ ] After changing a slider, hovering the edge (or moving away) uses the NEW timing on the
+      very next dwell -- not the old one, and not only after a relaunch.
+- [ ] Restarting the app after changing a slider opens with that same value still set.
+- [ ] Data -> Location shows the real on-disk path (not a placeholder), and "Reveal in File
+      Explorer" opens File Explorer with notebar.sqlite pre-selected.
+- [ ] Data -> Size on disk shows a plausible, non-zero value once at least one note exists,
+      and increases after writing a substantial amount of new text.
+- [ ] Data -> Applied migrations lists at least one migration name, not "none", on a normal
+      install.
+- [ ] **The in-memory warning is genuinely unmissable.** Force the on-disk database to fail
+      to open (e.g. make `%LOCALAPPDATA%\Notebar\notebar.sqlite` read-only or point
+      `%LOCALAPPDATA%` somewhere without write access before launch), then open Settings ->
+      Data: the warning row is the first thing seen in the Data section, not something you
+      have to scroll to or notice among other fields, and Location's Reveal button is
+      disabled rather than pointing at nothing.
+- [ ] With a normal, writable on-disk database, the in-memory warning row does NOT appear at
+      all.
+- [ ] Export Diagnostics opens a real Save dialog; the saved .txt file contains the app
+      version, Windows version, database facts, and a log section -- and, if any notes or
+      tasks exist with distinctive text in their titles/bodies, that text does NOT appear
+      anywhere in the exported file.
+- [ ] About -> Version shows a real version string (e.g. "0.1.0 (0)"), not "unknown".
+- [ ] About -> Quit Notebar closes the app and removes the tray icon, the same as quitting
+      from the tray menu.
+- [ ] The Quit button's red styling is visible and reads as destructive in both light and
+      dark mode (its hover/pressed state was never seen rendered -- only its resting
+      Background/Foreground were set explicitly, so WinUI's default pointer-over/pressed
+      visual states may not carry the same red tint).
+- [ ] Switching to the Settings tab, doing something elsewhere that changes the database
+      (e.g. writing a note), then switching back to Settings without leaving the app: Size on
+      disk reflects the change rather than showing a stale number from when the tab was first
+      opened.

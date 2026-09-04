@@ -113,7 +113,9 @@ The panel, notes, tasks, settings, persistence, and diagnostics all work. 122 te
 - **Note ↔ task linking** — the storage and `@`-mention half is in progress; backlinks,
   drag-to-link, and tombstones follow.
 - **Activation settings** — the dwell timings and exit slop are constants, not yet sliders.
-- **Windows** — `NotebarCore` is kept portable for it, but nothing has been built.
+- **Windows** — a first release now exists (see [Windows](#windows) above); its own manual
+  verification is still catching up, since it was built entirely from a Mac that cannot run
+  WinUI 3 at all.
 - **No app-target tests.** All 122 live in `NotebarCore`. `PanelViewModel` and the views
   have none, which is exactly where the interaction bugs have been found by hand.
 
@@ -129,6 +131,28 @@ $99/year Apple Developer Program.
 
 Note that on macOS 15 and later, Control-click → Open no longer bypasses this. System
 Settings is the only route.
+
+## Windows
+
+An early WinUI 3 / C# port lives in `windows/`: the same panel, notes, tasks, and settings
+as the macOS app, built from scratch against the same design rather than sharing code with
+it. **The two platforms keep entirely separate databases and do not sync** — a note written
+on macOS is not visible on Windows, and vice versa.
+
+### [⬇ Download the Windows build](https://github.com/Nguyen-Mau-Anh/Notebar/releases?q=windows-v)
+
+Unzip `Notebar-portable-x64.zip` and run `Notebar.App.exe`. The build is unsigned, so
+Windows SmartScreen warns on first run — click **More info**, then **Run anyway**. See
+[`docs/release-notes-windows.md`](docs/release-notes-windows.md) for the full explanation,
+an MSIX install alternative if one is attached to the release, and what has not yet been
+verified on a real Windows machine.
+
+Requires Windows 10 build 22621 (22H2) or later, x64 or arm64.
+
+Source: `windows/Notebar.App` (the WinUI app), `windows/Notebar.Core` (the portable panel
+state machine and models — the Windows counterpart to `NotebarCore` above, a separate
+implementation of the same design, not shared code), `windows/Notebar.Store` (SQLite
+storage, the counterpart to `NotebarStore`).
 
 ## License
 

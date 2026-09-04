@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Notebar.App.Interop;
 using Notebar.App.Panel;
 using Notebar.Core.Geometry;
+using Notebar.Core.Models;
 using Notebar.Core.Panel;
 using Notebar.Core.Repositories;
 using Notebar.Store;
@@ -31,6 +32,12 @@ public partial class App : Application
     /// a drag source setting IsDragging — reach it through here rather than
     /// each holding their own reference.</summary>
     internal PanelController? PanelController => _panelController;
+
+    /// <summary>The one PanelWindow for the app's lifetime. Task 16's Settings ->
+    /// Data -> Export Diagnostics needs an owning window handle for the
+    /// FileSavePicker; reaching it through here mirrors PanelController above
+    /// rather than threading a second seam through RootPage/SettingsTab.Attach.</summary>
+    internal PanelWindow? Window => _window;
 
     /// <summary>Set by NotesTab (Task 12), once it has constructed the one
     /// NoteEditorHost, to flush any save still waiting out its debounce.
@@ -74,8 +81,14 @@ public partial class App : Application
         {
             database = NotebarDatabase.Open(dbPath);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Task 16, team lead's item 2: this degrade is reasonable, but it must not be
+            // silent -- logged here so it shows up in Export Diagnostics' log excerpt even
+            // if the user never opens Settings, and surfaced unmissably in Settings -> Data
+            // by SettingsTab's own InMemoryWarning row, which keys off exactly this
+            // condition (DatabaseDiagnostics.Path is null whenever this branch ran).
+            NotebarLog.Error($"could not open the on-disk database at {dbPath}; falling back to an in-memory store for this session ({ex.GetType().Name}: {ex.Message})");
             database = NotebarDatabase.OpenInMemory();
         }
         _database = database;
@@ -88,6 +101,25 @@ public partial class App : Application
         ITaskRepository taskRepository = new SqliteTaskRepository(database);
         // Task 15: the note/task link graph -- chips, backlinks, tombstones.
         ILinkRepository linkRepository = new SqliteLinkRepository(database);
+        // Task 16: Settings' own repositories.
+        IAppStateRepository appStateRepository = new SqliteAppStateRepository(database);
+        IDiagnosticsRepository diagnosticsRepository = new SqliteDiagnosticsRepository(database);
+
+        // Task 16: load the persisted activation timings into the static holder
+        // PanelController reads from on every effect -- SqliteAppStateRepository
+        // already clamps on read, so a hand-edited database can't push these past
+        // what the sliders in Settings allow. Settings' own remarks describe why
+        // this is a plain static holder rather than PanelController reading the
+        // repository itself.
+        Settings.EdgeDwell = appStateRepository.GetEdgeDwell();
+        Settings.ExitDwell = appStateRepository.GetExitDwell();
+        Settings.ExitSlop = appStateRepository.GetExitSlop();
+
+        // Applied before AttachController below: RequestedTheme resolves on a
+        // FrameworkElement regardless of whether the panel is visible yet, and applying it
+        // as early as possible avoids a flash of the wrong appearance on launch.
+        Theme theme = appStateRepository.GetTheme();
+        window.ApplyTheme(theme);
 
         // Held for the app's lifetime, not scoped to OnLaunched: the controller
         // owns the panel's whole state machine, and the monitor is the only
@@ -108,7 +140,7 @@ public partial class App : Application
         // with). RootPage exists already (PanelWindow's constructor built it via
         // InitializeComponent above), but the controller wrapping this same window could not
         // exist before this point, so this is the earliest this wiring can happen.
-        window.AttachController(panelController, noteRepository, openTabRepository, attachmentRepository, taskRepository, linkRepository);
+        window.AttachController(panelController, noteRepository, openTabRepository, attachmentRepository, taskRepository, linkRepository, appStateRepository, diagnosticsRepository);
 
         // One hidden window backs both the tray callback and the global
         // hotkey — see MessageWindow's remarks for why a second window
@@ -136,10 +168,15 @@ public partial class App : Application
         }
     }
 
-    /// <summary>Opens Settings. A stub until Task 16 builds the window — the
-    /// tray menu's "Settings" entry exists now so it never has to move.</summary>
+    /// <summary>The tray menu's "Settings" entry: expands the panel if it is
+    /// currently hidden, then switches the rail's selection to Settings --
+    /// the reachable path to Settings the brief calls for regardless of
+    /// whichever tab was last active or whether the panel was even open.</summary>
     private void ShowSettings()
     {
+        if (_panelController is { State: PanelState.Hidden })
+            _panelController.Send(PanelEvent.ToggleRequested);
+        _window?.ShowSettingsTab();
     }
 
     /// <summary>Flushes any pending note save, removes the tray icon, then
@@ -150,8 +187,8 @@ public partial class App : Application
     /// <remarks>
     /// This is the reachable way to quit that does not depend on the tray
     /// icon being visible — the same rule macOS follows, where the menu bar
-    /// item can be hidden by the notch. Task 16's Settings window calls this
-    /// too, once it exists.
+    /// item can be hidden by the notch. Settings -> About's Quit button
+    /// calls this too, for the same reason.
     ///
     /// <para>
     /// A plain synchronous <c>void</c> method — TrayIcon's menu callback and

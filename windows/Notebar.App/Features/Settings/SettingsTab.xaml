@@ -1,0 +1,187 @@
+<UserControl
+    x:Class="Notebar.App.Features.Settings.SettingsTab"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:chrome="using:Notebar.App.Features">
+
+    <!--
+        The Settings tab's whole surface (Task 16 brief): its own toolbar and a scrolling
+        column of four section cards — General, Activation, Data, About — mirroring the
+        shipped macOS SettingsTab.swift's own section list and NotesTab/TasksTab's pattern of
+        owning everything the tab needs, with RootPage only switching its Visibility.
+
+        Unlike the macOS build's SwiftUI Picker/Slider, every control here writes through to
+        IAppStateRepository on every change rather than only on some later "Save" — there is
+        no Save button anywhere in this tab, matching macOS (spec §6.5's controls are all
+        live). General's theme change is applied immediately via the applyTheme callback
+        Attach() is given (see SettingsTab.xaml.cs); Activation's sliders update the static
+        Settings holder PanelController reads on every effect, so a change is felt on the very
+        next dwell, not the next relaunch.
+    -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <chrome:TabToolbar Grid.Row="0">
+            <chrome:TabToolbar.LeftContent>
+                <TextBlock Text="Settings" Style="{StaticResource ChromeBodyTextStyle}"/>
+            </chrome:TabToolbar.LeftContent>
+        </chrome:TabToolbar>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Padding="{StaticResource SettingsPagePadding}" Spacing="{StaticResource SpaceLg}">
+
+                <!-- ===== General ===== -->
+                <StackPanel Spacing="{StaticResource SpaceXs}">
+                    <TextBlock Text="GENERAL" Style="{StaticResource ChromeLabelTextStyle}"/>
+                    <StackPanel Background="{ThemeResource SurfaceElevatedBackgroundBrush}"
+                                CornerRadius="{StaticResource RadiusMdCornerRadius}"
+                                Padding="{StaticResource SettingsSectionPadding}"
+                                Spacing="{StaticResource SpaceXxs}">
+                        <TextBlock Text="Theme" Style="{StaticResource ChromeBodyTextStyle}"/>
+                        <!-- RadioButtons rather than a segmented control (WinUI ships no
+                             built-in segmented-picker equivalent to SwiftUI's
+                             .pickerStyle(.segmented)) — MaxColumns="3" lays the three
+                             options out horizontally instead of RadioButtons' default
+                             vertical stack. -->
+                        <RadioButtons x:Name="ThemeRadioButtons" MaxColumns="3"
+                                      SelectionChanged="OnThemeSelectionChanged">
+                            <x:String>System</x:String>
+                            <x:String>Light</x:String>
+                            <x:String>Dark</x:String>
+                        </RadioButtons>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ===== Activation ===== -->
+                <StackPanel Spacing="{StaticResource SpaceXs}">
+                    <TextBlock Text="ACTIVATION" Style="{StaticResource ChromeLabelTextStyle}"/>
+                    <StackPanel Background="{ThemeResource SurfaceElevatedBackgroundBrush}"
+                                CornerRadius="{StaticResource RadiusMdCornerRadius}"
+                                Padding="{StaticResource SettingsSectionPadding}"
+                                Spacing="{StaticResource SpaceSm}">
+
+                        <StackPanel Spacing="{StaticResource SpaceXxs}">
+                            <TextBlock Text="Open delay" Style="{StaticResource ChromeBodyTextStyle}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                                <Slider x:Name="EdgeDwellSlider" Width="180" StepFrequency="0.01"
+                                        ValueChanged="OnEdgeDwellChanged"/>
+                                <TextBlock x:Name="EdgeDwellValueLabel" MinWidth="48"
+                                           Style="{StaticResource ChromeCaptionTextStyle}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Spacing="{StaticResource SpaceXxs}">
+                            <TextBlock Text="Close delay" Style="{StaticResource ChromeBodyTextStyle}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                                <Slider x:Name="ExitDwellSlider" Width="180" StepFrequency="0.01"
+                                        ValueChanged="OnExitDwellChanged"/>
+                                <TextBlock x:Name="ExitDwellValueLabel" MinWidth="48"
+                                           Style="{StaticResource ChromeCaptionTextStyle}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Spacing="{StaticResource SpaceXxs}">
+                            <TextBlock Text="Edge tolerance" Style="{StaticResource ChromeBodyTextStyle}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                                <Slider x:Name="ExitSlopSlider" Width="180" StepFrequency="1"
+                                        ValueChanged="OnExitSlopChanged"/>
+                                <TextBlock x:Name="ExitSlopValueLabel" MinWidth="48"
+                                           Style="{StaticResource ChromeCaptionTextStyle}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ===== Data ===== -->
+                <StackPanel Spacing="{StaticResource SpaceXs}">
+                    <TextBlock Text="DATA" Style="{StaticResource ChromeLabelTextStyle}"/>
+                    <StackPanel Background="{ThemeResource SurfaceElevatedBackgroundBrush}"
+                                CornerRadius="{StaticResource RadiusMdCornerRadius}"
+                                Padding="{StaticResource SettingsSectionPadding}"
+                                Spacing="{StaticResource SpaceSm}">
+
+                        <!--
+                            The in-memory warning (team lead's item 2): unmissable, not one
+                            field among many — accent-colored (WarningBrush/WarningTint12Brush),
+                            its own row above everything else in this card, collapsed entirely
+                            when the on-disk database opened normally. Shown whenever
+                            DatabaseDiagnostics.Path is null, which is exactly the condition
+                            App.xaml.cs's OpenInMemory fallback produces.
+                        -->
+                        <Border x:Name="InMemoryWarning" Visibility="Collapsed"
+                                Background="{ThemeResource WarningTint12Brush}"
+                                BorderBrush="{ThemeResource WarningBrush}" BorderThickness="1"
+                                CornerRadius="{StaticResource RadiusSmCornerRadius}"
+                                Padding="{StaticResource SpaceSm}">
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                                <FontIcon Glyph="&#xE7BA;" FontSize="16"
+                                          Foreground="{ThemeResource WarningBrush}"
+                                          VerticalAlignment="Top"/>
+                                <TextBlock Text="Notes aren't being saved this session. The on-disk database couldn't be opened, so Notebar is using a temporary in-memory store instead -- everything you type will be lost when you quit."
+                                           Style="{StaticResource ChromeCaptionTextStyle}"
+                                           Foreground="{ThemeResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Spacing="{StaticResource SpaceXxs}">
+                            <TextBlock Text="Location" Style="{StaticResource ChromeBodyTextStyle}"/>
+                            <TextBlock x:Name="DatabasePathLabel" Style="{StaticResource ChromeCaptionTextStyle}"
+                                       TextWrapping="Wrap" TextTrimming="CharacterEllipsis"/>
+                            <Button x:Name="RevealButton" Content="Reveal in File Explorer"
+                                    Click="OnRevealClick"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                            <TextBlock Text="Size on disk" Style="{StaticResource ChromeBodyTextStyle}"/>
+                            <TextBlock x:Name="DatabaseSizeLabel" Style="{StaticResource ChromeCaptionTextStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="{StaticResource SpaceXxs}">
+                            <TextBlock Text="Applied migrations" Style="{StaticResource ChromeBodyTextStyle}"/>
+                            <TextBlock x:Name="MigrationsLabel" Style="{StaticResource ChromeCaptionTextStyle}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <Button x:Name="ExportButton" Content="Export Diagnostics…" Click="OnExportClick"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ===== About ===== -->
+                <StackPanel Spacing="{StaticResource SpaceXs}">
+                    <TextBlock Text="ABOUT" Style="{StaticResource ChromeLabelTextStyle}"/>
+                    <StackPanel Background="{ThemeResource SurfaceElevatedBackgroundBrush}"
+                                CornerRadius="{StaticResource RadiusMdCornerRadius}"
+                                Padding="{StaticResource SettingsSectionPadding}"
+                                Spacing="{StaticResource SpaceSm}">
+
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceXs}">
+                            <TextBlock Text="Version" Style="{StaticResource ChromeBodyTextStyle}"/>
+                            <TextBlock x:Name="VersionLabel" Style="{StaticResource ChromeCaptionTextStyle}"/>
+                        </StackPanel>
+
+                        <!--
+                            Quit lives here as well as the tray (team lead's item + brief
+                            Step 1): a tray icon can sit collapsed in the overflow, and an app
+                            with no reachable way to quit cannot be reinstalled. DangerBrush
+                            background/border, matching macOS's own .tint(.red) destructive
+                            styling for this exact button.
+                        -->
+                        <Button x:Name="QuitButton" Content="Quit Notebar" Click="OnQuitClick"
+                                Background="{ThemeResource DangerBrush}"
+                                BorderBrush="{ThemeResource DangerBrush}"
+                                Foreground="White"
+                                AutomationProperties.Name="Quit Notebar"/>
+                    </StackPanel>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

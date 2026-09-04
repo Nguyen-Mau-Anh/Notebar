@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Notebar.App.Panel;
+using Notebar.Core.Models;
 using Notebar.Core.Panel;
 using Notebar.Core.Repositories;
 
@@ -42,14 +43,17 @@ internal sealed partial class RootPage : Page
     /// repositories are Task 12's, for NotesTabControl; taskRepository is Task 14's, for
     /// TasksTabControl; linkRepository is Task 15's, for NotesTabControl's mention
     /// popover/backlinks (NotesTabControl also needs taskRepository itself, to search tasks
-    /// for the mention popover and resolve a task backlink's title).</summary>
+    /// for the mention popover and resolve a task backlink's title). appStateRepository and
+    /// diagnosticsRepository are Task 16's, for SettingsTabControl.</summary>
     internal void AttachController(
         PanelController panelController,
         INoteRepository noteRepository,
         IOpenTabRepository openTabRepository,
         IAttachmentRepository attachmentRepository,
         ITaskRepository taskRepository,
-        ILinkRepository linkRepository)
+        ILinkRepository linkRepository,
+        IAppStateRepository appStateRepository,
+        IDiagnosticsRepository diagnosticsRepository)
     {
         _viewModel = new PanelViewModel(panelController);
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -63,12 +67,37 @@ internal sealed partial class RootPage : Page
         // TasksTab.OnTaskRequested), needs to switch the rail's own selection to the Tasks
         // tab, not just open the task once there.
         TasksTabControl.Attach(taskRepository, panelController, _viewModel);
+        // ApplyTheme (this page's own method, below) is the live-apply half of a theme
+        // change -- SettingsTabControl persists through appStateRepository itself and calls
+        // this to re-resolve every {ThemeResource} in the tree immediately, matching the
+        // brief's "must switch live, not on next launch."
+        SettingsTabControl.Attach(appStateRepository, diagnosticsRepository, ApplyTheme);
 
         // Task 12's data-loss fix: App.FlushPendingNoteSave is the seam Task 9
         // named but nothing could assign until a NoteEditorHost existed to
         // wire it to. App.Quit() awaits this before disposing anything or
         // exiting -- see App.QuitAsync.
         ((App)Application.Current).FlushPendingNoteSave = NotesTabControl.FlushPendingSaveAsync;
+    }
+
+    /// <summary>Sets RequestedTheme on this page -- the root of the whole chrome's visual
+    /// tree (this Page is PanelWindow's direct Content, see PanelWindow.xaml) -- so every
+    /// {ThemeResource} lookup underneath it re-resolves immediately. Called once at launch
+    /// with the persisted value (App.xaml.cs, via PanelWindow.ApplyTheme) and again on every
+    /// live change from Settings -> General.</summary>
+    internal void ApplyTheme(Theme theme) => RequestedTheme = theme switch
+    {
+        Theme.Light => ElementTheme.Light,
+        Theme.Dark => ElementTheme.Dark,
+        _ => ElementTheme.Default,
+    };
+
+    /// <summary>Switches the rail's own selection. Used by PanelWindow.ShowSettingsTab
+    /// (the tray menu's "Settings" entry) to land on a specific tab rather than whatever
+    /// was last active.</summary>
+    internal void SelectTab(AppTab tab)
+    {
+        if (_viewModel is not null) _viewModel.Selection = tab;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -84,6 +113,12 @@ internal sealed partial class RootPage : Page
         NotesTabRoot.Visibility = selection == AppTab.Notes ? Visibility.Visible : Visibility.Collapsed;
         TasksTabRoot.Visibility = selection == AppTab.Tasks ? Visibility.Visible : Visibility.Collapsed;
         SettingsTabRoot.Visibility = selection == AppTab.Settings ? Visibility.Visible : Visibility.Collapsed;
+
+        // Data's facts (size on disk especially) can go stale between app launch and
+        // whenever the user actually opens Settings, since the database keeps changing as
+        // notes/tasks are written in the meantime -- refresh on every switch into this tab
+        // rather than trusting Attach's one-time read at startup.
+        if (selection == AppTab.Settings) SettingsTabControl.RefreshData();
     }
 
     /// <summary>The only place expanded-vs-collapsed is decided -- see the class

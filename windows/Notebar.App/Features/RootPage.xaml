@@ -4,7 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Notebar.App.Features"
     xmlns:notes="using:Notebar.App.Features.Notes"
-    xmlns:tasks="using:Notebar.App.Features.Tasks">
+    xmlns:tasks="using:Notebar.App.Features.Tasks"
+    xmlns:settings="using:Notebar.App.Features.Settings">
 
     <!--
         DesignSystem/Tokens.xaml is merged into Application.Resources in App.xaml, not here.
@@ -54,27 +55,13 @@
                     <tasks:TasksTab x:Name="TasksTabControl"/>
                 </Grid>
 
-                <!-- Settings -->
+                <!--
+                    Settings. Task 16's SettingsTab owns the whole surface (its own toolbar
+                    plus General/Activation/Data/About) the same way NotesTab and TasksTab do
+                    above — see SettingsTab.xaml's own remarks.
+                -->
                 <Grid x:Name="SettingsTabRoot" Visibility="Collapsed">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <local:TabToolbar Grid.Row="0">
-                        <local:TabToolbar.LeftContent>
-                            <TextBlock Text="Settings" Style="{StaticResource ChromeBodyTextStyle}"/>
-                        </local:TabToolbar.LeftContent>
-                    </local:TabToolbar>
-
-                    <!--
-                        Body intentionally empty. Task 16 owns the real Settings tab
-                        (Features/Settings/SettingsTab) — General/Activation/Data/About,
-                        wired to IAppStateRepository and IDiagnosticsRepository. Pre-building
-                        that content here would only be replaced wholesale, so this task
-                        stops at the toolbar the rail navigates to.
-                    -->
-                    <Grid Grid.Row="1"/>
+                    <settings:SettingsTab x:Name="SettingsTabControl"/>
                 </Grid>
             </Grid>
         </Grid>

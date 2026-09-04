@@ -24,10 +24,20 @@
             <SolidColorBrush x:Key="BorderSeparatorBrush" Color="#000000" Opacity="0.08"/>
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1D1D1F"/>
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="#6E6E73"/>
-            <SolidColorBrush x:Key="TextTertiaryBrush" Color="#A1A1A6"/>
+            <!-- Task 16 contrast fix (docs/superpowers/notes/2026-09-04-panel-contrast.md):
+                 #A1A1A6 on #FBFBFD measured 2.49:1, failing even the 3:1 non-text floor.
+                 #8E8E93 clears it (3.15:1). TextTertiaryBrush is restricted to icon glyphs
+                 and other non-text graphics (see ChromeMicroTextStyle below, which no longer
+                 uses it), so 3:1 is the bar that matters here, not 4.5:1. -->
+            <SolidColorBrush x:Key="TextTertiaryBrush" Color="#8E8E93"/>
             <SolidColorBrush x:Key="DangerBrush" Color="#FF3B30"/>
             <SolidColorBrush x:Key="WarningBrush" Color="#FF9500"/>
             <SolidColorBrush x:Key="SuccessBrush" Color="#34C759"/>
+            <!-- Task 16 — Settings -> Data's in-memory-database warning row (see SettingsTab).
+                 A themed 12%-opacity tint of WarningBrush, the same pattern AccentHover08Brush
+                 etc. use below, so the row's background stays legible in both appearances
+                 without a second hardcoded color. -->
+            <SolidColorBrush x:Key="WarningTint12Brush" Color="#FF9500" Opacity="0.12"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
             <!-- §1.2 Color — Dark appearance -->
@@ -37,10 +47,13 @@
             <SolidColorBrush x:Key="BorderSeparatorBrush" Color="#FFFFFF" Opacity="0.10"/>
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F5F5F7"/>
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="#98989D"/>
+            <!-- Dark's own #6E6E73 already measures 3.1:1 (screen spec §8) — clears the
+                 same non-text floor without changing, so only the light value moves. -->
             <SolidColorBrush x:Key="TextTertiaryBrush" Color="#6E6E73"/>
             <SolidColorBrush x:Key="DangerBrush" Color="#FF453A"/>
             <SolidColorBrush x:Key="WarningBrush" Color="#FF9F0A"/>
             <SolidColorBrush x:Key="SuccessBrush" Color="#30D158"/>
+            <SolidColorBrush x:Key="WarningTint12Brush" Color="#FF9F0A" Opacity="0.12"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -112,11 +125,16 @@
         <Setter Property="LineHeight" Value="14"/>
         <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
     </Style>
+    <!-- Task 16 contrast fix: this is small (10pt) text — the rail's task-count badge and
+         the all-notes menu timestamps — so it earns the text-tier contrast requirement, not
+         the lighter one non-text graphics get. TextSecondaryBrush measures 4.91:1 (light) /
+         5.40:1 (dark), both well clear of 4.5:1; TextTertiaryBrush would fail here even at
+         its own corrected value. -->
     <Style x:Key="ChromeMicroTextStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="LineHeight" Value="12"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextTertiaryBrush}"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
     </Style>
 
     <!--
@@ -186,4 +204,9 @@
     <Thickness x:Key="MentionRowPadding">16,12,16,12</Thickness>
     <Thickness x:Key="BacklinkRowPadding">16,8,16,8</Thickness>
     <Thickness x:Key="BacklinksHeaderPadding">16,12,16,4</Thickness>
+
+    <!-- Task 16 — Settings (General/Activation/Data/About). Each section is a card:
+         space.md (16pt) padding, space.sm (12pt) between its rows. -->
+    <Thickness x:Key="SettingsSectionPadding">16,12,16,12</Thickness>
+    <Thickness x:Key="SettingsPagePadding">16,16,16,20</Thickness>
 </ResourceDictionary>

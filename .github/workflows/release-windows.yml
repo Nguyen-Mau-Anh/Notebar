@@ -1,0 +1,101 @@
+name: Release (Windows)
+
+# Triggered by a windows-v* tag, never by a push to main -- the Windows build has its own
+# version line, independent of the macOS releases' plain vN.N.N tags.
+#
+# This mirrors ci.yml's windows-app job rather than any earlier literal draft of this
+# workflow: that job's exact shape (msbuild against the .sln with a separate restore step,
+# the portable zip published unconditionally and first, MSIX packaging attempted after with
+# continue-on-error) is the one that is actually proven green in CI, per
+# .superpowers/sdd/2026-09-04-notebar-windows/task-1-report.md's 13-CI-run investigation --
+# copying a simpler-looking form here instead would silently reintroduce failures that report
+# already found and fixed.
+
+on:
+  push:
+    tags: ['windows-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Build and publish the Windows release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - uses: microsoft/setup-msbuild@v2
+
+      # The cross-platform half carries the behaviour -- run it first so a regression stops
+      # the release before anything is built or published.
+      - name: Test Notebar.Core
+        run: dotnet test windows/Notebar.Core.Tests/Notebar.Core.Tests.csproj -c Release
+
+      - name: Test Notebar.Store
+        run: dotnet test windows/Notebar.Store.Tests/Notebar.Store.Tests.csproj -c Release
+
+      - name: Core purity guard
+        shell: bash
+        run: windows/scripts/check-core-purity.sh
+
+      - name: Restore the solution
+        run: msbuild windows/Notebar.sln /t:Restore /p:Configuration=Release
+
+      - name: Build the WinUI app
+        run: msbuild windows/Notebar.sln /p:Configuration=Release /p:Platform=x64
+
+      # The release's primary artifact: unzip and run, no installation ceremony, no
+      # certificate needed to double-click it (SmartScreen still warns once -- see
+      # docs/release-notes-windows.md). Unconditional and independent of the MSIX step below,
+      # so an MSIX regression can never leave a release with nothing installable attached.
+      - name: Publish the portable build
+        run: >
+          dotnet publish windows/Notebar.App/Notebar.App.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:Platform=x64 -p:WindowsPackageType=None
+          -o publish/portable
+
+      # MSIX packaging: nice-to-have, not load-bearing. See task-1-report.md's "Open
+      # follow-ups for Task 16" -- Lead #1 (removing WindowsPackageType=MSIX from
+      # Notebar.App.csproj) was tried once, per the team lead's one-CI-run budget for it. If
+      # it still doesn't produce an .msix, continue-on-error means this release ships with
+      # just the portable zip, which is the explicitly authorized outcome.
+      - name: Package MSIX
+        id: package_msix
+        continue-on-error: true
+        run: >
+          msbuild windows\Notebar.App\Notebar.App.csproj
+          /restore
+          /t:Publish
+          /p:Configuration=Release
+          /p:Platform=x64
+          /p:RuntimeIdentifier=win-x64
+          /p:GenerateAppxPackageOnBuild=true
+          /p:AppxPackageSigningEnabled=false
+          /p:UapAppxPackageBuildMode=SideloadOnly
+          /p:AppxBundle=Never
+
+      - name: Assemble release artifacts
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cd publish/portable && 7z a -tzip ../../artifacts/Notebar-portable-x64.zip . && cd ../..
+          find windows/Notebar.App -name '*.msix' -exec cp {} artifacts/Notebar-x64.msix \;
+          ls -la artifacts
+
+      - name: Fail if the portable zip is missing
+        shell: bash
+        run: test -f artifacts/Notebar-portable-x64.zip
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          name: Notebar for Windows ${{ github.ref_name }}
+          body_path: docs/release-notes-windows.md

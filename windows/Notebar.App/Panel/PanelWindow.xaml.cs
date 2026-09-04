@@ -1,8 +1,10 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Notebar.App.Features;
 using Notebar.App.Interop;
 using Notebar.App.Panel;
 using Notebar.Core.Geometry;
+using Notebar.Core.Models;
 using Notebar.Core.Repositories;
 
 namespace Notebar.App;
@@ -41,18 +43,32 @@ public sealed partial class PanelWindow : Window
     internal IntPtr Handle => _hwnd;
 
     /// <summary>Hands the page its PanelController seam, plus the repositories Task 12's
-    /// Notes tab, Task 14's Tasks tab, and Task 15's linking need to construct themselves.
-    /// Called once from App.xaml.cs after PanelController exists -- the controller wraps
-    /// this window, so it cannot exist before this constructor has already run and
-    /// RootPage has already been built by InitializeComponent above.</summary>
+    /// Notes tab, Task 14's Tasks tab, Task 15's linking, and Task 16's Settings tab need to
+    /// construct themselves. Called once from App.xaml.cs after PanelController exists --
+    /// the controller wraps this window, so it cannot exist before this constructor has
+    /// already run and RootPage has already been built by InitializeComponent above.</summary>
     internal void AttachController(
         PanelController panelController,
         INoteRepository noteRepository,
         IOpenTabRepository openTabRepository,
         IAttachmentRepository attachmentRepository,
         ITaskRepository taskRepository,
-        ILinkRepository linkRepository) =>
-        Root.AttachController(panelController, noteRepository, openTabRepository, attachmentRepository, taskRepository, linkRepository);
+        ILinkRepository linkRepository,
+        IAppStateRepository appStateRepository,
+        IDiagnosticsRepository diagnosticsRepository) =>
+        Root.AttachController(panelController, noteRepository, openTabRepository, attachmentRepository, taskRepository, linkRepository, appStateRepository, diagnosticsRepository);
+
+    /// <summary>Forwards to RootPage.ApplyTheme -- see its own remarks. App.xaml.cs calls
+    /// this once at launch with the persisted theme, before AttachController even runs
+    /// (RequestedTheme can be set on a FrameworkElement regardless of whether the panel is
+    /// visible yet), and SettingsTabControl calls it again on every live change.</summary>
+    internal void ApplyTheme(Theme theme) => Root.ApplyTheme(theme);
+
+    /// <summary>Switches the rail's own selection to Settings. Called by App.ShowSettings,
+    /// the tray menu's "Settings" entry -- the same entry point macOS's own Settings menu
+    /// item goes through -- so choosing it always lands on the Settings tab rather than
+    /// whatever tab happened to be active when the panel was last collapsed.</summary>
+    internal void ShowSettingsTab() => Root.SelectTab(AppTab.Settings);
 
     /// <summary>Places the window from a rect in device-independent pixels
     /// relative to the given monitor's work area.</summary>
