@@ -121,3 +121,51 @@ jobs:
         # NotebarCoreTests on non-Apple platforms (NotebarStoreTests, the
         # other 107, needs GRDB and AppKit — see the job comment above). A
         # drop below 46 is the regression to watch for, not a drop below 153.
+
+  # The riskiest unknown in the M5 Windows port: does a WinUI 3 MSIX actually
+  # build and package unattended in CI. Notebar.Core/Notebar.Core.Tests are
+  # cross-platform .NET and would pass on any runner; Notebar.App is
+  # WinUI 3 and can only be built and packaged here, on windows-latest.
+  windows-app:
+    name: Windows app (C#)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # The cross-platform half. These carry the behaviour, so they run first
+      # and a failure here stops the build before the slow MSIX step.
+      - name: Test Notebar.Core
+        run: dotnet test windows/Notebar.Core.Tests/Notebar.Core.Tests.csproj -c Release
+
+      - name: Core purity guard
+        shell: bash
+        run: windows/scripts/check-core-purity.sh
+
+      - name: Build the WinUI app
+        run: dotnet build windows/Notebar.App/Notebar.App.csproj -c Release -p:Platform=x64
+
+      - name: Package MSIX
+        run: >
+          dotnet build windows/Notebar.App/Notebar.App.csproj
+          -c Release
+          -p:Platform=x64
+          -p:GenerateAppxPackageOnBuild=true
+          -p:AppxPackageSigningEnabled=false
+          -p:UapAppxPackageBuildMode=SideloadOnly
+
+      - name: Collect the package
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          find windows/Notebar.App -name '*.msix' -exec cp {} artifacts/ \;
+          ls -la artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notebar-windows-msix
+          path: artifacts/
+          if-no-files-found: error
