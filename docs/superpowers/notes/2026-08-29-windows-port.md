@@ -4,6 +4,33 @@ Written at the end of M1, from the code as it stands. `NotebarCore` was kept por
 day one and that discipline held — but the honest accounting is narrower than the intent,
 and one decision made during M1 has to be undone before a port is possible at all.
 
+## Update (2026-09-04): the core now actually compiles on Windows in CI
+
+Everything below this note was written from a grep-based purity check
+(`scripts/check-core-purity.sh`) alone — it never proved `NotebarCore` compiles anywhere but
+macOS. That gap is closed: `Package.swift` now declares `NotebarStore` / `NotebarStoreTests`
+/ the GRDB dependency / the `NotebarStore` product only behind `#if canImport(Darwin)`, so on
+a non-Apple platform the manifest exposes just `NotebarCore` + `NotebarCoreTests`. A
+`windows` job in `.github/workflows/ci.yml` runs `swift build` and `swift test` for
+`Packages/NotebarCore` on `windows-latest` with a pinned Swift-for-Windows toolchain
+(`compnerd/gha-setup-swift@v0.4.0`, `6.1-RELEASE`), and logs the swift-testing pass count so
+a dropped test is visible. macOS is unaffected — all four targets and all 153 tests still
+build and run exactly as before; only the manifest gained a conditional.
+
+**What this proves:** the 1,426 lines of `NotebarCore` — `PanelMachine`, `EdgeZone`,
+`NoteListMarkers`, `PanelTiming`, the models, the repository protocols — compile under Swift
+for Windows and their 153 tests pass there, not just on macOS. That was previously only
+inferred from an import grep; it is now a fact a machine checks on every push.
+
+**What this does not prove, and never will by itself:** the two real blockers below are
+untouched. GRDB has no Windows target, so `NotebarStore` stays Apple-only regardless of what
+this CI job does. And RTFD note bodies — the actual content users have written — remain an
+AppKit-only `NSAttributedString` serialization that no Windows process can read; a green
+Windows CI job says nothing about that, and should not be read as progress on it. The
+[Windows job's own comment in ci.yml](../../../.github/workflows/ci.yml) says this too, so
+the claim doesn't drift the next time someone edits the workflow without re-reading this
+file.
+
 ## The measurement
 
 | Target | Lines | Windows |

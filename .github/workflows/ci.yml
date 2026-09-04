@@ -81,3 +81,39 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+  # Proves the M5 Windows-port premise by compiling it, not just grepping for
+  # forbidden imports: NotebarCore has to actually build and pass its tests
+  # under Swift for Windows, not merely avoid Apple-only imports. Package.swift
+  # gates NotebarStore/NotebarStoreTests (GRDB, AppKit) behind
+  # `#if canImport(Darwin)`, so this runner only ever sees NotebarCore +
+  # NotebarCoreTests.
+  #
+  # This job proves the core's logic compiles and behaves identically on
+  # Windows. It does NOT prove a Windows app is buildable — see
+  # docs/superpowers/notes/2026-08-29-windows-port.md for what still blocks
+  # that (GRDB has no Windows target, and RTFD note bodies are an AppKit-only
+  # format a Windows build cannot read at all).
+  windows:
+    name: Core tests (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned rather than @main: a toolchain change should be a deliberate
+      # commit here, not a surprise red build when Swift ships a new release.
+      - name: Setup Swift
+        uses: compnerd/gha-setup-swift@v0.4.0
+        with:
+          branch: swift-6.1-release
+          tag: 6.1-RELEASE
+
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Test NotebarCore
+        working-directory: Packages/NotebarCore
+        run: swift test
+        # swift-testing's own reporter prints "Test run with N tests in M
+        # suites passed" — that count is the signal a regression dropped
+        # tests rather than just failing to compile them.
