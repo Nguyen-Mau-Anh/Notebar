@@ -182,6 +182,29 @@ jobs:
           /p:AppxPackageSigningEnabled=false
           /p:GenerateAppxPackageOnBuild=true
 
+      # Diagnostic only, not a fix: six identical "You must include a valid
+      # app package manifest file named AppxManifest.xml" failures across
+      # every documented configuration variant (RuntimeIdentifier on/off,
+      # dotnet build vs msbuild, csproj vs sln entry point, with/without the
+      # AppxManifest/Manifest/Content item group) means the next fix needs
+      # evidence, not another guess. Prints whether AppxManifest.xml exists
+      # anywhere in the intermediate output, and what package.map.txt (the
+      # file MakeAppx actually reads) contains.
+      - name: Diagnose package layout on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "--- find: any AppxManifest.xml under Notebar.App ---"
+          find windows/Notebar.App -iname 'AppxManifest.xml' || true
+          echo "--- find: any package.map.txt ---"
+          find windows/Notebar.App -iname 'package.map.txt' || true
+          echo "--- contents of package.map.txt, if any ---"
+          find windows/Notebar.App -iname 'package.map.txt' -exec cat {} \; || true
+          echo "--- obj tree under Notebar.App (depth 6) ---"
+          find windows/Notebar.App/obj -maxdepth 6 | sort || true
+          echo "--- Package.appxmanifest source file ---"
+          ls -la windows/Notebar.App/Package.appxmanifest || true
+
       - name: Collect the package
         shell: bash
         run: |
