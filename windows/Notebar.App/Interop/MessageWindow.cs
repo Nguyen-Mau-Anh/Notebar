@@ -2,18 +2,33 @@ using System.Runtime.InteropServices;
 
 namespace Notebar.App.Interop;
 
-/// <summary>One hidden HWND_MESSAGE window, serving both WM_HOTKEY and the tray
+/// <summary>One hidden top-level window, serving both WM_HOTKEY and the tray
 /// icon's callback.</summary>
 /// <remarks>
 /// RegisterHotKey needs a window whose thread pumps messages, and
 /// Shell_NotifyIcon needs a window to send its callback to — one window
-/// answers both and avoids a second dependency. HWND_MESSAGE makes it a
-/// message-only window: never visible, never in any window list, never a
-/// taskbar or Alt-Tab candidate.
+/// answers both and avoids a second dependency.
+///
+/// Deliberately an ordinary window (WS_POPUP, never WS_VISIBLE, WS_EX_TOOLWINDOW,
+/// null parent) rather than HWND_MESSAGE: a message-only window sits outside the
+/// normal top-level Z-order, which makes SetForegroundWindow on it unreliable —
+/// the tray menu's outside-click dismissal depends on that call succeeding — and,
+/// worse, a message-only window never receives broadcast messages at all. Explorer
+/// restarting (crash or update) destroys every process's tray icon and broadcasts
+/// TaskbarCreated so each app can re-add its own; missing that broadcast would
+/// mean the icon never comes back. This window stays invisible and out of the
+/// taskbar/Alt-Tab exactly as a message-only window would, while remaining
+/// eligible for foreground and able to receive broadcasts.
 /// </remarks>
 internal sealed class MessageWindow : IDisposable
 {
     private const string ClassName = "NotebarMessageWindow";
+
+    // Registered once per process; the same message id across every app that
+    // asks for it. Checked against 0 (registration failure) before use so a
+    // failed registration can't accidentally match every unhandled message.
+    private static readonly uint TaskbarCreatedMessage =
+        NativeMethods.RegisterWindowMessage("TaskbarCreated");
 
     // Held in a field, never inlined at the call site: Win32 keeps a raw
     // function pointer to this and the GC has no idea. A collected delegate
@@ -28,6 +43,12 @@ internal sealed class MessageWindow : IDisposable
     internal event Action<int>? HotKeyPressed;
     internal event Action? TrayLeftClicked;
     internal event Action? TrayRightClicked;
+
+    /// <summary>Explorer restarted and destroyed every tray icon; re-add
+    /// ours. With the panel collapsed and the hotkey possibly held by
+    /// another app, missing this is how a user loses all access to
+    /// Notebar short of Task Manager.</summary>
+    internal event Action? TaskbarRecreated;
 
     internal MessageWindow()
     {
@@ -50,8 +71,9 @@ internal sealed class MessageWindow : IDisposable
         _classRegistered = true;
 
         Handle = NativeMethods.CreateWindowEx(
-            0, ClassName, null, 0, 0, 0, 0, 0,
-            NativeMethods.HWND_MESSAGE, IntPtr.Zero, _hInstance, IntPtr.Zero);
+            (uint)NativeMethods.WS_EX_TOOLWINDOW, ClassName, null, NativeMethods.WS_POPUP,
+            0, 0, 0, 0,
+            IntPtr.Zero, IntPtr.Zero, _hInstance, IntPtr.Zero);
 
         if (Handle == IntPtr.Zero)
         {
@@ -64,6 +86,12 @@ internal sealed class MessageWindow : IDisposable
 
     private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
+        if (TaskbarCreatedMessage != 0 && msg == TaskbarCreatedMessage)
+        {
+            TaskbarRecreated?.Invoke();
+            return IntPtr.Zero;
+        }
+
         switch (msg)
         {
             case NativeMethods.WM_HOTKEY:

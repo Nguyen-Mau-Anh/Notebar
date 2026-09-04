@@ -115,7 +115,7 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool UnregisterHotKey(IntPtr hwnd, int id);
 
-    // --- message-only window ---
+    // --- hidden top-level window (tray icon + hotkey) ---
     //
     // Classic [DllImport], not [LibraryImport], for this whole group: WNDCLASSEX
     // carries a raw function-pointer field and string fields, and NOTIFYICONDATAW
@@ -125,8 +125,19 @@ internal static partial class NativeMethods
     // has handled this exact struct family correctly for 20 years; one marshaling
     // strategy across the whole new tray/hotkey-window surface is less risk than
     // mixing two, especially with no local Windows compiler to iterate against.
+    //
+    // Deliberately NOT HWND_MESSAGE: a message-only window sits outside the
+    // normal top-level Z-order, so SetForegroundWindow on it is unreliable —
+    // TrackPopupMenu's outside-click dismissal depends on that call succeeding.
+    // Worse, a message-only window never receives broadcast messages at all,
+    // and Explorer restarting (crash or update) destroys every tray icon and
+    // broadcasts TaskbarCreated so each app can re-add its own — miss that and
+    // the icon is gone for good. WS_POPUP with no WS_VISIBLE, WS_EX_TOOLWINDOW,
+    // and a null parent make an ordinary top-level window that stays invisible
+    // and out of the taskbar/Alt-Tab, while remaining eligible for foreground
+    // and able to receive broadcasts.
 
-    internal static readonly IntPtr HWND_MESSAGE = new(-3);
+    internal const uint WS_POPUP = 0x80000000;
 
     internal const uint WM_NULL = 0x0000;
     internal const uint WM_LBUTTONUP = 0x0202;
@@ -183,12 +194,19 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool DestroyWindow(IntPtr hWnd);
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     internal static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    /// <summary>Registers (or looks up) the systemwide message id for a named
+    /// broadcast — used here for "TaskbarCreated", which Explorer broadcasts
+    /// to every top-level window after it restarts, since restarting destroys
+    /// every process's tray icon and each app is expected to re-add its own.</summary>
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    internal static extern uint RegisterWindowMessage(string lpString);
 
     // --- tray icon ---
 
@@ -243,6 +261,12 @@ internal static partial class NativeMethods
     /// exe path needs no extra file deployed alongside it.</summary>
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     internal static extern IntPtr ExtractIcon(IntPtr hInst, string lpszExeFileName, int nIconIndex);
+
+    /// <summary>The tray's fallback when ExtractIcon fails: hInstance = NULL
+    /// plus a system icon id (e.g. IDI_APPLICATION = 32512) loads a shared
+    /// system resource rather than anything this app owns.</summary>
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    internal static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

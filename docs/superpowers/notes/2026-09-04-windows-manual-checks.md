@@ -33,3 +33,5 @@ this file rather than starting a new one.
 - [ ] Quitting from the tray closes the app and removes the tray icon.
 - [ ] Quitting from Settings does the same.
 - [ ] Type in a note, quit immediately: reopening shows the typed text.
+- [ ] The tray menu dismisses when you click somewhere else.
+- [ ] Restart Explorer (Task Manager → Windows Explorer → Restart): the tray icon comes back.
