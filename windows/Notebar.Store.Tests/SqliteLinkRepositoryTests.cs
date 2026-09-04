@@ -60,10 +60,16 @@ public class SqliteLinkRepositoryTests : IDisposable
         var edge = Link.New(new LinkTarget(LinkEntityType.Note, a.Id),
                             new LinkTarget(LinkEntityType.Note, b.Id));
 
-        _links.Create(edge);
-        _links.Create(edge with { Id = Guid.NewGuid().ToString() });
+        var first = _links.Create(edge);
+        var second = _links.Create(edge with { Id = Guid.NewGuid().ToString() });
 
         Assert.Single(_links.Outgoing(new LinkTarget(LinkEntityType.Note, a.Id)));
+
+        // Not just "no duplicate row": the second Create must report the row
+        // that actually survived the OR IGNORE, not the one it tried (and
+        // failed) to insert — the whole point of FetchByNaturalKey.
+        Assert.Equal(first.Id, second.Id);
+        Assert.Equal(first.CreatedAt, second.CreatedAt);
     }
 
     /// One transaction: the chip's markup and the row behind it commit together.

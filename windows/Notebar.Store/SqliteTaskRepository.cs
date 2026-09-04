@@ -86,15 +86,15 @@ public sealed class SqliteTaskRepository(NotebarDatabase db) : ITaskRepository
         bool wasDone = IsDoneColumn(task.ColumnId);
         bool willBeDone = IsDoneColumn(columnId);
 
-        // Entering Done stamps the completion time; leaving it clears it.
-        // Reordering *within* Done keeps the original stamp — the completion time
-        // is when the work finished, not when the card was last dragged.
-        DateTimeOffset? completedAt = (wasDone, willBeDone) switch
-        {
-            (false, true) => DateTimeOffset.UtcNow,
-            (true, false) => null,
-            _ => task.CompletedAt,
-        };
+        // Entering Done stamps; leaving or staying outside Done clears; moving
+        // within Done preserves the original stamp — a completion time is when
+        // the work finished, not when the card was last dragged. Matches
+        // GRDBTaskRepository.move: the non-Done arm clears unconditionally
+        // rather than only on a wasDone transition, so a task never carries a
+        // stamp while sitting outside Done.
+        DateTimeOffset? completedAt = willBeDone
+            ? (wasDone ? task.CompletedAt : DateTimeOffset.UtcNow)
+            : null;
 
         double? before = beforeId is null ? null : OrderOf(beforeId);
         double? after = afterId is null ? null : OrderOf(afterId);
