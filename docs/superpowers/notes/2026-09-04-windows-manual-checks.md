@@ -23,3 +23,13 @@ this file rather than starting a new one.
 - [ ] Pinning, then moving away: it does NOT collapse.
 - [ ] Dragging a task card off the panel edge: it does NOT collapse mid-drag.
 - [ ] Escape collapses it even while pinned.
+
+## Tray and hotkey
+
+- [ ] A Notebar icon appears in the tray (check the overflow if not visible).
+- [ ] Left-clicking it toggles the panel.
+- [ ] Right-clicking shows Show / Settings / Quit.
+- [ ] Ctrl+Shift+N toggles the panel from any application.
+- [ ] Quitting from the tray closes the app and removes the tray icon.
+- [ ] Quitting from Settings does the same.
+- [ ] Type in a note, quit immediately: reopening shows the typed text.

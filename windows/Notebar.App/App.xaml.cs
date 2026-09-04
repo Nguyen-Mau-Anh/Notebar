@@ -12,6 +12,9 @@ public partial class App : Application
     private PanelWindow? _window;
     private CursorMonitor? _cursorMonitor;
     private PanelController? _panelController;
+    private MessageWindow? _messageWindow;
+    private TrayIcon? _trayIcon;
+    private GlobalHotKey? _hotKey;
 
     /// <summary>The one PanelController for the app's lifetime. Later tasks —
     /// the note editor reporting keystrokes and focus, the tray icon's toggle,
@@ -19,11 +22,20 @@ public partial class App : Application
     /// each holding their own reference.</summary>
     internal PanelController? PanelController => _panelController;
 
+    /// <summary>Set by the note editor (Task 10) to flush any save still
+    /// waiting out its debounce. Quit invokes this synchronously before
+    /// tearing anything else down — on macOS this exact path was the
+    /// difference between losing the last few seconds of typing and not.
+    /// There is no editor yet to wire this to, so it is a named seam rather
+    /// than a TODO.</summary>
+    internal Action? FlushPendingNoteSave { get; set; }
+
     public App() => InitializeComponent();
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _window = new PanelWindow();
+        var window = new PanelWindow();
+        _window = window;
 
         var cursor = NativeMethods.GetCursorPos(out var pt)
             ? new PanelPoint(pt.X, pt.Y)
@@ -33,8 +45,8 @@ public partial class App : Application
             workArea.X / scale, workArea.Y / scale,
             workArea.Width / scale, workArea.Height / scale);
 
-        _window.ApplyFrame(PanelGeometry.Collapsed(workAreaDips), scale);
-        _window.ShowWithoutActivating();
+        window.ApplyFrame(PanelGeometry.Collapsed(workAreaDips), scale);
+        window.ShowWithoutActivating();
 
         // Held for the app's lifetime, not scoped to OnLaunched: the controller
         // owns the panel's whole state machine, and the monitor is the only
@@ -42,8 +54,69 @@ public partial class App : Application
         // steal focus, and PanelWindow.ShowWithoutActivating already handles
         // showing it without doing so.
         var queue = DispatcherQueue.GetForCurrentThread();
-        _cursorMonitor = new CursorMonitor(queue);
-        _panelController = new PanelController(_window, _cursorMonitor, queue);
-        _cursorMonitor.Start();
+        var cursorMonitor = new CursorMonitor(queue);
+        _cursorMonitor = cursorMonitor;
+        var panelController = new PanelController(window, cursorMonitor, queue);
+        _panelController = panelController;
+        cursorMonitor.Start();
+
+        // One hidden window backs both the tray callback and the global
+        // hotkey — see MessageWindow's remarks for why a second window
+        // would be redundant. Local variables throughout this block, not the
+        // nullable fields, so every downstream use here is provably non-null
+        // rather than depending on the compiler's flow analysis of a field
+        // read back out of a closure.
+        var messageWindow = new MessageWindow();
+        _messageWindow = messageWindow;
+
+        var trayIcon = new TrayIcon(messageWindow, panelController, ShowSettings, Quit);
+        _trayIcon = trayIcon;
+        trayIcon.Show();
+
+        var hotKey = new GlobalHotKey(messageWindow);
+        _hotKey = hotKey;
+        hotKey.Pressed += () => panelController.Send(PanelEvent.ToggleRequested);
+        if (!hotKey.TryRegister())
+        {
+            // Common — another app already holds Ctrl+Shift+N — and not the
+            // user's fault. Task 16's Settings will surface this as "the
+            // shortcut is unavailable"; there is nowhere to surface it yet,
+            // so this stays a non-fatal no-op rather than a crash or a
+            // silently-broken shortcut nobody is told about.
+        }
+    }
+
+    /// <summary>Opens Settings. A stub until Task 16 builds the window — the
+    /// tray menu's "Settings" entry exists now so it never has to move.</summary>
+    private void ShowSettings()
+    {
+    }
+
+    /// <summary>Flushes any pending note save, removes the tray icon, then
+    /// exits. Order matters: the flush must run before anything else can
+    /// interrupt it, and the tray icon must be gone before the process ends —
+    /// an orphaned tray icon that outlives its process is a well-known
+    /// Windows annoyance the user has to hover away.</summary>
+    /// <remarks>
+    /// This is the reachable way to quit that does not depend on the tray
+    /// icon being visible — the same rule macOS follows, where the menu bar
+    /// item can be hidden by the notch. Task 16's Settings window calls this
+    /// too, once it exists.
+    /// </remarks>
+    internal void Quit()
+    {
+        FlushPendingNoteSave?.Invoke();
+
+        _trayIcon?.Dispose();
+        _hotKey?.Dispose();
+        _messageWindow?.Dispose();
+
+        // Exit() gives WinUI a chance to run its own shutdown notifications;
+        // Environment.Exit is the backstop that actually ends the process
+        // regardless of what state the hidden PanelWindow or any timer is
+        // in — this app has no "last window closed" to rely on, since the
+        // panel window is hidden, not closed, for its entire life.
+        Exit();
+        Environment.Exit(0);
     }
 }

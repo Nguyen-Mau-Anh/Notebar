@@ -114,4 +114,155 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool UnregisterHotKey(IntPtr hwnd, int id);
+
+    // --- message-only window ---
+    //
+    // Classic [DllImport], not [LibraryImport], for this whole group: WNDCLASSEX
+    // carries a raw function-pointer field and string fields, and NOTIFYICONDATAW
+    // (below) carries fixed-size character buffers — none of these are blittable
+    // in a way the LibraryImport source generator marshals without per-field
+    // attributes it does not support on these struct shapes. The legacy marshaler
+    // has handled this exact struct family correctly for 20 years; one marshaling
+    // strategy across the whole new tray/hotkey-window surface is less risk than
+    // mixing two, especially with no local Windows compiler to iterate against.
+
+    internal static readonly IntPtr HWND_MESSAGE = new(-3);
+
+    internal const uint WM_NULL = 0x0000;
+    internal const uint WM_LBUTTONUP = 0x0202;
+    internal const uint WM_RBUTTONUP = 0x0205;
+    internal const uint WM_APP = 0x8000;
+
+    /// <summary>Shell_NotifyIcon's callback message, sent to the message
+    /// window with wParam = icon id and lParam = the originating mouse
+    /// message (WM_LBUTTONUP, WM_RBUTTONUP, ...).</summary>
+    internal const uint WM_TRAYCALLBACK = WM_APP + 1;
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    internal delegate IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal struct WNDCLASSEX
+    {
+        public int cbSize;
+        public uint style;
+        public IntPtr lpfnWndProc;
+        public int cbClsExtra;
+        public int cbWndExtra;
+        public IntPtr hInstance;
+        public IntPtr hIcon;
+        public IntPtr hCursor;
+        public IntPtr hbrBackground;
+        public string? lpszMenuName;
+        public string lpszClassName = string.Empty;
+        public IntPtr hIconSm;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    internal static extern IntPtr GetModuleHandle(string? lpModuleName);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    internal static extern ushort RegisterClassEx(ref WNDCLASSEX lpwcx);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool UnregisterClass(string lpClassName, IntPtr hInstance);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    internal static extern IntPtr CreateWindowEx(
+        uint dwExStyle, string lpClassName, string? lpWindowName, uint dwStyle,
+        int x, int y, int nWidth, int nHeight,
+        IntPtr hWndParent, IntPtr hMenu, IntPtr hInstance, IntPtr lpParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DestroyWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    // --- tray icon ---
+
+    internal const uint NIM_ADD = 0x0000;
+    internal const uint NIM_MODIFY = 0x0001;
+    internal const uint NIM_DELETE = 0x0002;
+
+    internal const uint NIF_MESSAGE = 0x0001;
+    internal const uint NIF_ICON = 0x0002;
+    internal const uint NIF_TIP = 0x0004;
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal struct NOTIFYICONDATAW
+    {
+        public int cbSize;
+        public IntPtr hWnd;
+        public int uID;
+        public uint uFlags;
+        public uint uCallbackMessage;
+        public IntPtr hIcon;
+        // Field initializers, not left null: a null string against
+        // ByValTStr fails to marshal, and every call site below sets only
+        // the fields NIF_* flags actually require.
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string szTip = string.Empty;
+        public int dwState;
+        public int dwStateMask;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string szInfo = string.Empty;
+        public int uVersionOrTimeout;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
+        public string szInfoTitle = string.Empty;
+        public uint dwInfoFlags;
+        public Guid guidItem;
+        public IntPtr hBalloonIcon;
+    }
+
+    /// <summary>The one call in this file the task brief specifically calls out
+    /// for [DllImport]: NOTIFYICONDATAW's fixed-size tooltip/info buffers are
+    /// exactly the shape LibraryImport does not marshal cleanly.</summary>
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATAW lpData);
+
+    /// <summary>Pulls the icon already embedded in an exe's own resources —
+    /// ApplicationIcon in Notebar.App.csproj embeds Assets/Notebar.ico into
+    /// the built exe at index 0, so extracting from the running process's own
+    /// exe path needs no extra file deployed alongside it.</summary>
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    internal static extern IntPtr ExtractIcon(IntPtr hInst, string lpszExeFileName, int nIconIndex);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DestroyIcon(IntPtr hIcon);
+
+    // --- popup menu (tray right-click) ---
+
+    internal const uint MF_STRING = 0x0000;
+    internal const uint MF_SEPARATOR = 0x0800;
+
+    internal const uint TPM_RIGHTBUTTON = 0x0002;
+    internal const uint TPM_RETURNCMD = 0x0100;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern IntPtr CreatePopupMenu();
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool AppendMenu(IntPtr hMenu, uint uFlags, UIntPtr uIDNewItem, string? lpNewItem);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DestroyMenu(IntPtr hMenu);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern int TrackPopupMenu(
+        IntPtr hMenu, uint uFlags, int x, int y, int nReserved, IntPtr hWnd, IntPtr prcRect);
 }
