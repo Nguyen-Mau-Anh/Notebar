@@ -102,16 +102,14 @@ internal sealed partial class FormattingBar : UserControl
 
     /// <summary>One button's four named visual elements plus the command it runs.
     /// Command is null only for the checklist entry — see OnClicked. TextOff/TextOn are
-    /// FrameworkElement, not TextBlock: seven buttons use a plain-text TextBlock glyph, but
-    /// the checklist button uses a FontIcon (Segoe Fluent Icons) instead — see its own
-    /// remarks in FormattingBar.xaml. Only Visibility is ever touched here, which both
-    /// share.</summary>
+    /// plain TextBlock for all eight buttons -- the whole bar is deliberately all-ASCII text
+    /// glyphs, no FontIcon anywhere (see FormattingBar.xaml's own remarks).</summary>
     private sealed record ButtonVisual(
         Button Button,
         Border HoverBg,
         Border ActiveBg,
-        FrameworkElement TextOff,
-        FrameworkElement TextOn,
+        TextBlock TextOff,
+        TextBlock TextOn,
         string? Command,
         string? Value);
 }
