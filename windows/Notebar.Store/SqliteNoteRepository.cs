@@ -72,6 +72,24 @@ public sealed class SqliteNoteRepository(NotebarDatabase db) : INoteRepository
             throw new InvalidOperationException($"note {note.Id} does not exist");
     }
 
+    /// <summary>Writes only body_html/body_plain and stamps updated_at — see
+    /// INoteRepository.UpdateBody's remarks on why this must be physically
+    /// incapable of touching title, is_pinned, or sort_order.</summary>
+    public void UpdateBody(string id, string bodyHtml, string bodyPlain)
+    {
+        using var cmd = db.Connection.CreateCommand();
+        cmd.CommandText = """
+            UPDATE note SET body_html = $html, body_plain = $plain, updated_at = $updated
+            WHERE id = $id
+            """;
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.Parameters.AddWithValue("$html", bodyHtml);
+        cmd.Parameters.AddWithValue("$plain", bodyPlain);
+        cmd.Parameters.AddWithValue("$updated", Sql.ToText(DateTimeOffset.UtcNow));
+        if (cmd.ExecuteNonQuery() == 0)
+            throw new InvalidOperationException($"note {id} does not exist");
+    }
+
     public void Delete(string id)
     {
         using var cmd = db.Connection.CreateCommand();

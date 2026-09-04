@@ -56,6 +56,28 @@ public class SqliteNoteRepositoryTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => _repo.Update(orphan));
     }
 
+    /// The editor's save path must not be able to revert a rename. This is the
+    /// exact sequence that lost renames: rename, then save a body from a cached
+    /// note still carrying the old title.
+    [Fact]
+    public void UpdateBodyLeavesTheTitleAlone()
+    {
+        var note = _repo.Create();
+        var stale = note with { Title = "Old" };
+        _repo.Update(stale);
+
+        _repo.Update(stale with { Title = "Renamed" });
+        _repo.UpdateBody(note.Id, "<p>typed</p>", "typed");
+
+        var fetched = _repo.Fetch(note.Id)!;
+        Assert.Equal("Renamed", fetched.Title);
+        Assert.Equal("<p>typed</p>", fetched.BodyHtml);
+    }
+
+    [Fact]
+    public void UpdatingBodyOfAnUnknownIdThrows() =>
+        Assert.Throws<InvalidOperationException>(() => _repo.UpdateBody("nope", "<p/>", ""));
+
     [Fact]
     public void DeleteRemovesTheRowAndIsIdempotent()
     {

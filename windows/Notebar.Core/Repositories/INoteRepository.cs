@@ -33,6 +33,17 @@ public interface INoteRepository
     /// UpdatedAt. The row must already exist; unknown ids throw.</summary>
     void Update(Note note);
 
+    /// <summary>Writes only the body columns and stamps UpdatedAt, leaving title,
+    /// pin state and sort order untouched.</summary>
+    /// <remarks>
+    /// The editor holds its own copy of the note and refreshes it only when the
+    /// active tab changes. A full-row Update from the save path therefore wrote a
+    /// stale title back over a rename the user had just made — invisible until the
+    /// next launch. The body-save path must be incapable of touching anything but
+    /// the body; that is a stronger guarantee than keeping two caches in sync.
+    /// </remarks>
+    void UpdateBody(string id, string bodyHtml, string bodyPlain);
+
     /// <summary>Deletes a note. A no-op if id does not exist.</summary>
     void Delete(string id);
 
