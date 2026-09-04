@@ -30,4 +30,28 @@ public class NoteTests
     [Fact]
     public void HtmlBodyWithNoVisibleTextIsStillEmpty() =>
         Assert.True((Fresh() with { BodyHtml = "<p><br></p>", BodyPlain = "" }).IsEmptyAndUntitled);
+
+    /// The rename UI refuses to commit a blank title, so this branch is
+    /// defensive — but the tab strip renders it, so it must not quietly become
+    /// an empty tab label.
+    [Fact]
+    public void AnEmptyTitleDisplaysAsUntitled()
+    {
+        Assert.Equal("Untitled", (Fresh() with { Title = "" }).DisplayTitle);
+        Assert.Equal("Groceries", (Fresh() with { Title = "Groceries" }).DisplayTitle);
+    }
+
+    /// NoteSummary is what the all-notes menu renders while Note is what the tab
+    /// strip renders. If these two ever disagree, the same note shows one name in
+    /// the menu and another on its tab.
+    [Fact]
+    public void NoteSummaryDisplayTitleMirrorsNote()
+    {
+        foreach (var title in new[] { "", "Untitled", "Groceries" })
+        {
+            var note = Fresh() with { Title = title };
+            var summary = new NoteSummary(note.Id, title, note.UpdatedAt);
+            Assert.Equal(note.DisplayTitle, summary.DisplayTitle);
+        }
+    }
 }

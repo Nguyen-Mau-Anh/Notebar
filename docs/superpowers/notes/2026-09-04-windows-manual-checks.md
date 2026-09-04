@@ -6,5 +6,20 @@ this file rather than starting a new one.
 
 ## Window behaviour
 
-- [ ] The panel really floats over a maximized window.
-- [ ] The panel survives a virtual desktop switch.
+- [ ] The panel draws over a maximized window.
+- [ ] The panel draws over a borderless-fullscreen video.
+- [ ] Expanding the panel does NOT take focus from the app you were typing in.
+- [ ] Clicking into the panel DOES give it keyboard focus.
+- [ ] No taskbar button and no Alt-Tab entry.
+- [ ] Switching virtual desktops and back: the panel still appears on hover.
+- [ ] On a 150%-scaled display the panel is the same visual size as on a 100% one.
+- [ ] With the taskbar docked left or top, the panel does not sit under it.
+
+## Panel behaviour
+
+- [ ] Hovering the handle at the right edge expands the panel within ~300 ms.
+- [ ] Moving the cursor away collapses it after ~350 ms, not instantly.
+- [ ] Typing in a note, then moving the cursor off the panel: it does NOT collapse.
+- [ ] Pinning, then moving away: it does NOT collapse.
+- [ ] Dragging a task card off the panel edge: it does NOT collapse mid-drag.
+- [ ] Escape collapses it even while pinned.
