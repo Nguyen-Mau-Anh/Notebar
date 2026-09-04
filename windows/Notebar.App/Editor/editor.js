@@ -155,11 +155,8 @@ doc.addEventListener('keydown', (e) => {
 // Button state reflects the selection (Task 13): the host cannot poll the
 // guest's DOM itself, so the guest polls document.queryCommandState/Value on
 // every selectionchange and posts the result, keeping FormattingBar's
-// toggles accurate rather than decorative. Guarded to when the editor itself
-// has focus -- selectionchange also fires for selections elsewhere in the
-// page (there are none today, but the guard costs nothing).
-document.addEventListener('selectionchange', () => {
-  if (document.activeElement !== doc) return;
+// toggles accurate rather than decorative.
+function postStyles() {
   const sel = window.getSelection();
   const el = sel && sel.rangeCount > 0 ? elementAt(sel.getRangeAt(0).startContainer) : null;
   const inChecklist = !!el?.closest('#doc ul.checklist');
@@ -178,6 +175,22 @@ document.addEventListener('selectionchange', () => {
     bulletedList: document.queryCommandState('insertUnorderedList') && !inChecklist,
     numberedList: document.queryCommandState('insertOrderedList'),
     checklist: inChecklist,
+  });
+}
+
+// selectionchange fires on every intermediate selection during a drag -- one
+// message per frame is as often as the toolbar can visibly update anyway, and
+// keeps this path as traffic-conscious as the 400ms save debounce above.
+// activeElement is checked at schedule time, not just inside postStyles:
+// a selection change elsewhere on the page (there is nowhere else today, but
+// the guard costs nothing) should not even queue a frame.
+let stylesFrame = 0;
+document.addEventListener('selectionchange', () => {
+  if (document.activeElement !== doc) return;
+  if (stylesFrame) return;
+  stylesFrame = requestAnimationFrame(() => {
+    stylesFrame = 0;
+    postStyles();
   });
 });
 

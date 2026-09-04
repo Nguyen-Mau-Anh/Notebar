@@ -79,8 +79,22 @@ internal sealed partial class FormattingBar : UserControl
 
     private void OnClicked(ButtonVisual visual)
     {
-        if (visual.Command is null) ChecklistRequested?.Invoke();
-        else ExecRequested?.Invoke(visual.Command, visual.Value);
+        if (visual.Command is null)
+        {
+            ChecklistRequested?.Invoke();
+            return;
+        }
+
+        // Chromium's formatBlock does not toggle -- re-applying "<h1>" to an already-H1
+        // block is a no-op, so without this a heading (or a code block) made by accident
+        // could never be undone from the bar. insertUnorderedList/insertOrderedList do
+        // toggle natively in Chromium, so only the three formatBlock buttons (Code, H1, H2)
+        // need this explicit inverse. IsActive reads the same ActiveBg visibility SetActive
+        // already drives -- no second tracked flag.
+        string? value = visual.Value;
+        if (value is not null && visual.Command == "formatBlock" && IsActive(visual)) value = "<p>";
+
+        ExecRequested?.Invoke(visual.Command, value);
     }
 
     /// <summary>§3's hover rule, reused from TabRail: a hover tint never overrides an
@@ -88,9 +102,11 @@ internal sealed partial class FormattingBar : UserControl
     /// doesn't flash the weaker hover tint for a frame.</summary>
     private static void SetHover(ButtonVisual visual, bool isHovering)
     {
-        if (visual.ActiveBg.Visibility == Visibility.Visible) return;
+        if (IsActive(visual)) return;
         visual.HoverBg.Visibility = isHovering ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    private static bool IsActive(ButtonVisual visual) => visual.ActiveBg.Visibility == Visibility.Visible;
 
     private static void SetActive(ButtonVisual visual, bool isActive)
     {

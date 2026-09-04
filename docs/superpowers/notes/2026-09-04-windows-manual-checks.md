@@ -127,6 +127,8 @@ this file rather than starting a new one.
       Numbered list, Checklist) applies its formatting when clicked.
 - [ ] Every formatting-bar button shows its intended mark -- none renders as a blank
       space or an empty box. (The macOS build shipped six invisible glyphs this way.)
+- [ ] Making a paragraph an H1, then clicking H1 again, returns it to normal text.
+      Same for H2 and Code. (Chromium's formatBlock does not toggle by itself.)
 - [ ] Placing the caret inside bold/italic/code/H1/H2/bulleted/numbered/checklist text lights
       up the matching button, and moving the caret out of it turns the button back off --
       the toggle state tracks the caret live, it is not a fixed decoration.
