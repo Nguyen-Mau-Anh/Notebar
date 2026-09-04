@@ -156,6 +156,11 @@ internal static partial class NativeMethods
         public string? lpszMenuName;
         public string lpszClassName = string.Empty;
         public IntPtr hIconSm;
+
+        // Required by the compiler for a struct with field initializers to
+        // exist at all; the object initializer at the call site still runs
+        // after this and overrides lpszClassName.
+        public WNDCLASSEX() { }
     }
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
@@ -219,6 +224,10 @@ internal static partial class NativeMethods
         public uint dwInfoFlags;
         public Guid guidItem;
         public IntPtr hBalloonIcon;
+
+        // Required by the compiler for a struct with field initializers to
+        // exist at all.
+        public NOTIFYICONDATAW() { }
     }
 
     /// <summary>The one call in this file the task brief specifically calls out
