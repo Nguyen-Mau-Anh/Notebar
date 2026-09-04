@@ -38,7 +38,20 @@ internal sealed partial class NotesTab : UserControl
 
         _editor = new NoteEditorHost(noteRepository, attachmentRepository, panelController);
         _editor.ContentChanged += OnEditorContentChanged;
+        // Task 13: FormattingBarControl.SetActiveStyles(EditorStyles) matches
+        // StylesChanged's own Action<EditorStyles> signature directly, so this needs no
+        // lambda wrapper -- editor.js's selectionchange handler is what actually drives it.
+        _editor.StylesChanged += FormattingBarControl.SetActiveStyles;
         EditorSlot.Children.Add(_editor);
+
+        // The seven document.execCommand buttons all funnel through ExecCommandAsync; the
+        // checklist button alone has no execCommand equivalent (see FormattingBar's own
+        // remarks), so it goes through InsertHtmlAsync with the identical HTML instead.
+        // Fire-and-forget on both -- same as every other _editor.*Async call this class
+        // makes (OnNewNoteClick, OnActiveNoteChanged), none of which need to block the UI
+        // thread on a WebView2 round trip.
+        FormattingBarControl.ExecRequested += (command, value) => _ = _editor?.ExecCommandAsync(command, value);
+        FormattingBarControl.ChecklistRequested += () => _ = _editor?.InsertHtmlAsync(FormattingBar.ChecklistHtml);
 
         // The Notes tab collapsing must not lose a save still waiting out its 400ms
         // debounce, same as switching tabs (NoteEditorHost.LoadAsync already flushes on
@@ -112,6 +125,10 @@ internal sealed partial class NotesTab : UserControl
         bool hasActive = _viewModel?.ActiveNote is not null;
         EmptyState.Visibility = hasActive ? Visibility.Collapsed : Visibility.Visible;
         EditorSlot.Visibility = hasActive ? Visibility.Visible : Visibility.Collapsed;
+        // §4.2 / FormattingBarView.swift: "Visible only while a note is open" -- same
+        // condition as EditorSlot above, since there is never a note-less state where the
+        // formatting bar has anything to format.
+        FormattingBarControl.Visibility = hasActive ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnNewNoteClick(object sender, RoutedEventArgs e)

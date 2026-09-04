@@ -25,12 +25,18 @@ internal sealed record EditorMessage(
     [property: JsonPropertyName("url")] string? Url,
     [property: JsonPropertyName("dataUrl")] string? DataUrl)
 {
-    // The five message kinds editor.js posts.
+    // The six message kinds editor.js posts.
     internal const string Focus = "focus";
     internal const string Keystroke = "keystroke";
     internal const string Change = "change";
     internal const string Chip = "chip";
     internal const string Image = "image";
+
+    /// <summary>Task 13: the guest's document.queryCommandState/Value snapshot,
+    /// posted on every selectionchange so the formatting bar's toggles
+    /// reflect the caret rather than being decorative. Every field below is
+    /// only present on this message kind.</summary>
+    internal const string Styles = "styles";
 
     /// <summary>Only the "focus" message carries this; every other kind
     /// leaves it null.</summary>
@@ -48,6 +54,34 @@ internal sealed record EditorMessage(
     [JsonPropertyName("generation")]
     public int? Generation { get; init; }
 
+    // --- "styles" message fields (Task 13). Only editor.js's selectionchange
+    // handler ever populates these; every other message kind leaves them
+    // null, read as false by NoteEditorHost.OnWebMessageReceived. ---
+
+    [JsonPropertyName("bold")]
+    public bool? Bold { get; init; }
+
+    [JsonPropertyName("italic")]
+    public bool? Italic { get; init; }
+
+    [JsonPropertyName("code")]
+    public bool? Code { get; init; }
+
+    [JsonPropertyName("heading1")]
+    public bool? Heading1 { get; init; }
+
+    [JsonPropertyName("heading2")]
+    public bool? Heading2 { get; init; }
+
+    [JsonPropertyName("bulletedList")]
+    public bool? BulletedList { get; init; }
+
+    [JsonPropertyName("numberedList")]
+    public bool? NumberedList { get; init; }
+
+    [JsonPropertyName("checklist")]
+    public bool? Checklist { get; init; }
+
     /// <summary>Null for anything that is not a well-formed EditorMessage —
     /// a malformed message from the guest is a bridge bug, not something
     /// worth taking the host down over.</summary>
@@ -62,4 +96,31 @@ internal sealed record EditorMessage(
             return null;
         }
     }
+}
+
+/// <summary>The eight formatting states FormattingBar's buttons reflect
+/// (Task 13, screen spec §4.2 / macOS's NoteTextStyle), derived from one
+/// "styles" EditorMessage. A plain record rather than reusing EditorMessage
+/// itself downstream of NoteEditorHost — FormattingBar should never need to
+/// know about generations, JSON property names, or the other four message
+/// kinds a raw EditorMessage carries.</summary>
+internal sealed record EditorStyles(
+    bool Bold,
+    bool Italic,
+    bool Code,
+    bool Heading1,
+    bool Heading2,
+    bool BulletedList,
+    bool NumberedList,
+    bool Checklist)
+{
+    internal static EditorStyles FromMessage(EditorMessage message) => new(
+        message.Bold ?? false,
+        message.Italic ?? false,
+        message.Code ?? false,
+        message.Heading1 ?? false,
+        message.Heading2 ?? false,
+        message.BulletedList ?? false,
+        message.NumberedList ?? false,
+        message.Checklist ?? false);
 }

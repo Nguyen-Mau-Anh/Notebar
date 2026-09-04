@@ -120,3 +120,38 @@ this file rather than starting a new one.
 - [ ] Type in a note and quit immediately (tray menu Quit, not just closing/collapsing): on
       relaunch, the typed text is present -- it must not be lost to a save that lost the race
       with the app exiting.
+
+## Formatting
+
+- [ ] Each of the eight formatting-bar buttons (Bold, Italic, Code, H1, H2, Bulleted list,
+      Numbered list, Checklist) applies its formatting when clicked.
+- [ ] Placing the caret inside bold/italic/code/H1/H2/bulleted/numbered/checklist text lights
+      up the matching button, and moving the caret out of it turns the button back off --
+      the toggle state tracks the caret live, it is not a fixed decoration.
+- [ ] Selecting a run of text that mixes styles (e.g. partly bold) shows the expected
+      queryCommandState result rather than a stale or frozen state from the previous
+      selection.
+- [ ] A brand-new numbered list shows "1." on its first line while that line is still empty
+      -- nothing needs to be typed first.
+- [ ] Clicking a checkbox toggles it; clicking the checklist item's text does not. The
+      checked look survives closing and reopening the note (collapse/re-expand and
+      quit/relaunch both).
+- [ ] Typing `- ` at the start of an empty line converts it into a bulleted list item, and
+      the trigger text itself does not remain in the document.
+- [ ] Typing `1. ` at the start of an empty line converts it into a numbered list item.
+- [ ] Typing `[] ` at the start of an empty line converts it into a checklist item with a
+      real, clickable checkbox.
+- [ ] Typing `# ` at the start of an empty line converts it into an H1; `## ` converts it
+      into an H2.
+- [ ] Typing `- `/`1. `/`[] `/`# ` inside a code block (a `<pre>`) does NOT trigger the
+      shortcut -- the characters and the space stay as literal text.
+- [ ] Pasting a screenshot inserts it inline, and it is still there after collapsing and
+      re-expanding, and after quitting and relaunching the app.
+- [ ] Pasting a very large screenshot (longer edge well above 2000px) still inserts
+      successfully and is visibly smaller than the original when reopened -- confirms the
+      downscale path ran rather than storing the image at full size.
+- [ ] Deleting an image from a note's body (select it, press Delete) and then waiting past
+      the 400ms autosave: the note no longer shows the image, and its attachment row is
+      eventually removed by `IAttachmentRepository.DeleteUnreferenced` (not directly
+      observable in the UI, but a note re-opened after this should not reference a
+      dangling asset id, and the app should not error loading it).

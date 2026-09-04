@@ -101,6 +101,13 @@ internal sealed partial class NoteEditorHost : UserControl
     /// and substituted into the document (data, mime).</summary>
     internal event Action<byte[], string>? ImagePasted;
 
+    /// <summary>Raised on every guest "styles" message (Task 13) — the
+    /// document.queryCommandState/Value snapshot editor.js posts on every
+    /// selectionchange. NotesTab relays this straight to
+    /// FormattingBar.SetActiveStyles so the bar's toggles reflect the
+    /// caret's actual state rather than being decorative.</summary>
+    internal event Action<EditorStyles>? StylesChanged;
+
     /// <summary>See the class remarks: re-derived from three independent
     /// sources, never a single stored flag.</summary>
     internal bool HasFocus => _hasFocus;
@@ -174,6 +181,17 @@ internal sealed partial class NoteEditorHost : UserControl
     {
         await EnsureInitializedAsync();
         await CallAsync("notebar.exec", command, value);
+    }
+
+    /// <summary>Inserts raw HTML at the current selection. The formatting
+    /// bar's checklist button (Task 13) uses this rather than
+    /// ExecCommandAsync — there is no document.execCommand for "insert a
+    /// checklist", the same reason HandleImageAsync below already goes
+    /// through notebar.insertHtml for a pasted image.</summary>
+    internal async Task InsertHtmlAsync(string html)
+    {
+        await EnsureInitializedAsync();
+        await CallAsync("notebar.insertHtml", html);
     }
 
     /// <summary>Sets the document root's data-theme. Never a media query on
@@ -335,19 +353,33 @@ internal sealed partial class NoteEditorHost : UserControl
             case EditorMessage.Image:
                 if (message.DataUrl is not null) _ = HandleImageAsync(message.DataUrl);
                 break;
+
+            case EditorMessage.Styles:
+                StylesChanged?.Invoke(EditorStyles.FromMessage(message));
+                break;
         }
     }
 
     /// <summary>Persists a change message. body_plain is derived here, never
     /// by the guest: it is what FTS indexes, and the store is the one that
     /// gets to decide what gets indexed.</summary>
+    /// <remarks>
+    /// Writes through INoteRepository.UpdateBody, never the full-row Update:
+    /// _note is refreshed only in LoadAsync, so it still carries whatever title
+    /// this note had the last time the active tab changed. A rename (which goes
+    /// through NotesViewModel.RenameNote, writing straight to the database — not
+    /// through this class at all) would otherwise be silently reverted by the
+    /// very next keystroke's save, invisible until the next launch. UpdateBody is
+    /// structurally incapable of touching the title, so the two in-memory copies
+    /// (this class's _note and NotesViewModel's) no longer need to agree about it.
+    /// </remarks>
     private void SaveChange(string html)
     {
         if (_note is null) return;
 
         string plain = NoteHtml.ToPlainText(html);
         _note = _note with { BodyHtml = html, BodyPlain = plain };
-        _noteRepository.Update(_note);
+        _noteRepository.UpdateBody(_note.Id, html, plain);
         _attachmentRepository.DeleteUnreferenced(ExtractAssetIds(html));
 
         ContentChanged?.Invoke(_note.Id, html, plain);

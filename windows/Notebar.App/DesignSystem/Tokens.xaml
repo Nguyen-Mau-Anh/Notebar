@@ -132,6 +132,10 @@
     <x:Double x:Key="ControlRowHeight">32</x:Double>
     <x:Double x:Key="ToolbarActionSize">28</x:Double>
     <x:Double x:Key="ToolbarHeight">36</x:Double>
+    <!-- FormattingBarView's own Tokens.Size (Notebar/DesignSystem/Tokens.swift): the 32pt
+         row beneath the tab toolbar and its 28pt buttons (screen spec §4.2). -->
+    <x:Double x:Key="FormattingBarHeight">32</x:Double>
+    <x:Double x:Key="FormattingBarButtonSize">28</x:Double>
     <x:Double x:Key="HairlineThickness">1</x:Double>
     <x:Double x:Key="RailIndicatorWidth">2.5</x:Double>
     <x:Double x:Key="RailIndicatorHeight">24</x:Double>

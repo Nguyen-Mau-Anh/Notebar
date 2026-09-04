@@ -14,6 +14,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -61,10 +62,14 @@
             </chrome:TabToolbar.RightContent>
         </chrome:TabToolbar>
 
+        <!-- §4.2's formatting row — visible only while a note is open (same condition as
+             EditorSlot below), same as FormattingBarView.swift on macOS. -->
+        <notes:FormattingBar x:Name="FormattingBarControl" Grid.Row="1" Visibility="Collapsed"/>
+
         <!-- §4.3 empty state — shown whenever there is no active note, which is reachable in
              practice (every tab can be closed; open_tab rows persist), not only on first
              run. -->
-        <StackPanel x:Name="EmptyState" Grid.Row="1" Spacing="8"
+        <StackPanel x:Name="EmptyState" Grid.Row="2" Spacing="8"
                     HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24">
             <FontIcon Glyph="&#xE8A5;" FontSize="32" Foreground="{ThemeResource TextTertiaryBrush}"
                       HorizontalAlignment="Center"/>
@@ -78,6 +83,6 @@
         <!-- Holds the one shared NoteEditorHost, added in code-behind — NoteEditorHost's
              constructor takes the repositories and PanelController it needs, so it cannot be
              declared here directly. -->
-        <Grid x:Name="EditorSlot" Grid.Row="1" Visibility="Collapsed"/>
+        <Grid x:Name="EditorSlot" Grid.Row="2" Visibility="Collapsed"/>
     </Grid>
 </UserControl>
